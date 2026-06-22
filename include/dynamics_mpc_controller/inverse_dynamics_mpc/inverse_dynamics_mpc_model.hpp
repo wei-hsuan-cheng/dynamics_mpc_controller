@@ -2,6 +2,7 @@
 #define DYNAMICS_MPC_CONTROLLER__INVERSE_DYNAMICS_MPC__INVERSE_DYNAMICS_MPC_MODEL_HPP_
 
 #include <cstddef>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -20,17 +21,25 @@ public:
     std::size_t jointDim,
     std::vector<std::string> dofNames,
     std::string endEffectorFrame,
-    pinocchio::FrameIndex endEffectorFrameId);
+    pinocchio::FrameIndex endEffectorFrameId,
+    bool hasEeWrenchInput);
 
   std::size_t jointDim() const { return joint_dim_; }
   std::size_t stateDim() const { return 2 * joint_dim_; }
-  std::size_t inputDim() const { return 2 * joint_dim_ + 6; }
+  std::size_t inputDim() const { return 2 * joint_dim_ + (has_ee_wrench_input_ ? 6 : 0); }
+  bool hasEeWrenchInput() const { return has_ee_wrench_input_; }
 
   std::size_t qOffset() const { return 0; }
   std::size_t vOffset() const { return joint_dim_; }
   std::size_t aOffset() const { return 0; }
   std::size_t tauOffset() const { return joint_dim_; }
-  std::size_t wrenchOffset() const { return 2 * joint_dim_; }
+  std::size_t wrenchOffset() const
+  {
+    if (!has_ee_wrench_input_) {
+      throw std::logic_error("The active MPC formulation has no end-effector wrench input.");
+    }
+    return 2 * joint_dim_;
+  }
 
   const std::vector<std::string>& dofNames() const { return dof_names_; }
   const std::string& endEffectorFrame() const { return end_effector_frame_; }
@@ -47,6 +56,7 @@ private:
   std::vector<std::string> dof_names_;
   std::string end_effector_frame_;
   pinocchio::FrameIndex end_effector_frame_id_{0};
+  bool has_ee_wrench_input_{false};
 };
 
 }  // namespace dynamics_mpc_controller

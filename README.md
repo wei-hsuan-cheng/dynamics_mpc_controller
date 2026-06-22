@@ -23,6 +23,16 @@ ros2 topic hz /inverse_dynamics_mpc_policy
 ros2 topic echo /estimated_ee_wrench --once
 ```
 
+## MPC Formulation
+
+`allowNonzeroEeWrench` selects two distinct input and RNEA formulations:
+
+- `false`: `u = [jointAcceleration, jointTorque]`, with `RNEA - jointTorque = 0`.
+- `true`: `u = [jointAcceleration, jointTorque, eeWrench]`, with
+  `RNEA - J^T eeWrench - jointTorque = 0`.
+
+The two formulations use separate generated CppAD library names.
+
 ## Contact
 
 - **Author**: Wei-Hsuan Cheng [(johnathancheng0125@gmail.com)](mailto:johnathancheng0125@gmail.com)

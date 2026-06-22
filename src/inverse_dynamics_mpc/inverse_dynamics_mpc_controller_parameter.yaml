@@ -112,7 +112,7 @@ inverse_dynamics_mpc_controller:
         allowNonzeroEeWrench: {
           type: bool,
           default_value: false,
-          description: "Allow a nonzero optimized end-effector wrench; keep false in free space"
+          description: "Select the formulation: false uses [joint acceleration, joint torque]; true adds an optimized end-effector wrench"
         }
 
       ddp:

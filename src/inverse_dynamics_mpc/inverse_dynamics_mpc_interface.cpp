@@ -12,7 +12,6 @@
 #include <pinocchio/algorithm/jacobian.hpp>
 #include <pinocchio/algorithm/rnea.hpp>
 
-#include <ocs2_core/constraint/LinearStateInputConstraint.h>
 #include <ocs2_core/cost/QuadraticStateInputCost.h>
 #include <ocs2_core/integration/Integrator.h>
 #include <ocs2_core/integration/SensitivityIntegrator.h>
@@ -20,6 +19,7 @@
 #include <ocs2_core/soft_constraint/StateInputSoftBoxConstraint.h>
 #include <ocs2_oc/rollout/TimeTriggeredRollout.h>
 
+#include "dynamics_mpc_controller/inverse_dynamics_mpc/constraint/inverse_dynamics_constraint_cppad.hpp"
 #include "dynamics_mpc_controller/inverse_dynamics_mpc/constraint/inverse_dynamics_with_ee_wrench_constraint_cppad.hpp"
 #include "dynamics_mpc_controller/inverse_dynamics_mpc/cost/inverse_dynamics_state_input_cost.hpp"
 #include "dynamics_mpc_controller/inverse_dynamics_mpc/dynamics/inverse_dynamics_kinematic_dynamics_ad.hpp"
@@ -252,13 +252,17 @@ void InverseDynamicsMpcInterface::setupPinocchio(const Params& parameters)
     joint_dim,
     getLastJointNames(model, joint_dim),
     ee_frame_name,
-    ee_frame_id);
+    ee_frame_id,
+    parameters.ocs2.task.model_settings.allowNonzeroEeWrench);
 
   std::cerr << "\n #### InverseDynamicsMpcInterface model:";
   std::cerr << "\n #### =============================================================================";
   std::cerr << "\n #### jointDim: " << inverse_dynamics_model_.jointDim();
   std::cerr << "\n #### stateDim: " << inverse_dynamics_model_.stateDim();
   std::cerr << "\n #### inputDim: " << inverse_dynamics_model_.inputDim();
+  std::cerr << "\n #### input: " <<
+    (inverse_dynamics_model_.hasEeWrenchInput() ? "[jointAcceleration, jointTorque, eeWrench]" :
+    "[jointAcceleration, jointTorque]");
   std::cerr << "\n #### eeFrame: " << inverse_dynamics_model_.endEffectorFrame();
   std::cerr << "\n #### =============================================================================\n";
 }
@@ -266,6 +270,7 @@ void InverseDynamicsMpcInterface::setupPinocchio(const Params& parameters)
 void InverseDynamicsMpcInterface::setupOptimalControlProblem(const Params& parameters)
 {
   const std::size_t n = inverse_dynamics_model_.jointDim();
+  const bool has_ee_wrench = inverse_dynamics_model_.hasEeWrenchInput();
   const bool recompile_libraries = parameters.ocs2.task.model_settings.recompileLibraries;
 
   reference_manager_ptr_ = std::make_shared<ocs2::ReferenceManager>();
@@ -282,7 +287,9 @@ void InverseDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
       vectorFromArray(parameters.ocs2.task.jointTracking.diagonal, n, 1.0)).asDiagonal();
   }
 
-  ocs2::matrix_t R = ocs2::matrix_t::Zero(2 * n + 6, 2 * n + 6);
+  ocs2::matrix_t R = ocs2::matrix_t::Zero(
+    static_cast<Eigen::Index>(inverse_dynamics_model_.inputDim()),
+    static_cast<Eigen::Index>(inverse_dynamics_model_.inputDim()));
   const auto a_weights = vectorFromArray(
     parameters.ocs2.task.inputCost.R.jointAcceleration.diagonal,
     n,
@@ -291,10 +298,6 @@ void InverseDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
     parameters.ocs2.task.inputCost.R.jointTorque.diagonal,
     n,
     1.0) * parameters.ocs2.task.inputCost.R.jointTorque.scaling;
-  const auto wrench_weights = vectorFromArray(
-    parameters.ocs2.task.inputCost.R.eeWrench.diagonal,
-    6,
-    1.0) * parameters.ocs2.task.inputCost.R.eeWrench.scaling;
   R.block(
     static_cast<Eigen::Index>(inverse_dynamics_model_.aOffset()),
     static_cast<Eigen::Index>(inverse_dynamics_model_.aOffset()),
@@ -305,50 +308,53 @@ void InverseDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
     static_cast<Eigen::Index>(inverse_dynamics_model_.tauOffset()),
     static_cast<Eigen::Index>(n),
     static_cast<Eigen::Index>(n)) = tau_weights.asDiagonal();
-  R.block(
-    static_cast<Eigen::Index>(inverse_dynamics_model_.wrenchOffset()),
-    static_cast<Eigen::Index>(inverse_dynamics_model_.wrenchOffset()),
-    6,
-    6) = wrench_weights.asDiagonal();
+  if (has_ee_wrench) {
+    const auto wrench_weights = vectorFromArray(
+      parameters.ocs2.task.inputCost.R.eeWrench.diagonal,
+      6,
+      1.0) * parameters.ocs2.task.inputCost.R.eeWrench.scaling;
+    R.block(
+      static_cast<Eigen::Index>(inverse_dynamics_model_.wrenchOffset()),
+      static_cast<Eigen::Index>(inverse_dynamics_model_.wrenchOffset()),
+      6,
+      6) = wrench_weights.asDiagonal();
+  }
 
   problem_.costPtr->add(
     "stateInputTracking",
-    std::make_unique<InverseDynamicsStateInputCost>(Q, R, n));
+    std::make_unique<InverseDynamicsStateInputCost>(
+      Q, R, n, inverse_dynamics_model_.inputDim()));
 
   problem_.dynamicsPtr = std::make_unique<InverseDynamicsKinematicDynamicsAD>(
     n,
-    "inverse_dynamics_kinematic_dynamics",
+    inverse_dynamics_model_.inputDim(),
+    has_ee_wrench ? "inverse_dynamics_kinematic_dynamics_with_wrench" :
+    "inverse_dynamics_kinematic_dynamics_no_wrench",
     parameters.paths.libFolder,
     recompile_libraries,
     true);
 
-  problem_.equalityConstraintPtr->add(
-    "inverseDynamicsWithEeWrench",
-    std::make_unique<InverseDynamicsWithEeWrenchConstraintCppAd>(
-      *pinocchio_interface_ptr_,
-      inverse_dynamics_model_.endEffectorFrameId(),
-      n,
-      "inverse_dynamics_with_ee_wrench",
-      parameters.paths.libFolder,
-      recompile_libraries,
-      true));
-
-  if (!parameters.ocs2.task.model_settings.allowNonzeroEeWrench) {
-    ocs2::vector_t offset = ocs2::vector_t::Zero(6);
-    ocs2::matrix_t state_matrix = ocs2::matrix_t::Zero(
-      6, static_cast<Eigen::Index>(inverse_dynamics_model_.stateDim()));
-    ocs2::matrix_t input_matrix = ocs2::matrix_t::Zero(
-      6, static_cast<Eigen::Index>(inverse_dynamics_model_.inputDim()));
-    input_matrix.block(
-      0,
-      static_cast<Eigen::Index>(inverse_dynamics_model_.wrenchOffset()),
-      6,
-      6).setIdentity();
-
+  if (has_ee_wrench) {
     problem_.equalityConstraintPtr->add(
-      "zeroEeWrench",
-      std::make_unique<ocs2::LinearStateInputConstraint>(
-        std::move(offset), std::move(state_matrix), std::move(input_matrix)));
+      "inverseDynamicsWithEeWrench",
+      std::make_unique<InverseDynamicsWithEeWrenchConstraintCppAd>(
+        *pinocchio_interface_ptr_,
+        inverse_dynamics_model_.endEffectorFrameId(),
+        n,
+        "inverse_dynamics_with_ee_wrench",
+        parameters.paths.libFolder,
+        recompile_libraries,
+        true));
+  } else {
+    problem_.equalityConstraintPtr->add(
+      "inverseDynamics",
+      std::make_unique<InverseDynamicsConstraintCppAd>(
+        *pinocchio_interface_ptr_,
+        n,
+        "inverse_dynamics_no_wrench",
+        parameters.paths.libFolder,
+        recompile_libraries,
+        true));
   }
 
   const auto& input_limits = parameters.ocs2.task.inputLimits;
@@ -360,19 +366,31 @@ void InverseDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
     input_limits.jointTorque.lowerBound, n, "inputLimits.jointTorque.lowerBound");
   const ocs2::vector_t torque_upper = vectorFromArrayExact(
     input_limits.jointTorque.upperBound, n, "inputLimits.jointTorque.upperBound");
-  const ocs2::vector_t wrench_lower = vectorFromArrayExact(
-    input_limits.eeWrench.lowerBound, 6, "inputLimits.eeWrench.lowerBound");
-  const ocs2::vector_t wrench_upper = vectorFromArrayExact(
-    input_limits.eeWrench.upperBound, 6, "inputLimits.eeWrench.upperBound");
   validateBounds(acceleration_lower, acceleration_upper, "joint acceleration");
   validateBounds(torque_lower, torque_upper, "joint torque");
-  validateBounds(wrench_lower, wrench_upper, "end-effector wrench");
 
   input_limits_active_ = input_limits.activate;
   input_lower_bounds_.resize(static_cast<Eigen::Index>(inverse_dynamics_model_.inputDim()));
   input_upper_bounds_.resize(static_cast<Eigen::Index>(inverse_dynamics_model_.inputDim()));
-  input_lower_bounds_ << acceleration_lower, torque_lower, wrench_lower;
-  input_upper_bounds_ << acceleration_upper, torque_upper, wrench_upper;
+  input_lower_bounds_.segment(0, static_cast<Eigen::Index>(n)) = acceleration_lower;
+  input_upper_bounds_.segment(0, static_cast<Eigen::Index>(n)) = acceleration_upper;
+  input_lower_bounds_.segment(
+    static_cast<Eigen::Index>(inverse_dynamics_model_.tauOffset()),
+    static_cast<Eigen::Index>(n)) = torque_lower;
+  input_upper_bounds_.segment(
+    static_cast<Eigen::Index>(inverse_dynamics_model_.tauOffset()),
+    static_cast<Eigen::Index>(n)) = torque_upper;
+  if (has_ee_wrench) {
+    const ocs2::vector_t wrench_lower = vectorFromArrayExact(
+      input_limits.eeWrench.lowerBound, 6, "inputLimits.eeWrench.lowerBound");
+    const ocs2::vector_t wrench_upper = vectorFromArrayExact(
+      input_limits.eeWrench.upperBound, 6, "inputLimits.eeWrench.upperBound");
+    validateBounds(wrench_lower, wrench_upper, "end-effector wrench");
+    input_lower_bounds_.segment(
+      static_cast<Eigen::Index>(inverse_dynamics_model_.wrenchOffset()), 6) = wrench_lower;
+    input_upper_bounds_.segment(
+      static_cast<Eigen::Index>(inverse_dynamics_model_.wrenchOffset()), 6) = wrench_upper;
+  }
 
   if (input_limits_active_) {
     std::vector<ocs2::StateInputSoftBoxConstraint::BoxConstraint> input_box_constraints;
@@ -447,6 +465,19 @@ InverseDynamicsEvaluation InverseDynamicsMpcInterface::evaluateInverseDynamics(
 }
 
 ocs2::vector_t InverseDynamicsMpcInterface::computeInverseDynamicsTorque(
+  const ocs2::vector_t& q,
+  const ocs2::vector_t& v,
+  const ocs2::vector_t& a) const
+{
+  const auto& model = pinocchio_interface_ptr_->getModel();
+  auto& data = pinocchio_interface_ptr_->getData();
+  if (q.size() != model.nq || v.size() != model.nv || a.size() != model.nv) {
+    throw std::invalid_argument("Inverse-dynamics q, v, or a dimension does not match the Pinocchio model.");
+  }
+  return pinocchio::rnea(model, data, q, v, a);
+}
+
+ocs2::vector_t InverseDynamicsMpcInterface::computeInverseDynamicsTorqueWithEeWrench(
   const ocs2::vector_t& q,
   const ocs2::vector_t& v,
   const ocs2::vector_t& a,

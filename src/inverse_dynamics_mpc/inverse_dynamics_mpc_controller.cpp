@@ -729,11 +729,17 @@ void InverseDynamicsMpcController::check_initializer(const SystemObservation& ob
     input,
     next_state);
 
-  const vector_t numeric_residual = interface_->computeInverseDynamicsTorque(
-    model.getQ(observation.state),
-    model.getV(observation.state),
-    model.getA(input),
-    model.getWrench(input)) - model.getTau(input);
+  const vector_t numeric_expected_tau = model.hasEeWrenchInput() ?
+    interface_->computeInverseDynamicsTorqueWithEeWrench(
+      model.getQ(observation.state),
+      model.getV(observation.state),
+      model.getA(input),
+      model.getWrench(input)) :
+    interface_->computeInverseDynamicsTorque(
+      model.getQ(observation.state),
+      model.getV(observation.state),
+      model.getA(input));
+  const vector_t numeric_residual = numeric_expected_tau - model.getTau(input);
   const auto& problem = interface_->getOptimalControlProblem();
   const auto residual_terms = problem.equalityConstraintPtr->getValue(
     observation.time,
@@ -788,8 +794,7 @@ void InverseDynamicsMpcController::apply_hold_command()
   vector_t tau = interface_->computeInverseDynamicsTorque(
     q,
     v,
-    a_hold,
-    vector_t::Zero(6));
+    a_hold);
 
   if (interface_->inputLimitsActive()) {
     tau = tau.cwiseMax(
@@ -875,11 +880,16 @@ bool InverseDynamicsMpcController::policy_input_is_acceptable(
       static_cast<Eigen::Index>(model.jointDim())) = commanded_tau;
   }
 
-  const vector_t expected_tau = interface_->computeInverseDynamicsTorque(
-    model.getQ(observation.state),
-    model.getV(observation.state),
-    model.getA(commanded_input),
-    model.getWrench(commanded_input));
+  const vector_t expected_tau = model.hasEeWrenchInput() ?
+    interface_->computeInverseDynamicsTorqueWithEeWrench(
+      model.getQ(observation.state),
+      model.getV(observation.state),
+      model.getA(commanded_input),
+      model.getWrench(commanded_input)) :
+    interface_->computeInverseDynamicsTorque(
+      model.getQ(observation.state),
+      model.getV(observation.state),
+      model.getA(commanded_input));
   rnea_residual = (expected_tau - commanded_tau).lpNorm<Eigen::Infinity>();
   if (!std::isfinite(rnea_residual)) {
     return false;

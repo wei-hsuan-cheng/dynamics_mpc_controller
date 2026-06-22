@@ -14,6 +14,7 @@ class InverseDynamicsKinematicDynamicsAD final : public ocs2::SystemDynamicsBase
 public:
   InverseDynamicsKinematicDynamicsAD(
     std::size_t jointDim,
+    std::size_t inputDim,
     const std::string& modelName,
     const std::string& modelFolder = "/tmp/ocs2",
     bool recompileLibraries = true,
@@ -32,6 +33,7 @@ private:
     const ocs2::ad_vector_t& parameters) const override;
 
   std::size_t joint_dim_{0};
+  std::size_t input_dim_{0};
 };
 
 }  // namespace dynamics_mpc_controller

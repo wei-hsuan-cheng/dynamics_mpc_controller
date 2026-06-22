@@ -5,13 +5,14 @@ namespace dynamics_mpc_controller
 
 InverseDynamicsKinematicDynamicsAD::InverseDynamicsKinematicDynamicsAD(
   std::size_t jointDim,
+  std::size_t inputDim,
   const std::string& modelName,
   const std::string& modelFolder,
   bool recompileLibraries,
   bool verbose)
-: joint_dim_(jointDim)
+: joint_dim_(jointDim), input_dim_(inputDim)
 {
-  initialize(2 * joint_dim_, 2 * joint_dim_ + 6, modelName, modelFolder, recompileLibraries, verbose);
+  initialize(2 * joint_dim_, input_dim_, modelName, modelFolder, recompileLibraries, verbose);
 }
 
 ocs2::ad_vector_t InverseDynamicsKinematicDynamicsAD::systemFlowMap(

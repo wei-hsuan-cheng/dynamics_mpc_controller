@@ -12,7 +12,11 @@ namespace dynamics_mpc_controller
 class InverseDynamicsStateInputCost final : public ocs2::QuadraticStateInputCost
 {
 public:
-  InverseDynamicsStateInputCost(ocs2::matrix_t Q, ocs2::matrix_t R, std::size_t jointDim);
+  InverseDynamicsStateInputCost(
+    ocs2::matrix_t Q,
+    ocs2::matrix_t R,
+    std::size_t jointDim,
+    std::size_t inputDim);
 
   ~InverseDynamicsStateInputCost() override = default;
   InverseDynamicsStateInputCost* clone() const override { return new InverseDynamicsStateInputCost(*this); }
@@ -27,6 +31,7 @@ private:
     const ocs2::TargetTrajectories& targetTrajectories) const override;
 
   std::size_t joint_dim_{0};
+  std::size_t input_dim_{0};
 };
 
 }  // namespace dynamics_mpc_controller

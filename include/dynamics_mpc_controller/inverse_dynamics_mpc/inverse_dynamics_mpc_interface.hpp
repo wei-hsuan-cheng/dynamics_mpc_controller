@@ -57,6 +57,11 @@ public:
   ocs2::vector_t computeInverseDynamicsTorque(
     const ocs2::vector_t& q,
     const ocs2::vector_t& v,
+    const ocs2::vector_t& a) const;
+
+  ocs2::vector_t computeInverseDynamicsTorqueWithEeWrench(
+    const ocs2::vector_t& q,
+    const ocs2::vector_t& v,
     const ocs2::vector_t& a,
     const ocs2::vector_t& eeWrenchEnvOnRobot) const;
 

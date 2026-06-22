@@ -33,6 +33,8 @@ inverse_dynamics_mpc_controller:
         model_settings:
           usePreComputation: false
           recompileLibraries: false
+          # false: u=[jointAcceleration, jointTorque], RNEA-tau=0
+          # true: u=[jointAcceleration, jointTorque, eeWrench], RNEA-J^T*wrench-tau=0
           allowNonzeroEeWrench: false
 
         ddp:
