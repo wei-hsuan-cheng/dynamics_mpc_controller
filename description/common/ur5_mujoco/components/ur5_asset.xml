@@ -1,0 +1,49 @@
+<mujoco model="ur5_asset">
+  <mesh name="ur5_base" content_type="model/stl" file="../meshes/ur5/collision/base.stl" />
+  <mesh name="ur5_shoulder" content_type="model/stl" file="../meshes/ur5/collision/shoulder.stl" />
+  <mesh name="ur5_upperarm" content_type="model/stl" file="../meshes/ur5/collision/upperarm.stl" />
+  <mesh name="ur5_forearm" content_type="model/stl" file="../meshes/ur5/collision/forearm.stl" />
+  <mesh name="ur5_wrist1" content_type="model/stl" file="../meshes/ur5/collision/wrist1.stl" />
+  <mesh name="ur5_wrist2" content_type="model/stl" file="../meshes/ur5/collision/wrist2.stl" />
+  <mesh name="ur5_wrist3" content_type="model/stl" file="../meshes/ur5/collision/wrist3.stl" />
+  <mesh name="ur5v_base_rohr" content_type="model/obj" file="../meshes/ur5/visual/base_rohr.obj" />
+  <mesh name="ur5v_base_scheibe" content_type="model/obj" file="../meshes/ur5/visual/base_scheibe.obj" />
+  <mesh name="ur5v_shoulder_verbindung" content_type="model/obj" file="../meshes/ur5/visual/shoulder_verbindung.obj" />
+  <mesh name="ur5v_shoulder_scheibe" content_type="model/obj" file="../meshes/ur5/visual/shoulder_scheibe.obj" />
+  <mesh name="ur5v_shoulder_blau" content_type="model/obj" file="../meshes/ur5/visual/shoulder_blau.obj" />
+  <mesh name="ur5v_upperarm_verbindung" content_type="model/obj" file="../meshes/ur5/visual/upperarm_verbindung.obj" />
+  <mesh name="ur5v_upperarm_scheibe" content_type="model/obj" file="../meshes/ur5/visual/upperarm_scheibe.obj" />
+  <mesh name="ur5v_upperarm_blau" content_type="model/obj" file="../meshes/ur5/visual/upperarm_blau.obj" />
+  <mesh name="ur5v_upperarm_rohr" content_type="model/obj" file="../meshes/ur5/visual/upperarm_rohr.obj" />
+  <mesh name="ur5v_forearm_blau" content_type="model/obj" file="../meshes/ur5/visual/forearm_blau_005.obj" />
+  <mesh name="ur5v_forearm_rohr" content_type="model/obj" file="../meshes/ur5/visual/forearm_rohr_005.obj" />
+  <mesh name="ur5v_forearm_verbindung" content_type="model/obj" file="../meshes/ur5/visual/forearm_verbindung_005.obj" />
+  <mesh name="ur5v_wrist1_scheibe" content_type="model/obj" file="../meshes/ur5/visual/wrist1_scheibe_001.obj" />
+  <mesh name="ur5v_wrist1_verbindung" content_type="model/obj" file="../meshes/ur5/visual/wrist1_verbindung_001.obj" />
+  <mesh name="ur5v_wrist1_blau" content_type="model/obj" file="../meshes/ur5/visual/wrist1_blau_001.obj" />
+  <mesh name="ur5v_wrist2_scheibe" content_type="model/obj" file="../meshes/ur5/visual/wrist2_scheibe_002.obj" />
+  <mesh name="ur5v_wrist2_verbindung" content_type="model/obj" file="../meshes/ur5/visual/wrist2_verbindung_002.obj" />
+  <mesh name="ur5v_wrist2_blau" content_type="model/obj" file="../meshes/ur5/visual/wrist2_blau_002.obj" />
+  <mesh name="ur5v_wrist3_rohr" content_type="model/obj" file="../meshes/ur5/visual/wrist3_rohr_007_001.obj" />
+  <mesh name="ur5v_wrist3_dark" content_type="model/obj" file="../meshes/ur5/visual/wrist3_swmaterial_1_004_002_001.obj" />
+  <material name="ur5_mat_base_rohr" rgba="0.5248 0.5248 0.5248 1" />
+  <material name="ur5_mat_base_scheibe" rgba="0.064 0.064 0.064 1" />
+  <material name="ur5_mat_shoulder_verbindung" rgba="0.1784 0.1784 0.1784 1" />
+  <material name="ur5_mat_shoulder_scheibe" rgba="0.064 0.064 0.064 1" />
+  <material name="ur5_mat_shoulder_blau" rgba="0.3136 0.4344 0.512 1" />
+  <material name="ur5_mat_upperarm_verbindung" rgba="0.14272 0.14272 0.14272 1" />
+  <material name="ur5_mat_upperarm_scheibe" rgba="0.0512 0.0512 0.0512 1" />
+  <material name="ur5_mat_upperarm_blau" rgba="0.25088 0.34752 0.4096 1" />
+  <material name="ur5_mat_upperarm_rohr" rgba="0.41984 0.41984 0.41984 1" />
+  <material name="ur5_mat_forearm_blau" rgba="0.25088 0.34752 0.4096 1" />
+  <material name="ur5_mat_forearm_rohr" rgba="0.41984 0.41984 0.41984 1" />
+  <material name="ur5_mat_forearm_verbindung" rgba="0.14272 0.14272 0.14272 1" />
+  <material name="ur5_mat_wrist1_scheibe" rgba="0.0512 0.0512 0.0512 1" />
+  <material name="ur5_mat_wrist1_verbindung" rgba="0.14272 0.14272 0.14272 1" />
+  <material name="ur5_mat_wrist1_blau" rgba="0.25088 0.34752 0.4096 1" />
+  <material name="ur5_mat_wrist2_scheibe" rgba="0.0512 0.0512 0.0512 1" />
+  <material name="ur5_mat_wrist2_verbindung" rgba="0.14272 0.14272 0.14272 1" />
+  <material name="ur5_mat_wrist2_blau" rgba="0.25088 0.34752 0.4096 1" />
+  <material name="ur5_mat_wrist3_rohr" rgba="0.2149581 0.2149581 0.2149581 1" />
+  <material name="ur5_mat_wrist3_dark" rgba="0.0995892 0.103444 0.1085843 1" />
+</mujoco>

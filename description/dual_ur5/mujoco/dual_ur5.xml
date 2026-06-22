@@ -1,0 +1,31 @@
+<mujoco model="dual_ur5">
+  <compiler angle="radian" eulerseq="zyx" autolimits="true" />
+
+  <include file="../../common/ur5_mujoco/components/defaults.xml"></include>
+
+  <contact>
+    <exclude body1="ur_arm1_base_link" body2="ur_arm1_base_link_inertia" />
+    <exclude body1="ur_arm1_base_link_inertia" body2="ur_arm1_shoulder_link" />
+    <exclude body1="ur_arm1_shoulder_link" body2="ur_arm1_upper_arm_link" />
+    <exclude body1="ur_arm1_upper_arm_link" body2="ur_arm1_forearm_link" />
+    <exclude body1="ur_arm1_forearm_link" body2="ur_arm1_wrist_1_link" />
+    <exclude body1="ur_arm1_wrist_1_link" body2="ur_arm1_wrist_2_link" />
+    <exclude body1="ur_arm1_wrist_2_link" body2="ur_arm1_wrist_3_link" />
+
+    <exclude body1="ur_arm2_base_link" body2="ur_arm2_base_link_inertia" />
+    <exclude body1="ur_arm2_base_link_inertia" body2="ur_arm2_shoulder_link" />
+    <exclude body1="ur_arm2_shoulder_link" body2="ur_arm2_upper_arm_link" />
+    <exclude body1="ur_arm2_upper_arm_link" body2="ur_arm2_forearm_link" />
+    <exclude body1="ur_arm2_forearm_link" body2="ur_arm2_wrist_1_link" />
+    <exclude body1="ur_arm2_wrist_1_link" body2="ur_arm2_wrist_2_link" />
+    <exclude body1="ur_arm2_wrist_2_link" body2="ur_arm2_wrist_3_link" />
+  </contact>
+
+  <asset>
+    <include file="../../common/ur5_mujoco/components/ur5_asset.xml"></include>
+  </asset>
+
+  <worldbody>
+    <include file="components/dual_ur5_body.xml"></include>
+  </worldbody>
+</mujoco>

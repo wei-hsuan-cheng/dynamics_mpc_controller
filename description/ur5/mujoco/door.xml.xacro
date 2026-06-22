@@ -1,0 +1,110 @@
+<?xml version="1.0"?>
+<mujoco model="door" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <!--
+    Generate the xml file using xacro with the following command:
+      sudo xacro \
+        ./door.xml.xacro \
+        door_params_file:=./door_params.yaml \
+        -o ./door.xml
+  -->
+  <xacro:arg name="door_params_file" default="door_params.yaml"/>
+  <xacro:property name="door_params_file" value="$(arg door_params_file)"/>
+
+  <xacro:property name="door" value="${xacro.load_yaml(door_params_file)['door']}"/>
+
+  <xacro:property name="frame" value="${door['frame']}"/>
+  <xacro:property name="panel" value="${door['panel']}"/>
+  <xacro:property name="latch" value="${door['latch']}"/>
+
+  <xacro:property name="panel_half_width" value="${panel['width'] / 2.0}"/>
+  <xacro:property name="panel_half_thickness" value="${panel['thickness'] / 2.0}"/>
+  <xacro:property name="panel_half_height" value="${panel['height'] / 2.0}"/>
+
+  <xacro:property name="frame_post_half_height" value="${frame['height'] / 2.0}"/>
+  <xacro:property name="left_post_x" value="${-frame['post_half_width']}"/>
+  <xacro:property name="right_post_x" value="${panel['width'] + frame['post_half_width']}"/>
+  <xacro:property name="latch_body_x" value="${-(panel_half_width - latch['inset_from_free_edge'])}"/>
+
+  <asset>
+    <material name="mat_frame" rgba="0.5 0.5 0.5 0.4"/>
+    <material name="mat_panel" rgba="1.0 1.0 1.0 1.0"/>
+    <material name="mat_handle" rgba="0.0 0.0 0.0 1.0"/>
+  </asset>
+
+  <worldbody>
+    <body name="door_frame"
+          pos="${frame['pos'][0]} ${frame['pos'][1]} ${frame['pos'][2]}"
+          quat="${frame['quat'][0]} ${frame['quat'][1]} ${frame['quat'][2]} ${frame['quat'][3]}"
+          user="${frame['user'][0]} ${frame['user'][1]} ${frame['user'][2]} ${frame['user'][3]} ${frame['user'][4]} ${frame['user'][5]} ${frame['user'][6]} ${frame['user'][7]} ${frame['user'][8]}">
+
+      <geom type="box"
+            pos="${left_post_x} 0 0"
+            size="${frame['post_half_width']} ${frame['post_half_thickness']} ${frame_post_half_height}"
+            material="mat_frame"/>
+
+      <geom type="box"
+            pos="${right_post_x} 0 0"
+            size="${frame['post_half_width']} ${frame['post_half_thickness']} ${frame_post_half_height}"
+            material="mat_frame"/>
+
+      <site name="S_handle_target"
+            pos="${latch['handle_target_pos'][0]} ${latch['handle_target_pos'][1]} ${latch['handle_target_pos'][2]}"
+            size="0.02"
+            group="3"/>
+
+      <body name="door_panel" pos="${panel_half_width} 0 0">
+        <inertial pos="0 0 0"
+                  quat="1 0 0 0"
+                  mass="${panel['mass']}"
+                  diaginertia="${panel['diaginertia'][0]} ${panel['diaginertia'][1]} ${panel['diaginertia'][2]}"/>
+
+        <geom type="box"
+              size="${panel_half_width} ${panel_half_thickness} ${panel_half_height}"
+              friction="${panel['friction'][0]} ${panel['friction'][1]} ${panel['friction'][2]}"
+              material="mat_panel"/>
+
+        <joint name="door_hinge"
+               pos="${panel_half_width} 0 0"
+               axis="0 0 1"
+               range="${panel['hinge']['range'][0]} ${panel['hinge']['range'][1]}"
+               limited="true"
+               damping="${panel['hinge']['damping']}"
+               frictionloss="${panel['hinge']['frictionloss']}"
+               stiffness="${panel['hinge']['stiffness']}"
+               springref="${panel['hinge']['springref']}"/>
+
+        <body name="door_latch" pos="${latch_body_x} 0 0.0">
+          <inertial pos="${latch['inertial']['pos'][0]} ${latch['inertial']['pos'][1]} ${latch['inertial']['pos'][2]}"
+                    quat="${latch['inertial']['quat'][0]} ${latch['inertial']['quat'][1]} ${latch['inertial']['quat'][2]} ${latch['inertial']['quat'][3]}"
+                    mass="${latch['inertial']['mass']}"
+                    diaginertia="${latch['inertial']['diaginertia'][0]} ${latch['inertial']['diaginertia'][1]} ${latch['inertial']['diaginertia'][2]}"/>
+
+          <joint name="door_latch"
+                 pos="0 0 0"
+                 axis="0 1 0"
+                 range="${latch['joint']['range'][0]} ${latch['joint']['range'][1]}"
+                 damping="${latch['joint']['damping']}"
+                 frictionloss="${latch['joint']['frictionloss']}"
+                 stiffness="${latch['joint']['stiffness']}"
+                 springref="${latch['joint']['springref']}"/>
+
+          <geom type="cylinder" size="0.01 0.075" quat="0.7071068 0.7071068 0 0" material="mat_handle"/>
+          <geom type="capsule" size="0.01 0.0625"
+                pos="0.0625 -0.075 0"
+                quat="0.7071068 0 0.7071068 0"
+                condim="4"
+                material="mat_handle"/>
+          <geom type="capsule" size="0.02 0.055" pos="0.0 0.0425 0" quat="0.7071068 0 0.7071068 0" material="mat_handle"/>
+          <site name="S_handle"
+                pos="${latch['handle_site_pos'][0]} ${latch['handle_site_pos'][1]} ${latch['handle_site_pos'][2]}"
+                size="0.02"
+                group="3"/>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <contact>
+    <exclude body1="door_frame" body2="door_panel"/>
+  </contact>
+</mujoco>

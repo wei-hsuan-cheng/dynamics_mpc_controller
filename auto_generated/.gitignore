@@ -1,0 +1,13 @@
+# Ignore everything in this directory
+*
+
+# Except this file
+!.gitignore
+
+!ur5/
+ur5/*
+!ur5/.gitkeep
+
+!dual_ur5/
+dual_ur5/*
+!dual_ur5/.gitkeep

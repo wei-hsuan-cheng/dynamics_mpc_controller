@@ -1,0 +1,15 @@
+arm_joints:
+  # Arm 1
+  ur_arm1_shoulder_pan_joint: 0.0
+  ur_arm1_shoulder_lift_joint: -1.5708
+  ur_arm1_elbow_joint: 1.5708
+  ur_arm1_wrist_1_joint: 0.0
+  ur_arm1_wrist_2_joint: 1.5708
+  ur_arm1_wrist_3_joint: 2.3562
+  # Arm 2
+  ur_arm2_shoulder_pan_joint: 3.1416
+  ur_arm2_shoulder_lift_joint: -1.5708
+  ur_arm2_elbow_joint: -1.5708
+  ur_arm2_wrist_1_joint: 3.1416
+  ur_arm2_wrist_2_joint: -1.5708
+  ur_arm2_wrist_3_joint: 0.7854

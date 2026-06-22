@@ -1,0 +1,18 @@
+<mujoco model="ur5_defaults">
+  <default>
+    <joint limited="true" damping="0.05" armature="0.01" />
+    <geom condim="3" contype="1" conaffinity="1" friction="0.8 0.1 0.02" solref="0.02 1" solimp="0.9 0.95 0.001" density="0" />
+
+    <default class="visualgeom">
+      <geom group="1" contype="0" conaffinity="0" density="0" />
+    </default>
+
+    <default class="arm_joint">
+      <joint damping="0.2" armature="0.02" frictionloss="0.05" />
+    </default>
+
+    <default class="arm_collision">
+      <geom type="mesh" group="3" rgba="0 0 0 0" friction="0.7 0.05 0.01" />
+    </default>
+  </default>
+</mujoco>

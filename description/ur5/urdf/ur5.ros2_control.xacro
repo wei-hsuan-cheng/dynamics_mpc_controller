@@ -1,0 +1,92 @@
+<?xml version="1.0"?>
+<robot name="ur5" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:arg name="use_fake_hardware" default="true"/>
+  <xacro:arg name="use_mujoco_sim" default="false"/>
+  <xacro:arg name="initial_pose_file" default=""/>
+  <xacro:arg name="ros2_control_command_interface" default="auto"/>
+  <xacro:arg name="ft_sensor_name" default="robotiq_ft_sensor"/>
+  <xacro:arg name="mujoco_position_kp" default="10000"/>
+  <xacro:arg name="mujoco_position_ki" default="50"/>
+  <xacro:arg name="mujoco_position_kd" default="500"/>
+  <xacro:arg name="mujoco_position_i_max" default="10000"/>
+  <xacro:arg name="mujoco_position_i_min" default="-10000"/>
+
+  <xacro:property name="use_fake_hardware" value="$(arg use_fake_hardware)"/>
+  <xacro:property name="use_mujoco_sim" value="$(arg use_mujoco_sim)"/>
+  <xacro:property name="initial_pose_file" value="$(arg initial_pose_file)"/>
+  <xacro:property name="ros2_control_command_interface" value="$(arg ros2_control_command_interface)"/>
+  <xacro:property name="initial_pose" value="${xacro.load_yaml(initial_pose_file)}"/>
+  <xacro:property name="arm_init" value="${initial_pose['arm_joints']}"/>
+
+  <xacro:include filename="$(find dynamics_mpc_controller)/description/ur5/urdf/ur5.ros2_control_macro.xacro"/>
+
+  <!-- Minimal kinematic chain for ros2_control (joint names must match the URDF used by OCS2). -->
+  <link name="base_link"/>
+  <link name="ur_arm_link_1"/>
+  <link name="ur_arm_link_2"/>
+  <link name="ur_arm_link_3"/>
+  <link name="ur_arm_link_4"/>
+  <link name="ur_arm_link_5"/>
+  <link name="ur_arm_link_6"/>
+
+  <joint name="ur_arm_shoulder_pan_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="ur_arm_link_1"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-6.283185307179586" upper="6.283185307179586" effort="150.0" velocity="3.141592653589793"/>
+  </joint>
+
+  <joint name="ur_arm_shoulder_lift_joint" type="revolute">
+    <parent link="ur_arm_link_1"/>
+    <child link="ur_arm_link_2"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-6.283185307179586" upper="6.283185307179586" effort="150.0" velocity="3.141592653589793"/>
+  </joint>
+
+  <joint name="ur_arm_elbow_joint" type="revolute">
+    <parent link="ur_arm_link_2"/>
+    <child link="ur_arm_link_3"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-6.283185307179586" upper="6.283185307179586" effort="150.0" velocity="3.141592653589793"/>
+  </joint>
+
+  <joint name="ur_arm_wrist_1_joint" type="revolute">
+    <parent link="ur_arm_link_3"/>
+    <child link="ur_arm_link_4"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-6.283185307179586" upper="6.283185307179586" effort="28.0" velocity="3.141592653589793"/>
+  </joint>
+
+  <joint name="ur_arm_wrist_2_joint" type="revolute">
+    <parent link="ur_arm_link_4"/>
+    <child link="ur_arm_link_5"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-6.283185307179586" upper="6.283185307179586" effort="28.0" velocity="3.141592653589793"/>
+  </joint>
+
+  <joint name="ur_arm_wrist_3_joint" type="revolute">
+    <parent link="ur_arm_link_5"/>
+    <child link="ur_arm_link_6"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-6.283185307179586" upper="6.283185307179586" effort="28.0" velocity="3.141592653589793"/>
+  </joint>
+
+  <xacro:ur5_arm_ros2_control
+    use_fake_hardware="${use_fake_hardware}"
+    use_mujoco_sim="${use_mujoco_sim}"
+    arm_init="${arm_init}"
+    command_interface="${ros2_control_command_interface}"
+    mujoco_position_kp="$(arg mujoco_position_kp)"
+    mujoco_position_ki="$(arg mujoco_position_ki)"
+    mujoco_position_kd="$(arg mujoco_position_kd)"
+    mujoco_position_i_max="$(arg mujoco_position_i_max)"
+    mujoco_position_i_min="$(arg mujoco_position_i_min)"/>
+
+</robot>

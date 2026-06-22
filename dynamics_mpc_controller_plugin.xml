@@ -1,0 +1,10 @@
+<library path="dynamics_mpc_controller">
+  <class
+    name="dynamics_mpc_controller/InverseDynamicsMpcController"
+    type="dynamics_mpc_controller::InverseDynamicsMpcController"
+    base_class_type="controller_interface::ChainableControllerInterface">
+    <description>
+      OCS2 fixed-base inverse-dynamics torque MPC controller.
+    </description>
+  </class>
+</library>

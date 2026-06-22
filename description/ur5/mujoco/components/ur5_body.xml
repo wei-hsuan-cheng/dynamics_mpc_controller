@@ -1,0 +1,215 @@
+<mujoco model="ur5_body">
+  <body name="ur_arm_base_link">
+    <body name="ur_arm_base_link_inertia" quat="6.12323399574e-17 0 0 1">
+      <inertial pos="0 0 0.5" mass="4.0" diaginertia="0.00443333156 0.00443333156 0.0072" />
+      <geom name="ur_arm_base_visual_rohr"
+            class="visualgeom"
+            type="mesh"
+            mesh="ur5v_base_rohr"
+            material="ur5_mat_base_rohr"
+            quat="6.12323399574e-17 0 0 1" />
+      <geom name="ur_arm_base_visual_scheibe"
+            class="visualgeom"
+            type="mesh"
+            mesh="ur5v_base_scheibe"
+            material="ur5_mat_base_scheibe"
+            quat="6.12323399574e-17 0 0 1" />
+      <geom name="ur_arm_base_collision"
+            class="arm_collision"
+            mesh="ur5_base"
+            quat="6.12323399574e-17 0 0 1" />
+
+      <body name="ur_arm_shoulder_link" pos="0 0 0.089159">
+        <inertial pos="0 0 0" mass="3.7" diaginertia="0.01497235234439 0.01497235234439 0.01040625" />
+        <joint name="ur_arm_shoulder_pan_joint" class="arm_joint" axis="0 0 1" range="-6.28318530718 6.28318530718" />
+        <geom name="ur_arm_shoulder_visual_verbindung"
+              class="visualgeom"
+              type="mesh"
+              mesh="ur5v_shoulder_verbindung"
+              material="ur5_mat_shoulder_verbindung"
+              quat="6.12323399574e-17 0 0 1" />
+        <geom name="ur_arm_shoulder_visual_scheibe"
+              class="visualgeom"
+              type="mesh"
+              mesh="ur5v_shoulder_scheibe"
+              material="ur5_mat_shoulder_scheibe"
+              quat="6.12323399574e-17 0 0 1" />
+        <geom name="ur_arm_shoulder_visual_blau"
+              class="visualgeom"
+              type="mesh"
+              mesh="ur5v_shoulder_blau"
+              material="ur5_mat_shoulder_blau"
+              quat="6.12323399574e-17 0 0 1" />
+        <geom name="ur_arm_shoulder_collision"
+              class="arm_collision"
+              mesh="ur5_shoulder"
+              quat="6.12323399574e-17 0 0 1" />
+
+        <body name="ur_arm_upper_arm_link" quat="0.707106781187 0.707106781187 0 0">
+          <inertial pos="-0.2125 0 0.136"
+                    quat="0.707106781187 0 0.707106781187 0"
+                    mass="8.393"
+                    diaginertia="0.1338857818623325 0.1338857818623325 0.0151074" />
+          <joint name="ur_arm_shoulder_lift_joint" class="arm_joint" axis="0 0 1" range="-6.28318530718 6.28318530718" />
+          <geom name="ur_arm_upper_arm_visual_verbindung"
+                class="visualgeom"
+                type="mesh"
+                mesh="ur5v_upperarm_verbindung"
+                material="ur5_mat_upperarm_verbindung"
+                pos="0 0 0.13585"
+                quat="0.5 0.5 -0.5 -0.5" />
+          <geom name="ur_arm_upper_arm_visual_scheibe"
+                class="visualgeom"
+                type="mesh"
+                mesh="ur5v_upperarm_scheibe"
+                material="ur5_mat_upperarm_scheibe"
+                pos="0 0 0.13585"
+                quat="0.5 0.5 -0.5 -0.5" />
+          <geom name="ur_arm_upper_arm_visual_blau"
+                class="visualgeom"
+                type="mesh"
+                mesh="ur5v_upperarm_blau"
+                material="ur5_mat_upperarm_blau"
+                pos="0 0 0.13585"
+                quat="0.5 0.5 -0.5 -0.5" />
+          <geom name="ur_arm_upper_arm_visual_rohr"
+                class="visualgeom"
+                type="mesh"
+                mesh="ur5v_upperarm_rohr"
+                material="ur5_mat_upperarm_rohr"
+                pos="0 0 0.13585"
+                quat="0.5 0.5 -0.5 -0.5" />
+          <geom name="ur_arm_upper_arm_collision"
+                class="arm_collision"
+                mesh="ur5_upperarm"
+                pos="0 0 0.13585"
+                quat="0.5 0.5 -0.5 -0.5" />
+
+          <body name="ur_arm_forearm_link" pos="-0.425 0 0">
+            <inertial pos="-0.196125 0 0.0165"
+                      quat="0.707106781187 0 0.707106781187 0"
+                      mass="2.275"
+                      diaginertia="0.03121679102890359 0.03121679102890359 0.004095" />
+            <joint name="ur_arm_elbow_joint" class="arm_joint" axis="0 0 1" range="-3.14159265359 3.14159265359" />
+            <geom name="ur_arm_forearm_visual_blau"
+                  class="visualgeom"
+                  type="mesh"
+                  mesh="ur5v_forearm_blau"
+                  material="ur5_mat_forearm_blau"
+                  pos="0 0 0.0165"
+                  quat="0.5 0.5 -0.5 -0.5" />
+            <geom name="ur_arm_forearm_visual_rohr"
+                  class="visualgeom"
+                  type="mesh"
+                  mesh="ur5v_forearm_rohr"
+                  material="ur5_mat_forearm_rohr"
+                  pos="0 0 0.0165"
+                  quat="0.5 0.5 -0.5 -0.5" />
+            <geom name="ur_arm_forearm_visual_verbindung"
+                  class="visualgeom"
+                  type="mesh"
+                  mesh="ur5v_forearm_verbindung"
+                  material="ur5_mat_forearm_verbindung"
+                  pos="0 0 0.0165"
+                  quat="0.5 0.5 -0.5 -0.5" />
+            <geom name="ur_arm_forearm_collision"
+                  class="arm_collision"
+                  mesh="ur5_forearm"
+                  pos="0 0 0.0165"
+                  quat="0.5 0.5 -0.5 -0.5" />
+
+            <body name="ur_arm_wrist_1_link" pos="-0.39225 0 0.10915">
+              <inertial pos="0 0 0" mass="1.219" diaginertia="0.0020138887777775 0.0020138887777775 0.0021942" />
+              <joint name="ur_arm_wrist_1_joint" class="arm_joint" axis="0 0 1" range="-6.28318530718 6.28318530718" />
+              <geom name="ur_arm_wrist_1_visual_scheibe"
+                    class="visualgeom"
+                    type="mesh"
+                    mesh="ur5v_wrist1_scheibe"
+                    material="ur5_mat_wrist1_scheibe"
+                    pos="0 0 -0.093"
+                    quat="0.707106781187 0.707106781187 0 0" />
+              <geom name="ur_arm_wrist_1_visual_verbindung"
+                    class="visualgeom"
+                    type="mesh"
+                    mesh="ur5v_wrist1_verbindung"
+                    material="ur5_mat_wrist1_verbindung"
+                    pos="0 0 -0.093"
+                    quat="0.707106781187 0.707106781187 0 0" />
+              <geom name="ur_arm_wrist_1_visual_blau"
+                    class="visualgeom"
+                    type="mesh"
+                    mesh="ur5v_wrist1_blau"
+                    material="ur5_mat_wrist1_blau"
+                    pos="0 0 -0.093"
+                    quat="0.707106781187 0.707106781187 0 0" />
+              <geom name="ur_arm_wrist_1_collision"
+                    class="arm_collision"
+                    mesh="ur5_wrist1"
+                    pos="0 0 -0.093"
+                    quat="0.707106781187 0.707106781187 0 0" />
+
+              <body name="ur_arm_wrist_2_link" pos="0 -0.09465 0" quat="0.707106781187 0.707106781187 0 0">
+                <inertial pos="0 0 0" mass="1.219" diaginertia="0.0018310388509175 0.0018310388509175 0.0021942" />
+                <joint name="ur_arm_wrist_2_joint" class="arm_joint" axis="0 0 1" range="-6.28318530718 6.28318530718" />
+                <geom name="ur_arm_wrist_2_visual_scheibe"
+                      class="visualgeom"
+                      type="mesh"
+                      mesh="ur5v_wrist2_scheibe"
+                      material="ur5_mat_wrist2_scheibe"
+                      pos="0 0 -0.095" />
+                <geom name="ur_arm_wrist_2_visual_verbindung"
+                      class="visualgeom"
+                      type="mesh"
+                      mesh="ur5v_wrist2_verbindung"
+                      material="ur5_mat_wrist2_verbindung"
+                      pos="0 0 -0.095" />
+                <geom name="ur_arm_wrist_2_visual_blau"
+                      class="visualgeom"
+                      type="mesh"
+                      mesh="ur5v_wrist2_blau"
+                      material="ur5_mat_wrist2_blau"
+                      pos="0 0 -0.095" />
+                <geom name="ur_arm_wrist_2_collision"
+                      class="arm_collision"
+                      mesh="ur5_wrist2"
+                      pos="0 0 -0.095" />
+
+                <body name="ur_arm_wrist_3_link" pos="0 0.0823 0" quat="0.707106781187 -0.707106781187 0 0">
+                  <inertial pos="0 0 -0.01525" mass="0.1879" diaginertia="8.062472608343e-05 8.062472608343e-05 0.0001321171875" />
+                  <joint name="ur_arm_wrist_3_joint" class="arm_joint" axis="0 0 1" range="-6.28318530718 6.28318530718" />
+                  <geom name="ur_arm_wrist_3_visual_rohr"
+                        class="visualgeom"
+                        type="mesh"
+                        mesh="ur5v_wrist3_rohr"
+                        material="ur5_mat_wrist3_rohr"
+                        pos="0 0 -0.0818"
+                        quat="0.707106781187 0.707106781187 0 0" />
+                  <geom name="ur_arm_wrist_3_visual_dark"
+                        class="visualgeom"
+                        type="mesh"
+                        mesh="ur5v_wrist3_dark"
+                        material="ur5_mat_wrist3_dark"
+                        pos="0 0 -0.0818"
+                        quat="0.707106781187 0.707106781187 0 0" />
+                  <geom name="ur_arm_wrist_3_collision"
+                        class="arm_collision"
+                        mesh="ur5_wrist3"
+                        pos="0 0 -0.0818"
+                        quat="0.707106781187 0.707106781187 0 0" />
+
+                  <body name="ur_arm_flange" quat="0.5 -0.5 -0.5 -0.5">
+                    <body name="ur_arm_tool0" quat="0.5 0.5 0.5 0.5">
+                      <site name="ur_arm_tool0_site" pos="0 0 0" size="0.012" rgba="0.1 0.8 0.9 1" />
+                    </body>
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+
+    <body name="ur_arm_base" quat="6.12323399574e-17 0 0 1" />
+  </body>
+</mujoco>

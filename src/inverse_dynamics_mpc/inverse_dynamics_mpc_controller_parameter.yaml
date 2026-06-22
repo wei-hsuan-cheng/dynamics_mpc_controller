@@ -1,0 +1,902 @@
+inverse_dynamics_mpc_controller:
+  ocs2:
+    mpc:
+      mpcDesiredFrequency: {
+        type: int,
+        default_value: 50,
+        description: "Desired MPC update frequency in Hz",
+        validation: {
+          gt: [0]
+        }
+      }
+
+      mrtDesiredFrequency: {
+        type: int,
+        default_value: 1000,
+        description: "Desired MRT update frequency in Hz",
+        validation: {
+          gt: [0]
+        }
+      }
+
+      solverType: {
+        type: string,
+        default_value: "sqp",
+        description: "Optimization backend used by the controller",
+        validation: {
+          one_of<>: [["ddp", "sqp"]]
+        }
+      }
+
+      timeHorizon: {
+        type: double,
+        default_value: 1.0,
+        description: "MPC solver planned trajectory time horizon",
+        validation: {
+          gt: [0.0]
+        }
+      }
+
+      solutionTimeWindow: {
+        type: double,
+        default_value: 0.2,
+        description: "MPC solver policy calculation time window",
+        validation: {
+          gt: [-1.0]
+        }
+      }
+
+      coldStart: {
+        type: bool,
+        default_value: false,
+        description: "Whether to cold-start the MPC solver"
+      }
+
+      debugPrint: {
+        type: bool,
+        default_value: false,
+        description: "Enable MPC debug printing"
+      }
+
+    task:
+      model_information:
+        manipulatorModelType: {
+          type: int,
+          default_value: 0,
+          description: "Fixed-base Pinocchio model type. This controller currently requires 0.",
+          validation: {
+            one_of<>: [[0]]
+          }
+        }
+
+        omnidirectionalBase: {
+          type: bool,
+          default_value: false,
+          description: "Unused for fixed-base inverse-dynamics MPC"
+        }
+
+        removeJoints: {
+          type: string_array,
+          default_value: [],
+          description: "URDF joints to convert to fixed joints before building the Pinocchio model",
+          validation: {
+            unique<>: null
+          }
+        }
+
+        baseFrame: {
+          type: string,
+          default_value: "",
+          description: "Reference base frame name"
+        }
+
+        endEffectorFrame: {
+          type: string,
+          default_value: "",
+          description: "End-effector frame used for the optimized external wrench Jacobian"
+        }
+
+      model_settings:
+        usePreComputation: {
+          type: bool,
+          default_value: false,
+          description: "Reserved for future inverse-dynamics precomputation"
+        }
+
+        recompileLibraries: {
+          type: bool,
+          default_value: true,
+          description: "Force recompilation of generated CppAD libraries"
+        }
+
+        allowNonzeroEeWrench: {
+          type: bool,
+          default_value: false,
+          description: "Allow a nonzero optimized end-effector wrench; keep false in free space"
+        }
+
+      ddp:
+        algorithm: {
+          type: string,
+          default_value: "SLQ",
+          description: "Algorithm used for DDP MPC solver",
+          validation: {
+            one_of<>: [["SLQ", "ILQR"]]
+          }
+        }
+
+        nThreads: {
+          type: int,
+          default_value: 1,
+          description: "Number of solver threads",
+          validation: {
+            gt: [0]
+          }
+        }
+
+        threadPriority: {
+          type: int,
+          default_value: 50,
+          description: "Thread priority",
+          validation: {
+            gt_eq: [0]
+          }
+        }
+
+        maxNumIterations: {
+          type: int,
+          default_value: 1,
+          description: "Maximum DDP iterations",
+          validation: {
+            gt: [0]
+          }
+        }
+
+        minRelCost: {
+          type: double,
+          default_value: 0.1,
+          description: "Minimum relative cost improvement"
+        }
+
+        constraintTolerance: {
+          type: double,
+          default_value: 5.0e-3,
+          description: "Constraint tolerance",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        displayInfo: {
+          type: bool,
+          default_value: false,
+          description: "Print detailed solver information"
+        }
+
+        displayShortSummary: {
+          type: bool,
+          default_value: false,
+          description: "Print abbreviated solver summary"
+        }
+
+        checkNumericalStability: {
+          type: bool,
+          default_value: false,
+          description: "Enable numerical stability checks"
+        }
+
+        debugPrintRollout: {
+          type: bool,
+          default_value: false,
+          description: "Print rollout debug information"
+        }
+
+        debugCaching: {
+          type: bool,
+          default_value: false,
+          description: "Print cache debug information"
+        }
+
+        AbsTolODE: {
+          type: double,
+          default_value: 1.0e-5,
+          description: "Absolute ODE tolerance",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        RelTolODE: {
+          type: double,
+          default_value: 1.0e-3,
+          description: "Relative ODE tolerance",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        maxNumStepsPerSecond: {
+          type: int,
+          default_value: 10000,
+          description: "Maximum integrator steps per second",
+          validation: {
+            gt: [0]
+          }
+        }
+
+        timeStep: {
+          type: double,
+          default_value: 0.01,
+          description: "Solver time step",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        backwardPassIntegratorType: {
+          type: string,
+          default_value: "ODE45",
+          description: "Backward-pass integrator type"
+        }
+
+        constraintPenaltyInitialValue: {
+          type: double,
+          default_value: 20.0,
+          description: "Initial constraint penalty",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        constraintPenaltyIncreaseRate: {
+          type: double,
+          default_value: 2.0,
+          description: "Constraint penalty increase rate",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        preComputeRiccatiTerms: {
+          type: bool,
+          default_value: true,
+          description: "Precompute Riccati terms"
+        }
+
+        useFeedbackPolicy: {
+          type: bool,
+          default_value: true,
+          description: "Enable feedback policy"
+        }
+
+        strategy: {
+          type: string,
+          default_value: "LINE_SEARCH",
+          description: "DDP step strategy"
+        }
+
+        lineSearch:
+          minStepLength: {
+            type: double,
+            default_value: 1.0e-2,
+            description: "Minimum line-search step",
+            validation: {
+              gt: [0.0]
+            }
+          }
+
+          maxStepLength: {
+            type: double,
+            default_value: 1.0,
+            description: "Maximum line-search step",
+            validation: {
+              gt: [0.0]
+            }
+          }
+
+          hessianCorrectionStrategy: {
+            type: string,
+            default_value: "DIAGONAL_SHIFT",
+            description: "Hessian correction strategy"
+          }
+
+          hessianCorrectionMultiple: {
+            type: double,
+            default_value: 1.0e-5,
+            description: "Hessian correction multiple",
+            validation: {
+              gt: [0.0]
+            }
+          }
+
+      sqp:
+        nThreads: {
+          type: int,
+          default_value: 1,
+          description: "Number of SQP threads",
+          validation: {
+            gt: [0]
+          }
+        }
+
+        dt: {
+          type: double,
+          default_value: 0.01,
+          description: "SQP time step",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        sqpIteration: {
+          type: int,
+          default_value: 1,
+          description: "Maximum SQP iterations",
+          validation: {
+            gt: [0]
+          }
+        }
+
+        deltaTol: {
+          type: double,
+          default_value: 1.0e-4,
+          description: "SQP delta tolerance",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        costTol: {
+          type: double,
+          default_value: 1.0e-4,
+          description: "SQP cost tolerance",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        g_max: {
+          type: double,
+          default_value: 1.0e-2,
+          description: "Upper merit-function penalty bound",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        g_min: {
+          type: double,
+          default_value: 1.0e-6,
+          description: "Lower merit-function penalty bound",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        inequalityConstraintMu: {
+          type: double,
+          default_value: 0.1,
+          description: "Inequality barrier mu",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        inequalityConstraintDelta: {
+          type: double,
+          default_value: 5.0,
+          description: "Inequality barrier delta",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        enableLogging: {
+          type: bool,
+          default_value: false,
+          description: "Enable SQP logging"
+        }
+
+        projectStateInputEqualityConstraints: {
+          type: bool,
+          default_value: true,
+          description: "Project state-input equality constraints"
+        }
+
+        extractProjectionMultiplier: {
+          type: bool,
+          default_value: true,
+          description: "Use QR equality projection and extract the projected multiplier"
+        }
+
+        printSolverStatistics: {
+          type: bool,
+          default_value: true,
+          description: "Print SQP statistics"
+        }
+
+        printSolverStatus: {
+          type: bool,
+          default_value: false,
+          description: "Print SQP status"
+        }
+
+        printLinesearch: {
+          type: bool,
+          default_value: false,
+          description: "Print SQP line-search diagnostics"
+        }
+
+        useFeedbackPolicy: {
+          type: bool,
+          default_value: true,
+          description: "Enable SQP feedback policy"
+        }
+
+        integratorType: {
+          type: string,
+          default_value: "RK2",
+          description: "SQP sensitivity integrator type"
+        }
+
+        threadPriority: {
+          type: int,
+          default_value: 50,
+          description: "SQP thread priority",
+          validation: {
+            gt_eq: [0]
+          }
+        }
+
+        logFilePath: {
+          type: string,
+          default_value: "/tmp/ocs2/sqp_log/",
+          description: "SQP log path"
+        }
+
+      rollout:
+        AbsTolODE: {
+          type: double,
+          default_value: 1.0e-5,
+          description: "Rollout absolute tolerance",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        RelTolODE: {
+          type: double,
+          default_value: 1.0e-3,
+          description: "Rollout relative tolerance",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        timeStep: {
+          type: double,
+          default_value: 0.01,
+          description: "Rollout time step",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        integratorType: {
+          type: string,
+          default_value: "ODE45",
+          description: "Rollout integrator type"
+        }
+
+        maxNumStepsPerSecond: {
+          type: int,
+          default_value: 10000,
+          description: "Maximum rollout steps per second",
+          validation: {
+            gt: [0]
+          }
+        }
+
+        checkNumericalStability: {
+          type: bool,
+          default_value: false,
+          description: "Check rollout numerical stability"
+        }
+
+      inputCost:
+        R:
+          jointAcceleration:
+            scaling: {
+              type: double,
+              default_value: 1.0e-2,
+              description: "Joint acceleration input cost scaling",
+              validation: {
+                gt_eq: [0.0]
+              }
+            }
+
+            diagonal: {
+              type: double_array,
+              default_value: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+              description: "Joint acceleration cost diagonal"
+            }
+
+          jointTorque:
+            scaling: {
+              type: double,
+              default_value: 1.0e-4,
+              description: "Joint torque input cost scaling",
+              validation: {
+                gt_eq: [0.0]
+              }
+            }
+
+            diagonal: {
+              type: double_array,
+              default_value: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+              description: "Joint torque cost diagonal"
+            }
+
+          eeWrench:
+            scaling: {
+              type: double,
+              default_value: 1.0e-5,
+              description: "End-effector wrench input cost scaling",
+              validation: {
+                gt_eq: [0.0]
+              }
+            }
+
+            diagonal: {
+              type: double_array,
+              default_value: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+              description: "End-effector wrench cost diagonal"
+            }
+
+      inputLimits:
+        activate: {
+          type: bool,
+          default_value: true,
+          description: "Penalize joint acceleration, torque, and end-effector wrench bounds in the OCP"
+        }
+
+        mu: {
+          type: double,
+          default_value: 1.0e-2,
+          description: "Relaxed-barrier scale for input bounds",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        delta: {
+          type: double,
+          default_value: 1.0e-2,
+          description: "Relaxed-barrier relaxation for input bounds",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        jointAcceleration:
+          lowerBound: {
+            type: double_array,
+            default_value: [-10.0, -10.0, -10.0, -20.0, -20.0, -20.0],
+            description: "Joint acceleration lower bounds in rad/s^2"
+          }
+
+          upperBound: {
+            type: double_array,
+            default_value: [10.0, 10.0, 10.0, 20.0, 20.0, 20.0],
+            description: "Joint acceleration upper bounds in rad/s^2"
+          }
+
+        jointTorque:
+          lowerBound: {
+            type: double_array,
+            default_value: [-150.0, -150.0, -150.0, -28.0, -28.0, -28.0],
+            description: "Joint torque lower bounds in Nm"
+          }
+
+          upperBound: {
+            type: double_array,
+            default_value: [150.0, 150.0, 150.0, 28.0, 28.0, 28.0],
+            description: "Joint torque upper bounds in Nm"
+          }
+
+        eeWrench:
+          lowerBound: {
+            type: double_array,
+            default_value: [-100.0, -100.0, -100.0, -20.0, -20.0, -20.0],
+            description: "Environment-on-robot end-effector wrench lower bounds [N, N, N, Nm, Nm, Nm]"
+          }
+
+          upperBound: {
+            type: double_array,
+            default_value: [100.0, 100.0, 100.0, 20.0, 20.0, 20.0],
+            description: "Environment-on-robot end-effector wrench upper bounds [N, N, N, Nm, Nm, Nm]"
+          }
+
+      jointTracking:
+        activate: {
+          type: bool,
+          default_value: true,
+          description: "Enable joint-space tracking"
+        }
+
+        scaling: {
+          type: double,
+          default_value: 2.0,
+          description: "Joint-position tracking scale",
+          validation: {
+            gt_eq: [0.0]
+          }
+        }
+
+        diagonal: {
+          type: double_array,
+          default_value: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+          description: "Joint-position tracking diagonal"
+        }
+
+        velocityScaling: {
+          type: double,
+          default_value: 2.0,
+          description: "Joint-velocity tracking scale applied to the jointTracking diagonal",
+          validation: {
+            gt_eq: [0.0]
+          }
+        }
+
+  paths:
+    libFolder: {
+      type: string,
+      default_value: "",
+      description: "Path to generated CppAD libraries"
+    }
+
+    urdfFile: {
+      type: string,
+      default_value: "",
+      description: "Path to robot URDF"
+    }
+
+  topics:
+    target_trajectories_topic: {
+      type: string,
+      default_value: "/target_trajectories",
+      description: "Target trajectory topic"
+    }
+
+    estimated_ee_wrench_topic: {
+      type: string,
+      default_value: "/estimated_ee_wrench",
+      description: "Published filtered end-effector wrench estimate"
+    }
+
+    mpc_policy_topic: {
+      type: string,
+      default_value: "/inverse_dynamics_mpc_policy",
+      description: "Published flattened inverse-dynamics MPC policy"
+    }
+
+  policyPublishing:
+    publish: {
+      type: bool,
+      default_value: true,
+      description: "Publish optimized MPC state, input, and controller trajectories"
+    }
+
+    publishRate: {
+      type: double,
+      default_value: 10.0,
+      description: "Maximum flattened MPC policy publication frequency in Hz",
+      validation: {
+        gt: [0.0]
+      }
+    }
+
+  wrenchEstimation:
+    activate: {
+      type: bool,
+      default_value: false,
+      description: "Estimate the LOCAL end-effector wrench with a generalized momentum observer"
+    }
+
+    publish: {
+      type: bool,
+      default_value: true,
+      description: "Publish the estimated end-effector wrench when wrench estimation is active"
+    }
+
+    observerGains: {
+      type: double_array,
+      default_value: [20.0, 20.0, 20.0, 20.0, 20.0, 20.0],
+      description: "Per-joint generalized momentum observer gains in 1/s"
+    }
+
+    velocityFilterCutoffHz: {
+      type: double,
+      default_value: 20.0,
+      description: "Low-pass cutoff frequency for observer joint velocity",
+      validation: {
+        gt: [0.0]
+      }
+    }
+
+    torqueBias: {
+      type: double_array,
+      default_value: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      description: "Per-joint effort-state bias subtracted before the observer update"
+    }
+
+    jointTorqueStdDev: {
+      type: double_array,
+      default_value: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+      description: "Per-joint torque standard deviation used by weighted wrench least squares"
+    }
+
+    dampingMin: {
+      type: double,
+      default_value: 0.01,
+      description: "Wrench least-squares damping outside singular configurations",
+      validation: {
+        gt: [0.0]
+      }
+    }
+
+    dampingHigh: {
+      type: double,
+      default_value: 0.5,
+      description: "Wrench least-squares damping near singular configurations",
+      validation: {
+        gt: [0.0]
+      }
+    }
+
+    sigmaMinThreshold: {
+      type: double,
+      default_value: 0.03,
+      description: "Minimum Jacobian singular value below which high damping is used",
+      validation: {
+        gt: [0.0]
+      }
+    }
+
+    relativeProjectionErrorThreshold: {
+      type: double,
+      default_value: 0.3,
+      description: "Maximum residual fraction unexplained by a single end-effector wrench",
+      validation: {
+        gt_eq: [0.0]
+      }
+    }
+
+    publishRate: {
+      type: double,
+      default_value: 100.0,
+      description: "Maximum estimated wrench publication frequency in Hz",
+      validation: {
+        gt: [0.0]
+      }
+    }
+
+  numeric:
+    statusLogPeriod: {
+      type: double,
+      default_value: 2.0,
+      description: "Period in seconds for throttled MPC_ACTIVE and HOLD status logs",
+      validation: {
+        gt: [0.0]
+      }
+    }
+
+    commandSmoothingAlpha: {
+      type: double,
+      default_value: 1.0,
+      description: "Outgoing torque smoothing factor",
+      validation: {
+        gt_eq: [0.0],
+        lt_eq: [1.0]
+      }
+    }
+
+    gravityCompensationOnly: {
+      type: bool,
+      default_value: false,
+      description: "Bypass MPC policy output and command Pinocchio gravity compensation only"
+    }
+
+    holdVelocityDamping: {
+      type: double_array,
+      default_value: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      description: "Joint-space damping gain used by hold mode as desired acceleration a_hold = -D * v"
+    }
+
+    policyValidation:
+      activate: {
+        type: bool,
+        default_value: true,
+        description: "Reject MPC policies that fail solver, inverse-dynamics, or input-bound checks"
+      }
+
+      maxEqualityConstraintsSSE: {
+        type: double,
+        default_value: 1.0e-2,
+        description: "Maximum accepted OCS2 equality-constraint SSE",
+        validation: {
+          gt_eq: [0.0]
+        }
+      }
+
+      maxDynamicsViolationSSE: {
+        type: double,
+        default_value: 1.0e-2,
+        description: "Maximum accepted OCS2 dynamics-violation SSE",
+        validation: {
+          gt_eq: [0.0]
+        }
+      }
+
+      maxInequalityConstraintsSSE: {
+        type: double,
+        default_value: 1.0e-6,
+        description: "Maximum accepted OCS2 inequality-constraint SSE",
+        validation: {
+          gt_eq: [0.0]
+        }
+      }
+
+      maxRneaResidual: {
+        type: double,
+        default_value: 0.1,
+        description: "Maximum accepted infinity norm of the current RNEA torque residual in Nm",
+        validation: {
+          gt_eq: [0.0]
+        }
+      }
+
+      inputBoundTolerance: {
+        type: double,
+        default_value: 1.0e-3,
+        description: "Allowed numerical input-bound violation",
+        validation: {
+          gt_eq: [0.0]
+        }
+      }
+
+  robot:
+    prefix: {
+      type: string,
+      default_value: "",
+      description: "Robot joint/link prefix"
+    }
+
+    body_joint_names:
+      type: string_array
+      default_value: []
+      description: "Controller joint keys encoded as body_joint_name"
+      validation: {
+        unique<>: null
+      }
+
+    __map_body_joint_names:
+      command_interfaces:
+        type: string_array
+        default_value: []
+        description: "Command interfaces to claim"
+        read_only: true
+        validation: {
+          unique<>: null,
+          subset_of<>: [["position", "velocity", "acceleration", "effort"]]
+        }
+
+      state_interfaces:
+        type: string_array
+        default_value: []
+        description: "State interfaces to claim"
+        read_only: true
+        validation: {
+          unique<>: null,
+          subset_of<>: [["position", "velocity", "acceleration", "effort"]]
+        }
