@@ -680,6 +680,12 @@ inverse_dynamics_mpc_controller:
       description: "Published filtered end-effector wrench estimate"
     }
 
+    mpc_observation_topic: {
+      type: string,
+      default_value: "/inverse_dynamics_mpc_observation",
+      description: "Published OCS2 observation with the controller virtual time"
+    }
+
     mpc_policy_topic: {
       type: string,
       default_value: "/inverse_dynamics_mpc_policy",

@@ -20,6 +20,7 @@
 #include <ocs2_mpc/MPC_MRT_Interface.h>
 #include <ocs2_mpc/SystemObservation.h>
 #include <ocs2_msgs/msg/mpc_flattened_controller.hpp>
+#include <ocs2_msgs/msg/mpc_observation.hpp>
 #include <ocs2_msgs/msg/mpc_targets.hpp>
 #include <ocs2_oc/oc_data/PerformanceIndex.h>
 #include <ocs2_sqp/SqpMpc.h>
@@ -99,6 +100,7 @@ private:
     double& input_bound_violation) const;
   bool policy_performance_is_acceptable(const ocs2::PerformanceIndex& performance) const;
   void update_wrench_estimate(double period_sec);
+  void publish_mpc_observation(const SystemObservation& observation);
   void publish_wrench_estimate(const rclcpp::Time& stamp);
   void mpc_loop();
 
@@ -143,8 +145,11 @@ private:
 
   realtime_tools::RealtimeBuffer<std::shared_ptr<TargetMsg>> received_target_msg_;
   rclcpp::Subscription<TargetMsg>::SharedPtr target_subscription_;
+  rclcpp::Publisher<ocs2_msgs::msg::MpcObservation>::SharedPtr mpc_observation_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::WrenchStamped>::SharedPtr wrench_estimate_publisher_;
   rclcpp::Publisher<ocs2_msgs::msg::MpcFlattenedController>::SharedPtr mpc_policy_publisher_;
+  std::shared_ptr<realtime_tools::RealtimePublisher<ocs2_msgs::msg::MpcObservation>>
+    realtime_mpc_observation_publisher_;
   std::shared_ptr<realtime_tools::RealtimePublisher<geometry_msgs::msg::WrenchStamped>>
     realtime_wrench_estimate_publisher_;
 

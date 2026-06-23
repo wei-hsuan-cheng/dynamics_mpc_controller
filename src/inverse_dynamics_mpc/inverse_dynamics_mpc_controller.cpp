@@ -12,6 +12,7 @@
 
 #include <hardware_interface/types/hardware_interface_type_values.hpp>
 #include <ocs2_core/thread_support/ExecuteAndSleep.h>
+#include <ocs2_ros_interfaces/common/RosMsgConversions.h>
 #include <pluginlib/class_list_macros.hpp>
 
 #include "dynamics_mpc_controller/inverse_dynamics_mpc/estimation/momentum_observer_wrench_estimator.hpp"
@@ -81,6 +82,12 @@ controller_interface::CallbackReturn InverseDynamicsMpcController::on_configure(
     [this](const std::shared_ptr<TargetMsg> msg) {
       received_target_msg_.writeFromNonRT(msg);
     });
+  mpc_observation_publisher_ = get_node()->create_publisher<ocs2_msgs::msg::MpcObservation>(
+    mpc_data_.mpc_observation_topic_,
+    rclcpp::QoS(1));
+  realtime_mpc_observation_publisher_ =
+    std::make_shared<realtime_tools::RealtimePublisher<ocs2_msgs::msg::MpcObservation>>(
+      mpc_observation_publisher_);
   wrench_estimate_publisher_.reset();
   realtime_wrench_estimate_publisher_.reset();
   if (parameters_.wrenchEstimation.publish) {
@@ -114,6 +121,7 @@ bool InverseDynamicsMpcController::configure_mpc_data()
   mpc_data_.lib_folder_ = parameters_.paths.libFolder;
   mpc_data_.urdf_file_ = parameters_.paths.urdfFile;
   mpc_data_.target_trajectories_topic_ = parameters_.topics.target_trajectories_topic;
+  mpc_data_.mpc_observation_topic_ = parameters_.topics.mpc_observation_topic;
   mpc_data_.command_smoothing_alpha_ = parameters_.numeric.commandSmoothingAlpha;
   mpc_data_.gravity_compensation_only_ = parameters_.numeric.gravityCompensationOnly;
   mpc_data_.hold_velocity_damping_ = parameters_.numeric.holdVelocityDamping;
@@ -393,6 +401,7 @@ controller_interface::CallbackReturn InverseDynamicsMpcController::on_activate(
   }
 
   mrt_interface_->setCurrentObservation(initial_observation);
+  publish_mpc_observation(initial_observation);
 
   try {
     check_initializer(initial_observation);
@@ -626,6 +635,9 @@ controller_interface::return_type InverseDynamicsMpcController::update_and_write
     }
   }
 
+  const SystemObservation observation = build_observation(virtual_time_);
+  publish_mpc_observation(observation);
+
   if (mpc_data_.gravity_compensation_only_) {
     apply_hold_command();
     RCLCPP_INFO_THROTTLE(
@@ -648,7 +660,6 @@ controller_interface::return_type InverseDynamicsMpcController::update_and_write
     return controller_interface::return_type::OK;
   }
 
-  const SystemObservation observation = build_observation(virtual_time_);
   mrt_interface_->setCurrentObservation(observation);
 
   const bool policy_updated = mrt_interface_->updatePolicy();
@@ -1082,6 +1093,23 @@ void InverseDynamicsMpcController::update_wrench_estimate(double period_sec)
       "[InverseDynamicsMpcController] end-effector wrench estimation failed: %s",
       e.what());
   }
+}
+
+void InverseDynamicsMpcController::publish_mpc_observation(const SystemObservation& observation)
+{
+  if (!realtime_mpc_observation_publisher_) {
+    return;
+  }
+
+  const auto msg = ocs2::ros_msg_conversions::createObservationMsg(observation);
+#if REALTIME_TOOLS_NEW_API
+  realtime_mpc_observation_publisher_->try_publish(msg);
+#else
+  if (realtime_mpc_observation_publisher_->trylock()) {
+    realtime_mpc_observation_publisher_->msg_ = msg;
+    realtime_mpc_observation_publisher_->unlockAndPublish();
+  }
+#endif
 }
 
 void InverseDynamicsMpcController::publish_wrench_estimate(const rclcpp::Time& stamp)

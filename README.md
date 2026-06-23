@@ -16,9 +16,17 @@ ros2 run dynamics_mpc_controller joint_tracking_target.py --ros-args \
   -p use_sim_time:=true
 ```
 
+The target publisher waits for the controller observation topic and stamps target
+trajectory times from OCS2 virtual time:
+
+```bash
+ros2 topic echo /inverse_dynamics_mpc_observation --once
+```
+
 Inspect diagnostics:
 
 ```bash
+ros2 topic hz /inverse_dynamics_mpc_observation
 ros2 topic hz /inverse_dynamics_mpc_policy
 ros2 topic echo /estimated_ee_wrench --once
 ```

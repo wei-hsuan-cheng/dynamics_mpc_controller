@@ -148,6 +148,7 @@ inverse_dynamics_mpc_controller:
     topics:
       target_trajectories_topic: "$(var targetTrajectoriesTopic)"
       estimated_ee_wrench_topic: "$(var estimatedEeWrenchTopic)"
+      mpc_observation_topic: "$(var mpcObservationTopic)"
       mpc_policy_topic: "/inverse_dynamics_mpc_policy"
 
     policyPublishing:
