@@ -161,7 +161,7 @@ inverse_dynamics_mpc_controller:
       publishRate: 10.0
 
     numeric:
-      statusLogPeriod: 0.5
+      statusLogPeriod: 1.0
       commandSmoothingAlpha: 1.0
       gravityCompensationOnly: false
       holdVelocityDamping: [50.0, 50.0, 50.0, 50.0, 50.0, 50.0]
