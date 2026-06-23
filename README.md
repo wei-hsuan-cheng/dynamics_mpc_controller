@@ -31,11 +31,16 @@ The optimized future end-effector path is published by a separate visualization 
 
 ## MPC Formulation
 
-`allowNonzeroEeWrench` selects two distinct input and RNEA formulations:
+`wrenchInRNEA` selects two distinct input and RNEA formulations:
 
 - `false`: `u = [jointAcceleration, jointTorque]`, with `RNEA - jointTorque = 0`.
 - `true`: `u = [jointAcceleration, jointTorque, eeWrench]`, with
   `RNEA - J^T eeWrench - jointTorque = 0`.
+
+When `wrenchInRNEA: true`, `trackZeroWrench` controls the wrench reference:
+
+- `true`: the target wrench is automatically set to zero.
+- `false`: the target wrench is read from the incoming target input trajectory.
 
 The two formulations use separate generated CppAD library names.
 

@@ -33,9 +33,17 @@ inverse_dynamics_mpc_controller:
         model_settings:
           usePreComputation: false
           recompileLibraries: false
+          
+          ##### wrenchInRNEA #####
           # false: u=[jointAcceleration, jointTorque], RNEA-tau=0
           # true: u=[jointAcceleration, jointTorque, eeWrench], RNEA-J^T*wrench-tau=0
-          allowNonzeroEeWrench: false
+          wrenchInRNEA: false
+
+          ##### trackZeroWrench ##### 
+          # Only valid when wrenchInRNEA is true.
+          # true: desired wrench is always zero.
+          # false: desired wrench is read from the incoming target input trajectory when provided.
+          trackZeroWrench: false
 
         ddp:
           algorithm: SLQ

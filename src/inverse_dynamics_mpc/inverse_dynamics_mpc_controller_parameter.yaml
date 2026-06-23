@@ -109,10 +109,16 @@ inverse_dynamics_mpc_controller:
           description: "Force recompilation of generated CppAD libraries"
         }
 
-        allowNonzeroEeWrench: {
+        wrenchInRNEA: {
           type: bool,
           default_value: false,
-          description: "Select the formulation: false uses [joint acceleration, joint torque]; true adds an optimized end-effector wrench"
+          description: "Select the inverse-dynamics formulation: false uses [joint acceleration, joint torque]; true adds an end-effector wrench input in RNEA"
+        }
+
+        trackZeroWrench: {
+          type: bool,
+          default_value: false,
+          description: "When wrenchInRNEA is true, automatically track zero end-effector wrench instead of reading a wrench target from the incoming target input trajectory"
         }
 
       ddp:

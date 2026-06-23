@@ -10,12 +10,14 @@ InverseDynamicsMpcModel::InverseDynamicsMpcModel(
   std::vector<std::string> dofNames,
   std::string endEffectorFrame,
   pinocchio::FrameIndex endEffectorFrameId,
-  bool hasEeWrenchInput)
+  bool wrenchInRnea,
+  bool trackZeroWrench)
 : joint_dim_(jointDim),
   dof_names_(std::move(dofNames)),
   end_effector_frame_(std::move(endEffectorFrame)),
   end_effector_frame_id_(endEffectorFrameId),
-  has_ee_wrench_input_(hasEeWrenchInput)
+  wrench_in_rnea_(wrenchInRnea),
+  track_zero_wrench_(trackZeroWrench)
 {
 }
 
@@ -41,7 +43,7 @@ ocs2::vector_t InverseDynamicsMpcModel::getTau(const ocs2::vector_t& input) cons
 
 ocs2::vector_t InverseDynamicsMpcModel::getWrench(const ocs2::vector_t& input) const
 {
-  if (!has_ee_wrench_input_) {
+  if (!wrench_in_rnea_) {
     throw std::logic_error("Cannot read an end-effector wrench from the no-wrench MPC input.");
   }
   return input.segment(static_cast<Eigen::Index>(wrenchOffset()), 6);

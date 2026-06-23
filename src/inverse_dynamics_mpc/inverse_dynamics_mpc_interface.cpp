@@ -247,13 +247,20 @@ void InverseDynamicsMpcInterface::setupPinocchio(const Params& parameters)
     ee_frame_id = model.getFrameId(requested_ee_frame_name);
   }
   const std::string ee_frame_name = model.frames[ee_frame_id].name;
+  const bool wrench_in_rnea = parameters.ocs2.task.model_settings.wrenchInRNEA;
+  const bool track_zero_wrench = parameters.ocs2.task.model_settings.trackZeroWrench;
+  if (track_zero_wrench && !wrench_in_rnea) {
+    throw std::runtime_error(
+      "[InverseDynamicsMpcInterface] model_settings.trackZeroWrench requires wrenchInRNEA=true.");
+  }
 
   inverse_dynamics_model_ = InverseDynamicsMpcModel(
     joint_dim,
     getLastJointNames(model, joint_dim),
     ee_frame_name,
     ee_frame_id,
-    parameters.ocs2.task.model_settings.allowNonzeroEeWrench);
+    wrench_in_rnea,
+    track_zero_wrench);
 
   std::cerr << "\n #### InverseDynamicsMpcInterface model:";
   std::cerr << "\n #### =============================================================================";
@@ -263,6 +270,10 @@ void InverseDynamicsMpcInterface::setupPinocchio(const Params& parameters)
   std::cerr << "\n #### input: " <<
     (inverse_dynamics_model_.hasEeWrenchInput() ? "[jointAcceleration, jointTorque, eeWrench]" :
     "[jointAcceleration, jointTorque]");
+  if (inverse_dynamics_model_.hasEeWrenchInput()) {
+    std::cerr << "\n #### trackZeroWrench: " <<
+      (inverse_dynamics_model_.trackZeroWrench() ? "true" : "false");
+  }
   std::cerr << "\n #### eeFrame: " << inverse_dynamics_model_.endEffectorFrame();
   std::cerr << "\n #### =============================================================================\n";
 }

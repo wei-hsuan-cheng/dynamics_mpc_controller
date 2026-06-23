@@ -71,6 +71,9 @@ JointTrackingTarget::TargetTrajectories JointTrackingTarget::fromMessage(
   if (raw.timeTrajectory.size() != raw.stateTrajectory.size()) {
     throw std::runtime_error("joint target time and state trajectory sizes do not match");
   }
+  if (!raw.inputTrajectory.empty() && raw.inputTrajectory.size() != raw.stateTrajectory.size()) {
+    throw std::runtime_error("joint target input and state trajectory sizes must match when inputs are provided");
+  }
 
   std::vector<std::size_t> reorder_indices(n);
   for (std::size_t i = 0; i < n; ++i) {
@@ -99,7 +102,8 @@ JointTrackingTarget::TargetTrajectories JointTrackingTarget::fromMessage(
   state_trajectory.reserve(raw.stateTrajectory.size());
   input_trajectory.reserve(raw.stateTrajectory.size());
 
-  for (const auto& raw_state : raw.stateTrajectory) {
+  for (std::size_t sample = 0; sample < raw.stateTrajectory.size(); ++sample) {
+    const auto& raw_state = raw.stateTrajectory[sample];
     ocs2::vector_t state =
       ocs2::vector_t::Zero(static_cast<Eigen::Index>(model.stateDim()));
     if (raw_state.size() == static_cast<Eigen::Index>(n) ||
@@ -122,6 +126,20 @@ JointTrackingTarget::TargetTrajectories JointTrackingTarget::fromMessage(
       static_cast<Eigen::Index>(model.tauOffset()),
       static_cast<Eigen::Index>(n)) =
       interface_.computeNonlinearEffects(model.getQ(state), model.getV(state));
+
+    if (model.hasEeWrenchInput() && !model.trackZeroWrench() && !raw.inputTrajectory.empty()) {
+      const auto& raw_input = raw.inputTrajectory[sample];
+      const Eigen::Index raw_input_size = raw_input.size();
+      if (raw_input_size == 6) {
+        input.segment(static_cast<Eigen::Index>(model.wrenchOffset()), 6) = raw_input;
+      } else if (raw_input_size == static_cast<Eigen::Index>(model.inputDim())) {
+        input.segment(static_cast<Eigen::Index>(model.wrenchOffset()), 6) =
+          raw_input.segment(static_cast<Eigen::Index>(model.wrenchOffset()), 6);
+      } else {
+        throw std::runtime_error(
+          "joint target input dimension must be 6 or full MPC input dimension when trackZeroWrench=false");
+      }
+    }
 
     state_trajectory.push_back(std::move(state));
     input_trajectory.push_back(std::move(input));
