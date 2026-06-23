@@ -29,6 +29,19 @@ Eigen::VectorXd toEigenVector(const std::vector<double>& values)
     values.data(), static_cast<Eigen::Index>(values.size()));
 }
 
+Eigen::VectorXd toEigenVectorExact(
+  const std::vector<double>& values,
+  std::size_t expected_size,
+  const std::string& parameter_name)
+{
+  if (values.size() != expected_size) {
+    throw std::runtime_error(
+      parameter_name + " must contain " + std::to_string(expected_size) +
+      " values, got " + std::to_string(values.size()) + ".");
+  }
+  return toEigenVector(values);
+}
+
 }  // namespace
 
 InverseDynamicsMpcController::~InverseDynamicsMpcController() = default;
@@ -161,7 +174,32 @@ bool InverseDynamicsMpcController::configure_mpc_ocs2()
   joint_tracking_target_ = std::make_unique<reference::JointTrackingTarget>(*interface_);
   last_input_ = vector_t::Zero(static_cast<Eigen::Index>(model.inputDim()));
   last_tau_command_ = vector_t::Zero(static_cast<Eigen::Index>(model.jointDim()));
+  low_level_pd_kp_ = vector_t::Zero(static_cast<Eigen::Index>(model.jointDim()));
+  low_level_pd_kd_ = vector_t::Zero(static_cast<Eigen::Index>(model.jointDim()));
   estimated_ee_wrench_ = vector_t::Zero(6);
+
+  low_level_pd_feedback_active_ = parameters_.lowLevelPDFeedback.activate;
+  if (low_level_pd_feedback_active_) {
+    try {
+      low_level_pd_kp_ = toEigenVectorExact(
+        parameters_.lowLevelPDFeedback.jointKp,
+        model.jointDim(),
+        "lowLevelPDFeedback.jointKp");
+      low_level_pd_kd_ = toEigenVectorExact(
+        parameters_.lowLevelPDFeedback.jointKd,
+        model.jointDim(),
+        "lowLevelPDFeedback.jointKd");
+    } catch (const std::exception& e) {
+      RCLCPP_ERROR(
+        get_node()->get_logger(),
+        "[InverseDynamicsMpcController] failed to configure low-level PD feedback: %s",
+        e.what());
+      return false;
+    }
+    RCLCPP_INFO(
+      get_node()->get_logger(),
+      "[InverseDynamicsMpcController] low-level PD feedback is active; OCS2 feedback policy should remain disabled for inverse-dynamics MPC.");
+  }
 
   wrench_estimator_.reset();
   if (parameters_.wrenchEstimation.activate) {
@@ -671,10 +709,26 @@ controller_interface::return_type InverseDynamicsMpcController::update_and_write
     policy_input,
     planned_mode);
 
+  const auto& model = interface_->getInverseDynamicsMpcModel();
+  if (policy_state.size() != static_cast<Eigen::Index>(model.stateDim()) ||
+      policy_input.size() != static_cast<Eigen::Index>(model.inputDim()) ||
+      !policy_state.allFinite() || !policy_input.allFinite()) {
+    apply_hold_command();
+    RCLCPP_WARN_THROTTLE(
+      get_node()->get_logger(),
+      *get_node()->get_clock(),
+      status_log_period_ms_,
+      "[InverseDynamicsMpcController][HOLD_FALLBACK] sampled MPC policy has invalid dimensions or non-finite values.");
+    virtual_time_ += period.seconds();
+    return controller_interface::return_type::OK;
+  }
+
+  const vector_t command_input = compute_policy_command_input(observation, policy_state, policy_input);
+
   double rnea_residual = 0.0;
   double input_bound_violation = 0.0;
   if (!policy_input_is_acceptable(
-      observation, policy_input, rnea_residual, input_bound_violation)) {
+      observation, command_input, rnea_residual, input_bound_violation)) {
     RCLCPP_WARN_THROTTLE(
       get_node()->get_logger(),
       *get_node()->get_clock(),
@@ -687,7 +741,7 @@ controller_interface::return_type InverseDynamicsMpcController::update_and_write
     }
     apply_hold_command();
   } else {
-    apply_torque_command(policy_input);
+    apply_torque_command(command_input);
     const auto& performance = mrt_interface_->getPerformanceIndices();
     const double force_norm = wrench_estimate_valid_ ? estimated_ee_wrench_.head(3).norm() :
       std::numeric_limits<double>::quiet_NaN();
@@ -835,25 +889,82 @@ void InverseDynamicsMpcController::apply_hold_command()
   last_tau_command_ = tau;
 }
 
-void InverseDynamicsMpcController::apply_torque_command(const vector_t& policy_input)
+InverseDynamicsMpcController::vector_t InverseDynamicsMpcController::compute_policy_command_input(
+  const SystemObservation& observation,
+  const vector_t& policy_state,
+  const vector_t& policy_input) const
 {
   const auto& model = interface_->getInverseDynamicsMpcModel();
   const std::size_t n = model.jointDim();
-  const double alpha = mpc_data_.command_smoothing_alpha_;
+  vector_t command_input = policy_input;
 
-  vector_t tau = policy_input.segment(
+  if (low_level_pd_feedback_active_) {
+    const vector_t q = model.getQ(observation.state);
+    const vector_t v = model.getV(observation.state);
+    const vector_t q_nominal = model.getQ(policy_state);
+    const vector_t v_nominal = model.getV(policy_state);
+
+    vector_t acceleration_command =
+      model.getA(policy_input) +
+      low_level_pd_kp_.cwiseProduct(q_nominal - q) +
+      low_level_pd_kd_.cwiseProduct(v_nominal - v);
+
+    if (interface_->inputLimitsActive()) {
+      acceleration_command = acceleration_command.cwiseMax(
+        interface_->inputLowerBounds().segment(
+          static_cast<Eigen::Index>(model.aOffset()),
+          static_cast<Eigen::Index>(n)));
+      acceleration_command = acceleration_command.cwiseMin(
+        interface_->inputUpperBounds().segment(
+          static_cast<Eigen::Index>(model.aOffset()),
+          static_cast<Eigen::Index>(n)));
+    }
+
+    command_input.segment(
+      static_cast<Eigen::Index>(model.aOffset()),
+      static_cast<Eigen::Index>(n)) = acceleration_command;
+
+    const vector_t tau_command = model.hasEeWrenchInput() ?
+      interface_->computeInverseDynamicsTorqueWithEeWrench(
+        q,
+        v,
+        acceleration_command,
+        model.getWrench(command_input)) :
+      interface_->computeInverseDynamicsTorque(
+        q,
+        v,
+        acceleration_command);
+
+    command_input.segment(
+      static_cast<Eigen::Index>(model.tauOffset()),
+      static_cast<Eigen::Index>(n)) = tau_command;
+  }
+
+  vector_t tau = command_input.segment(
     static_cast<Eigen::Index>(model.tauOffset()),
     static_cast<Eigen::Index>(n));
   if (last_tau_command_.size() == tau.size()) {
+    const double alpha = mpc_data_.command_smoothing_alpha_;
     tau = alpha * tau + (1.0 - alpha) * last_tau_command_;
+    command_input.segment(
+      static_cast<Eigen::Index>(model.tauOffset()),
+      static_cast<Eigen::Index>(n)) = tau;
   }
 
+  return command_input;
+}
+
+void InverseDynamicsMpcController::apply_torque_command(const vector_t& command_input)
+{
+  const auto& model = interface_->getInverseDynamicsMpcModel();
+  const std::size_t n = model.jointDim();
+
+  const vector_t tau = command_input.segment(
+    static_cast<Eigen::Index>(model.tauOffset()),
+    static_cast<Eigen::Index>(n));
   write_torque_command(tau);
 
-  last_input_ = policy_input;
-  last_input_.segment(
-    static_cast<Eigen::Index>(model.tauOffset()),
-    static_cast<Eigen::Index>(n)) = tau;
+  last_input_ = command_input;
   last_tau_command_ = tau;
 }
 
@@ -872,7 +983,7 @@ void InverseDynamicsMpcController::write_torque_command(const vector_t& torque)
 
 bool InverseDynamicsMpcController::policy_input_is_acceptable(
   const SystemObservation& observation,
-  const vector_t& policy_input,
+  const vector_t& command_input,
   double& rnea_residual,
   double& input_bound_violation) const
 {
@@ -881,31 +992,23 @@ bool InverseDynamicsMpcController::policy_input_is_acceptable(
 
   const auto& model = interface_->getInverseDynamicsMpcModel();
   if (observation.state.size() != static_cast<Eigen::Index>(model.stateDim()) ||
-      policy_input.size() != static_cast<Eigen::Index>(model.inputDim()) ||
-      !observation.state.allFinite() || !policy_input.allFinite()) {
+      command_input.size() != static_cast<Eigen::Index>(model.inputDim()) ||
+      !observation.state.allFinite() || !command_input.allFinite()) {
     return false;
   }
 
-  vector_t commanded_input = policy_input;
-  vector_t commanded_tau = model.getTau(commanded_input);
-  if (last_tau_command_.size() == commanded_tau.size()) {
-    const double alpha = mpc_data_.command_smoothing_alpha_;
-    commanded_tau = alpha * commanded_tau + (1.0 - alpha) * last_tau_command_;
-    commanded_input.segment(
-      static_cast<Eigen::Index>(model.tauOffset()),
-      static_cast<Eigen::Index>(model.jointDim())) = commanded_tau;
-  }
+  const vector_t commanded_tau = model.getTau(command_input);
 
   const vector_t expected_tau = model.hasEeWrenchInput() ?
     interface_->computeInverseDynamicsTorqueWithEeWrench(
       model.getQ(observation.state),
       model.getV(observation.state),
-      model.getA(commanded_input),
-      model.getWrench(commanded_input)) :
+      model.getA(command_input),
+      model.getWrench(command_input)) :
     interface_->computeInverseDynamicsTorque(
       model.getQ(observation.state),
       model.getV(observation.state),
-      model.getA(commanded_input));
+      model.getA(command_input));
   rnea_residual = (expected_tau - commanded_tau).lpNorm<Eigen::Infinity>();
   if (!std::isfinite(rnea_residual)) {
     return false;
@@ -913,8 +1016,8 @@ bool InverseDynamicsMpcController::policy_input_is_acceptable(
 
   input_bound_violation = 0.0;
   if (interface_->inputLimitsActive()) {
-    const vector_t lower_violation = interface_->inputLowerBounds() - commanded_input;
-    const vector_t upper_violation = commanded_input - interface_->inputUpperBounds();
+    const vector_t lower_violation = interface_->inputLowerBounds() - command_input;
+    const vector_t upper_violation = command_input - interface_->inputUpperBounds();
     input_bound_violation = std::max(
       0.0,
       std::max(lower_violation.maxCoeff(), upper_violation.maxCoeff()));

@@ -86,11 +86,15 @@ private:
   SystemObservation build_observation(double time_sec) const;
   void check_initializer(const SystemObservation& observation);
   void apply_hold_command();
-  void apply_torque_command(const vector_t& policy_input);
+  vector_t compute_policy_command_input(
+    const SystemObservation& observation,
+    const vector_t& policy_state,
+    const vector_t& policy_input) const;
+  void apply_torque_command(const vector_t& command_input);
   void write_torque_command(const vector_t& torque);
   bool policy_input_is_acceptable(
     const SystemObservation& observation,
-    const vector_t& policy_input,
+    const vector_t& command_input,
     double& rnea_residual,
     double& input_bound_violation) const;
   bool policy_performance_is_acceptable(const ocs2::PerformanceIndex& performance) const;
@@ -121,12 +125,15 @@ private:
   std::string solver_type_{"ddp"};
   vector_t last_input_;
   vector_t last_tau_command_;
+  vector_t low_level_pd_kp_;
+  vector_t low_level_pd_kd_;
   vector_t estimated_ee_wrench_;
   double wrench_publish_elapsed_{0.0};
   double observer_residual_norm_{0.0};
   double jacobian_sigma_min_{0.0};
   double jacobian_condition_number_{0.0};
   double relative_projection_error_{0.0};
+  bool low_level_pd_feedback_active_{false};
   bool wrench_estimate_valid_{false};
 
   std::thread mpc_thread_;

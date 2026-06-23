@@ -12,11 +12,10 @@
 #include <pinocchio/algorithm/jacobian.hpp>
 #include <pinocchio/algorithm/rnea.hpp>
 
+#include <ocs2_core/constraint/LinearStateInputConstraint.h>
 #include <ocs2_core/cost/QuadraticStateInputCost.h>
 #include <ocs2_core/integration/Integrator.h>
 #include <ocs2_core/integration/SensitivityIntegrator.h>
-#include <ocs2_core/penalties/penalties/RelaxedBarrierPenalty.h>
-#include <ocs2_core/soft_constraint/StateInputSoftBoxConstraint.h>
 #include <ocs2_oc/rollout/TimeTriggeredRollout.h>
 
 #include "dynamics_mpc_controller/inverse_dynamics_mpc/constraint/inverse_dynamics_constraint_cppad.hpp"
@@ -133,6 +132,32 @@ void validateBounds(
     throw std::runtime_error(
       "[InverseDynamicsMpcInterface] lowerBound exceeds upperBound for " + parameterName + ".");
   }
+}
+
+std::unique_ptr<ocs2::LinearStateInputConstraint> createInputBoxConstraint(
+  std::size_t stateDim,
+  const ocs2::vector_t& lowerBound,
+  const ocs2::vector_t& upperBound)
+{
+  if (lowerBound.size() != upperBound.size()) {
+    throw std::runtime_error("[InverseDynamicsMpcInterface] input limit lower/upper dimensions do not match.");
+  }
+
+  const Eigen::Index input_dim = lowerBound.size();
+  ocs2::vector_t e = ocs2::vector_t::Zero(2 * input_dim);
+  ocs2::matrix_t C = ocs2::matrix_t::Zero(2 * input_dim, static_cast<Eigen::Index>(stateDim));
+  ocs2::matrix_t D = ocs2::matrix_t::Zero(2 * input_dim, input_dim);
+
+  for (Eigen::Index i = 0; i < input_dim; ++i) {
+    e(i) = -lowerBound(i);
+    D(i, i) = 1.0;
+
+    e(input_dim + i) = upperBound(i);
+    D(input_dim + i, i) = -1.0;
+  }
+
+  return std::make_unique<ocs2::LinearStateInputConstraint>(
+    std::move(e), std::move(C), std::move(D));
 }
 
 }  // namespace
@@ -404,28 +429,12 @@ void InverseDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
   }
 
   if (input_limits_active_) {
-    std::vector<ocs2::StateInputSoftBoxConstraint::BoxConstraint> input_box_constraints;
-    input_box_constraints.reserve(inverse_dynamics_model_.inputDim());
-    for (std::size_t i = 0; i < inverse_dynamics_model_.inputDim(); ++i) {
-      ocs2::StateInputSoftBoxConstraint::BoxConstraint box_constraint;
-      box_constraint.index = i;
-      box_constraint.lowerBound = input_lower_bounds_(static_cast<Eigen::Index>(i));
-      box_constraint.upperBound = input_upper_bounds_(static_cast<Eigen::Index>(i));
-      box_constraint.penaltyPtr = std::make_unique<ocs2::RelaxedBarrierPenalty>(
-        ocs2::RelaxedBarrierPenalty::Config(input_limits.mu, input_limits.delta));
-      input_box_constraints.push_back(std::move(box_constraint));
-    }
-
-    auto input_limit_cost = std::make_unique<ocs2::StateInputSoftBoxConstraint>(
-      std::vector<ocs2::StateInputSoftBoxConstraint::BoxConstraint>{},
-      std::move(input_box_constraints));
-    input_limit_cost->initializeOffset(
-      0.0,
-      ocs2::vector_t::Zero(static_cast<Eigen::Index>(inverse_dynamics_model_.stateDim())),
-      ocs2::vector_t::Zero(static_cast<Eigen::Index>(inverse_dynamics_model_.inputDim())));
-    problem_.softConstraintPtr->add(
+    problem_.inequalityConstraintPtr->add(
       "inputLimits",
-      std::move(input_limit_cost));
+      createInputBoxConstraint(
+        inverse_dynamics_model_.stateDim(),
+        input_lower_bounds_,
+        input_upper_bounds_));
   }
 
   ocs2::rollout::Settings rollout_settings;

@@ -563,13 +563,13 @@ inverse_dynamics_mpc_controller:
         activate: {
           type: bool,
           default_value: true,
-          description: "Penalize joint acceleration, torque, and end-effector wrench bounds in the OCP"
+          description: "Enforce hard joint acceleration, torque, and end-effector wrench bounds in the OCP"
         }
 
         mu: {
           type: double,
           default_value: 1.0e-2,
-          description: "Relaxed-barrier scale for input bounds",
+          description: "Legacy relaxed-barrier scale for input bounds; hard OCP input bounds use SQP inequality settings",
           validation: {
             gt: [0.0]
           }
@@ -578,7 +578,7 @@ inverse_dynamics_mpc_controller:
         delta: {
           type: double,
           default_value: 1.0e-2,
-          description: "Relaxed-barrier relaxation for input bounds",
+          description: "Legacy relaxed-barrier relaxation for input bounds; hard OCP input bounds use SQP inequality settings",
           validation: {
             gt: [0.0]
           }
@@ -700,6 +700,25 @@ inverse_dynamics_mpc_controller:
       validation: {
         gt: [0.0]
       }
+    }
+
+  lowLevelPDFeedback:
+    activate: {
+      type: bool,
+      default_value: false,
+      description: "Recompute torque from measured state and MPC acceleration with optional joint-space PD acceleration feedback"
+    }
+
+    jointKp: {
+      type: double_array,
+      default_value: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      description: "Joint-position gains for acceleration correction a_cmd = a_mpc + Kp(q_mpc - q) + Kd(v_mpc - v)"
+    }
+
+    jointKd: {
+      type: double_array,
+      default_value: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      description: "Joint-velocity gains for acceleration correction a_cmd = a_mpc + Kp(q_mpc - q) + Kd(v_mpc - v)"
     }
 
   wrenchEstimation:
