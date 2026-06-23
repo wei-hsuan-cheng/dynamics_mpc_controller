@@ -76,7 +76,7 @@ inverse_dynamics_mpc_controller:
         sqp:
           nThreads: 1
           dt: 0.01
-          sqpIteration: 3
+          sqpIteration: 5
           deltaTol: 1e-4
           costTol: 1e-4
           g_max: 1e-2
@@ -111,10 +111,10 @@ inverse_dynamics_mpc_controller:
         inputCost:
           R:
             jointAcceleration:
-              scaling: 1.0e-1
+              scaling: 1.0e-2
               diagonal: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
             jointTorque:
-              scaling: 1.0e-2
+              scaling: 1.0e-4
               diagonal: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
             eeWrench:
               scaling: 10.0

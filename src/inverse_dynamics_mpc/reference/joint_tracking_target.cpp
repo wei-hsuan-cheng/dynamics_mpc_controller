@@ -30,23 +30,13 @@ JointTrackingTarget::TargetTrajectories JointTrackingTarget::fromObservation(
   const ocs2::SystemObservation& observation) const
 {
   const auto& model = interface_.getInverseDynamicsMpcModel();
-  // Preserve measured velocity for nonlinear feedforward before defining a zero-velocity hold target.
-  const ocs2::vector_t q = model.getQ(observation.state);
-  const ocs2::vector_t v = model.getV(observation.state);
   ocs2::vector_t desired_state = observation.state;
   desired_state.tail(static_cast<Eigen::Index>(model.jointDim())).setZero();
-
-  ocs2::vector_t desired_input =
-    ocs2::vector_t::Zero(static_cast<Eigen::Index>(model.inputDim()));
-  desired_input.segment(
-    static_cast<Eigen::Index>(model.tauOffset()),
-    static_cast<Eigen::Index>(model.jointDim())) =
-    interface_.computeNonlinearEffects(q, v);
 
   return TargetTrajectories(
     {observation.time},
     {std::move(desired_state)},
-    {std::move(desired_input)});
+    {ocs2::vector_t::Zero(static_cast<Eigen::Index>(model.inputDim()))});
 }
 
 JointTrackingTarget::TargetTrajectories JointTrackingTarget::fromMessage(
@@ -122,10 +112,6 @@ JointTrackingTarget::TargetTrajectories JointTrackingTarget::fromMessage(
 
     ocs2::vector_t input =
       ocs2::vector_t::Zero(static_cast<Eigen::Index>(model.inputDim()));
-    input.segment(
-      static_cast<Eigen::Index>(model.tauOffset()),
-      static_cast<Eigen::Index>(n)) =
-      interface_.computeNonlinearEffects(model.getQ(state), model.getV(state));
 
     if (model.hasEeWrenchInput() && !model.trackZeroWrench() && !raw.inputTrajectory.empty()) {
       const auto& raw_input = raw.inputTrajectory[sample];

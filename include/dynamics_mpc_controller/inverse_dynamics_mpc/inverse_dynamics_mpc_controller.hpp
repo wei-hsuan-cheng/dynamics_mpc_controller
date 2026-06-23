@@ -127,11 +127,12 @@ private:
   double jacobian_sigma_min_{0.0};
   double jacobian_condition_number_{0.0};
   double relative_projection_error_{0.0};
-  bool policy_performance_acceptable_{false};
   bool wrench_estimate_valid_{false};
 
   std::thread mpc_thread_;
   std::atomic_bool execute_mpc_{false};
+  std::atomic_bool policy_performance_acceptable_{false};
+  std::atomic_bool reset_mpc_warm_start_requested_{false};
 
   realtime_tools::RealtimeBuffer<std::shared_ptr<TargetMsg>> received_target_msg_;
   rclcpp::Subscription<TargetMsg>::SharedPtr target_subscription_;

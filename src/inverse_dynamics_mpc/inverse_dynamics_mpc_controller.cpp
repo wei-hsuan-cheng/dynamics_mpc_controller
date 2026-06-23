@@ -302,6 +302,7 @@ controller_interface::CallbackReturn InverseDynamicsMpcController::on_activate(
 
   reference_manager_ = interface_->getReferenceManagerPtr();
   policy_performance_acceptable_ = false;
+  reset_mpc_warm_start_requested_ = false;
   virtual_time_ = 0.0;
   const SystemObservation initial_observation = build_observation(virtual_time_);
   reference_manager_->setTargetTrajectories(
@@ -409,6 +410,7 @@ controller_interface::CallbackReturn InverseDynamicsMpcController::on_deactivate
   const rclcpp_lifecycle::State&)
 {
   execute_mpc_ = false;
+  reset_mpc_warm_start_requested_ = false;
   if (mpc_thread_.joinable()) {
     mpc_thread_.join();
   }
@@ -486,6 +488,14 @@ void InverseDynamicsMpcController::mpc_loop()
             ++period_samples;
           }
           previous_start = iteration_start;
+
+          if (reset_mpc_warm_start_requested_.exchange(false)) {
+            mrt_interface_->resetMpcNode(reference_manager_->getTargetTrajectories());
+            policy_performance_acceptable_ = false;
+            RCLCPP_WARN(
+              get_node()->get_logger(),
+              "[InverseDynamicsMpcController] reset MPC warm start after rejected policy; next solve will use the inverse-dynamics initializer.");
+          }
 
           mrt_interface_->advanceMpc();
 
@@ -607,9 +617,13 @@ controller_interface::return_type InverseDynamicsMpcController::update_and_write
   if (policy_updated) {
     const auto& performance = mrt_interface_->getPerformanceIndices();
     const auto& validation = parameters_.numeric.policyValidation;
-    policy_performance_acceptable_ = policy_performance_is_acceptable(performance);
+    const bool policy_acceptable = policy_performance_is_acceptable(performance);
+    policy_performance_acceptable_ = policy_acceptable;
 
-    if (!policy_performance_acceptable_) {
+    if (!policy_acceptable) {
+      if (validation.activate) {
+        reset_mpc_warm_start_requested_ = true;
+      }
       RCLCPP_WARN_THROTTLE(
         get_node()->get_logger(),
         *get_node()->get_clock(),
@@ -624,7 +638,7 @@ controller_interface::return_type InverseDynamicsMpcController::update_and_write
     }
   }
 
-  if (!policy_performance_acceptable_) {
+  if (!policy_performance_acceptable_.load()) {
     apply_hold_command();
     RCLCPP_WARN_THROTTLE(
       get_node()->get_logger(),
@@ -668,6 +682,9 @@ controller_interface::return_type InverseDynamicsMpcController::update_and_write
       "[InverseDynamicsMpcController][HOLD_FALLBACK] rejecting MPC command | RNEA residual=%.6g Nm, input-bound violation=%.6g.",
       rnea_residual,
       input_bound_violation);
+    if (parameters_.numeric.policyValidation.activate) {
+      reset_mpc_warm_start_requested_ = true;
+    }
     apply_hold_command();
   } else {
     apply_torque_command(policy_input);
