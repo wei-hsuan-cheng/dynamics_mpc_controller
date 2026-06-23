@@ -3,7 +3,7 @@
   <!-- Root link -->
   <link name="world"/>
   <joint name="world_to_base_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0 0.05"/>
+    <origin rpy="0 0 0" xyz="0 0 0.0"/>
     <parent link="world"/>
     <child link="ur_arm_base_link"/>
   </joint>
