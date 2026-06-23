@@ -8,7 +8,7 @@ import rclpy
 from rclpy.node import Node
 
 from ocs2_msgs.msg import MpcTargets
-from ocs2_msgs.msg import MpcObservation, MpcState, MpcTargetTrajectories
+from ocs2_msgs.msg import MpcInput, MpcObservation, MpcState, MpcTargetTrajectories
 from std_msgs.msg import Float64MultiArray
 
 
@@ -53,8 +53,8 @@ class JointTrackingTargetPublisher(Node):
         self.declare_parameter("observation_topic", "/inverse_dynamics_mpc_observation")
         self.declare_parameter("wait_for_observation", True)
         self.declare_parameter("publish_rate", 50.0)
+        self.declare_parameter("trajectory_duration", 2.0)
         self.declare_parameter("trajectory_dt", 0.02)
-        self.declare_parameter("trajectory_points", 150)
         self.declare_parameter("sine_frequency", 0.5)
         self.declare_parameter("time_offset", 0.0)
         self.declare_parameter("joint_names", DEFAULT_JOINT_NAMES)
@@ -67,8 +67,8 @@ class JointTrackingTargetPublisher(Node):
         self.observation_topic = self.get_parameter("observation_topic").value
         self.wait_for_observation = bool(self.get_parameter("wait_for_observation").value)
         self.publish_rate = float(self.get_parameter("publish_rate").value)
+        self.trajectory_duration = float(self.get_parameter("trajectory_duration").value)
         self.trajectory_dt = float(self.get_parameter("trajectory_dt").value)
-        self.trajectory_points = int(self.get_parameter("trajectory_points").value)
         self.sine_frequency = float(self.get_parameter("sine_frequency").value)
         self.time_offset = float(self.get_parameter("time_offset").value)
         self.joint_names = _as_list(self.get_parameter("joint_names").value, DEFAULT_JOINT_NAMES)
@@ -79,8 +79,9 @@ class JointTrackingTargetPublisher(Node):
         self.phase = _resize(_as_list(self.get_parameter("phase").value, DEFAULT_PHASE), joint_count, 0.0)
         self.weights = _resize(_as_list(self.get_parameter("weights").value, DEFAULT_WEIGHTS), joint_count, 1.0)
 
-        self.trajectory_points = max(1, self.trajectory_points)
+        self.trajectory_duration = max(1e-6, self.trajectory_duration)
         self.trajectory_dt = max(1e-6, self.trajectory_dt)
+        self.trajectory_samples = int(math.floor(self.trajectory_duration / self.trajectory_dt)) + 1
         self.publish_rate = max(1e-6, self.publish_rate)
         self.start_time = self.get_clock().now()
         self.latest_observation_time = None
@@ -97,7 +98,8 @@ class JointTrackingTargetPublisher(Node):
 
         self.get_logger().info(
             f"Publishing joint MpcTargets to {self.topic} with {joint_count} joints, "
-            f"{self.trajectory_points} ZOH trajectory samples, using OCS2 time from "
+            f"{self.trajectory_samples} ZOH trajectory samples over {self.trajectory_duration:.3f} s "
+            f"with dt {self.trajectory_dt:.3f} s, using OCS2 time from "
             f"{self.observation_topic}"
         )
 
@@ -133,13 +135,17 @@ class JointTrackingTargetPublisher(Node):
         trajectory = MpcTargetTrajectories()
         zoh_target = self.joint_target(t0)
 
-        for sample_index in range(self.trajectory_points):
+        for sample_index in range(self.trajectory_samples):
             t = t0 + sample_index * self.trajectory_dt
             state = MpcState()
             state.value = [float(q) for q in zoh_target]
 
+            target_input = MpcInput()
+            target_input.value = []
+
             trajectory.time_trajectory.append(float(t))
             trajectory.state_trajectory.append(state)
+            trajectory.input_trajectory.append(target_input)
         return trajectory
 
     def publish(self):
