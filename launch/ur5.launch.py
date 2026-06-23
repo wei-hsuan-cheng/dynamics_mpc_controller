@@ -44,6 +44,7 @@ def generate_launch_description():
         DeclareLaunchArgument("ros2ControlCommandInterface", default_value="effort"),
         DeclareLaunchArgument("targetTrajectoriesTopic", default_value="/mpc_targets"),
         DeclareLaunchArgument("estimatedEeWrenchTopic", default_value="/estimated_ee_wrench"),
+        DeclareLaunchArgument("optimizedStateTrajectoryVisualization", default_value="true"),
         DeclareLaunchArgument("initialPoseFile", default_value=initial_pose_default),
         DeclareLaunchArgument("mujocoModelFile", default_value="scene_open_door.xml"),
     ]
@@ -146,6 +147,17 @@ def generate_launch_description():
         condition=IfCondition(use_mujoco_sim),
     )
 
+    optimized_state_trajectory_visualization = Node(
+        package="dynamics_mpc_controller",
+        executable="optimized_state_trajectory_visualization_node",
+        name="optimized_state_trajectory_visualization",
+        output="screen",
+        parameters=[
+            ParameterFile(LaunchConfiguration("controllersFile"), allow_substs=True),
+            {"use_sim_time": use_sim_time},
+        ],
+        condition=IfCondition(LaunchConfiguration("optimizedStateTrajectoryVisualization")),
+    )
 
     visualize_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -166,6 +178,7 @@ def generate_launch_description():
             mujoco_ros2_control_node,
             controller_sequence,
             controller_sequence_mujoco,
+            optimized_state_trajectory_visualization,
             visualize_launch,
         ]
     )

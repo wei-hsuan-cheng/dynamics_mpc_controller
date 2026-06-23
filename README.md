@@ -23,6 +23,12 @@ ros2 topic hz /inverse_dynamics_mpc_policy
 ros2 topic echo /estimated_ee_wrench --once
 ```
 
+The optimized future end-effector path is published by a separate visualization node as gradient-colored RViz markers on:
+
+```text
+/inverse_dynamics_mpc/visualization/optimizedStateTrajectory
+```
+
 ## MPC Formulation
 
 `allowNonzeroEeWrench` selects two distinct input and RNEA formulations:

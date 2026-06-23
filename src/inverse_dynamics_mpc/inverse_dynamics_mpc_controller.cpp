@@ -85,7 +85,6 @@ controller_interface::CallbackReturn InverseDynamicsMpcController::on_configure(
         parameters_.topics.mpc_policy_topic,
         rclcpp::QoS(1));
   }
-
   RCLCPP_INFO(
     get_node()->get_logger(),
     "[InverseDynamicsMpcController] configured | stateDim=%zu inputDim=%zu joints=%zu eeFrame=%s",

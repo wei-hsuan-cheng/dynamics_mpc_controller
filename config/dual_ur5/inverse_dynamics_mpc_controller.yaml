@@ -239,3 +239,16 @@ inverse_dynamics_mpc_controller:
       arm2_wrist_3_joint:
         command_interfaces: [effort]
         state_interfaces: [position, velocity, effort]
+
+optimized_state_trajectory_visualization:
+  ros__parameters:
+    activate: true
+    urdfFile: "$(var urdfFile)"
+    removeJoints: [""]
+    endEffectorFrame: "ur_arm1_tool0"
+    mpcPolicyTopic: "/inverse_dynamics_mpc_policy"
+    markerTopic: "/inverse_dynamics_mpc/visualization/optimizedStateTrajectory"
+    frameId: "world"
+    publishRate: 10.0
+    lineWidth: 0.01
+    pointScale: 0.025

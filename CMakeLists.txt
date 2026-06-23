@@ -26,7 +26,9 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   rclcpp
   rclcpp_lifecycle
   realtime_tools
+  std_msgs
   urdf
+  visualization_msgs
 )
 
 find_package(ament_cmake REQUIRED)
@@ -50,6 +52,7 @@ add_library(${PROJECT_NAME} SHARED
   src/inverse_dynamics_mpc/estimation/momentum_observer_wrench_estimator.cpp
   src/inverse_dynamics_mpc/initialization/inverse_dynamics_initializer.cpp
   src/inverse_dynamics_mpc/reference/joint_tracking_target.cpp
+  src/inverse_dynamics_mpc/visualization/optimized_state_trajectory_visualization.cpp
   src/inverse_dynamics_mpc/inverse_dynamics_mpc_controller.cpp
   src/inverse_dynamics_mpc/inverse_dynamics_mpc_interface.cpp
   src/inverse_dynamics_mpc/inverse_dynamics_mpc_model.cpp
@@ -72,6 +75,28 @@ target_compile_definitions(${PROJECT_NAME} PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNC
 pluginlib_export_plugin_description_file(
   controller_interface
   dynamics_mpc_controller_plugin.xml
+)
+
+add_executable(optimized_state_trajectory_visualization_node
+  src/inverse_dynamics_mpc/visualization/optimized_state_trajectory_visualization_node.cpp
+)
+target_compile_features(optimized_state_trajectory_visualization_node PUBLIC cxx_std_17)
+target_include_directories(optimized_state_trajectory_visualization_node
+  PRIVATE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(optimized_state_trajectory_visualization_node
+  ${PROJECT_NAME}
+)
+ament_target_dependencies(optimized_state_trajectory_visualization_node
+  rclcpp
+  geometry_msgs
+  ocs2_msgs
+  ocs2_pinocchio_interface
+  pinocchio
+  std_msgs
+  visualization_msgs
 )
 
 install(DIRECTORY include/
@@ -101,6 +126,10 @@ install(TARGETS ${PROJECT_NAME} inverse_dynamics_mpc_controller_parameters
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
+)
+
+install(TARGETS optimized_state_trajectory_visualization_node
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 if(BUILD_TESTING)
