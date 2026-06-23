@@ -20,7 +20,7 @@ def generate_launch_description():
     rviz_default = os.path.join(mpc_share_dir, "config", "rviz", "manipulator.rviz")
     lib_folder_default = os.path.join(package_root, "auto_generated", "ur5")
 
-    urdf_default = PathJoinSubstitution([mpc_share, "description", "ur5", "urdf", "ur5_test.urdf"])
+    urdf_default = PathJoinSubstitution([mpc_share, "description", "ur5", "urdf", "ur5.urdf"])
     controllers_default = PathJoinSubstitution([mpc_share, "config", "ur5", "inverse_dynamics_mpc_controller.yaml"])
     arm_control_xacro = PathJoinSubstitution([mpc_share, "description", "ur5", "urdf", "ur5.ros2_control.xacro"])
 
