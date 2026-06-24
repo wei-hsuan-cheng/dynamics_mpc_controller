@@ -25,7 +25,7 @@ def response_error_string(result):
     return getattr(result, 'error_string', '')
 
 class ControllerSequencer(Node):
-    def __init__(self, controller_manager, robot_description_topic, timeout_sec, use_sim_time):
+    def __init__(self, controller_manager, robot_description_topic, controller_name, timeout_sec, use_sim_time):
         super().__init__(
             'controller_sequencer',
             parameter_overrides=[Parameter('use_sim_time', value=use_sim_time)],
@@ -33,6 +33,7 @@ class ControllerSequencer(Node):
         )
         self.controller_manager = controller_manager
         self.robot_description_topic = robot_description_topic
+        self.controller_name = controller_name
         self.timeout_sec = timeout_sec
         self.robot_description_msg = None
 
@@ -215,6 +216,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--controller-manager', default='/controller_manager')
     parser.add_argument('--robot-description-topic', default='/robot_description')
+    parser.add_argument('--controller-name', default='inverse_dynamics_mpc_controller')
     parser.add_argument('--timeout', type=float, default=120.0)
     parser.add_argument(
         '--use-mujoco-sim',
@@ -232,6 +234,7 @@ def main():
     node = ControllerSequencer(
         controller_manager=args.controller_manager,
         robot_description_topic=args.robot_description_topic,
+        controller_name=args.controller_name,
         timeout_sec=args.timeout,
         use_sim_time=args.use_sim_time,
     )
@@ -250,7 +253,7 @@ def main():
         return 1
     
     active_controller_list = [
-        'inverse_dynamics_mpc_controller',
+        args.controller_name,
     ]
     
     inactive_controller_list = [

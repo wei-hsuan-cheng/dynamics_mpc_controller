@@ -7,4 +7,12 @@
       OCS2 fixed-base inverse-dynamics torque MPC controller.
     </description>
   </class>
+  <class
+    name="dynamics_mpc_controller/ForwardDynamicsMpcController"
+    type="dynamics_mpc_controller::ForwardDynamicsMpcController"
+    base_class_type="controller_interface::ChainableControllerInterface">
+    <description>
+      OCS2 fixed-base forward-dynamics torque MPC controller using Pinocchio ABA.
+    </description>
+  </class>
 </library>

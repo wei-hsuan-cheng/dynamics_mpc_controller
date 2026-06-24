@@ -8,9 +8,11 @@ import rclpy
 from rclpy.node import Node
 
 from ocs2_msgs.msg import MpcTargets
-from ocs2_msgs.msg import MpcInput, MpcObservation, MpcState, MpcTargetTrajectories
+from ocs2_msgs.msg import MpcObservation, MpcState, MpcTargetTrajectories
 from std_msgs.msg import Float64MultiArray
 
+DEFAULT_TARGET_TOPIC = "/mpc_targets"
+DEFAULT_OBSERVATION_TOPIC = "/forward_dynamics_mpc_observation" # "/inverse_dynamics_mpc_observation" | "/forward_dynamics_mpc_observation"
 
 DEFAULT_JOINT_NAMES = [
     "ur_arm_shoulder_pan_joint",
@@ -49,8 +51,8 @@ class JointTrackingTargetPublisher(Node):
     def __init__(self):
         super().__init__("joint_tracking_target_publisher")
 
-        self.declare_parameter("topic", "/mpc_targets")
-        self.declare_parameter("observation_topic", "/inverse_dynamics_mpc_observation")
+        self.declare_parameter("topic", DEFAULT_TARGET_TOPIC)
+        self.declare_parameter("observation_topic", DEFAULT_OBSERVATION_TOPIC)
         self.declare_parameter("wait_for_observation", True)
         self.declare_parameter("publish_rate", 50.0)
         self.declare_parameter("trajectory_duration", 2.0)
@@ -140,12 +142,8 @@ class JointTrackingTargetPublisher(Node):
             state = MpcState()
             state.value = [float(q) for q in zoh_target]
 
-            target_input = MpcInput()
-            target_input.value = []
-
             trajectory.time_trajectory.append(float(t))
             trajectory.state_trajectory.append(state)
-            trajectory.input_trajectory.append(target_input)
         return trajectory
 
     def publish(self):

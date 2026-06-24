@@ -1,0 +1,799 @@
+forward_dynamics_mpc_controller:
+  ocs2:
+    mpc:
+      mpcDesiredFrequency: {
+        type: int,
+        default_value: 50,
+        description: "Desired MPC update frequency in Hz",
+        validation: {
+          gt: [0]
+        }
+      }
+
+      mrtDesiredFrequency: {
+        type: int,
+        default_value: 1000,
+        description: "Desired MRT update frequency in Hz",
+        validation: {
+          gt: [0]
+        }
+      }
+
+      solverType: {
+        type: string,
+        default_value: "sqp",
+        description: "Optimization backend used by the controller",
+        validation: {
+          one_of<>: [["ddp", "sqp"]]
+        }
+      }
+
+      timeHorizon: {
+        type: double,
+        default_value: 1.0,
+        description: "MPC solver planned trajectory time horizon",
+        validation: {
+          gt: [0.0]
+        }
+      }
+
+      solutionTimeWindow: {
+        type: double,
+        default_value: 0.2,
+        description: "MPC solver policy calculation time window",
+        validation: {
+          gt: [-1.0]
+        }
+      }
+
+      coldStart: {
+        type: bool,
+        default_value: false,
+        description: "Whether to cold-start the MPC solver"
+      }
+
+      debugPrint: {
+        type: bool,
+        default_value: false,
+        description: "Enable MPC debug printing"
+      }
+
+    task:
+      model_information:
+        manipulatorModelType: {
+          type: int,
+          default_value: 0,
+          description: "Fixed-base Pinocchio model type. This controller currently requires 0.",
+          validation: {
+            one_of<>: [[0]]
+          }
+        }
+
+        omnidirectionalBase: {
+          type: bool,
+          default_value: false,
+          description: "Unused for fixed-base forward-dynamics MPC"
+        }
+
+        removeJoints: {
+          type: string_array,
+          default_value: [],
+          description: "URDF joints to convert to fixed joints before building the Pinocchio model",
+          validation: {
+            unique<>: null
+          }
+        }
+
+        baseFrame: {
+          type: string,
+          default_value: "",
+          description: "Reference base frame name"
+        }
+
+        endEffectorFrame: {
+          type: string,
+          default_value: "",
+          description: "End-effector frame used by diagnostics and visualization"
+        }
+
+      model_settings:
+        usePreComputation: {
+          type: bool,
+          default_value: false,
+          description: "Reserved for future forward-dynamics precomputation"
+        }
+
+        recompileLibraries: {
+          type: bool,
+          default_value: true,
+          description: "Force recompilation of generated CppAD libraries"
+        }
+
+      ddp:
+        algorithm: {
+          type: string,
+          default_value: "SLQ",
+          description: "Algorithm used for DDP MPC solver",
+          validation: {
+            one_of<>: [["SLQ", "ILQR"]]
+          }
+        }
+
+        nThreads: {
+          type: int,
+          default_value: 1,
+          description: "Number of solver threads",
+          validation: {
+            gt: [0]
+          }
+        }
+
+        threadPriority: {
+          type: int,
+          default_value: 50,
+          description: "Thread priority",
+          validation: {
+            gt_eq: [0]
+          }
+        }
+
+        maxNumIterations: {
+          type: int,
+          default_value: 1,
+          description: "Maximum DDP iterations",
+          validation: {
+            gt: [0]
+          }
+        }
+
+        minRelCost: {
+          type: double,
+          default_value: 0.1,
+          description: "Minimum relative cost improvement"
+        }
+
+        constraintTolerance: {
+          type: double,
+          default_value: 5.0e-3,
+          description: "Constraint tolerance",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        displayInfo: {
+          type: bool,
+          default_value: false,
+          description: "Print detailed solver information"
+        }
+
+        displayShortSummary: {
+          type: bool,
+          default_value: false,
+          description: "Print abbreviated solver summary"
+        }
+
+        checkNumericalStability: {
+          type: bool,
+          default_value: false,
+          description: "Enable numerical stability checks"
+        }
+
+        debugPrintRollout: {
+          type: bool,
+          default_value: false,
+          description: "Print rollout debug information"
+        }
+
+        debugCaching: {
+          type: bool,
+          default_value: false,
+          description: "Print cache debug information"
+        }
+
+        AbsTolODE: {
+          type: double,
+          default_value: 1.0e-5,
+          description: "Absolute ODE tolerance",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        RelTolODE: {
+          type: double,
+          default_value: 1.0e-3,
+          description: "Relative ODE tolerance",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        maxNumStepsPerSecond: {
+          type: int,
+          default_value: 10000,
+          description: "Maximum integrator steps per second",
+          validation: {
+            gt: [0]
+          }
+        }
+
+        timeStep: {
+          type: double,
+          default_value: 0.01,
+          description: "Solver time step",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        backwardPassIntegratorType: {
+          type: string,
+          default_value: "ODE45",
+          description: "Backward-pass integrator type"
+        }
+
+        constraintPenaltyInitialValue: {
+          type: double,
+          default_value: 20.0,
+          description: "Initial constraint penalty",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        constraintPenaltyIncreaseRate: {
+          type: double,
+          default_value: 2.0,
+          description: "Constraint penalty increase rate",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        preComputeRiccatiTerms: {
+          type: bool,
+          default_value: true,
+          description: "Precompute Riccati terms"
+        }
+
+        useFeedbackPolicy: {
+          type: bool,
+          default_value: true,
+          description: "Enable feedback policy"
+        }
+
+        strategy: {
+          type: string,
+          default_value: "LINE_SEARCH",
+          description: "DDP step strategy"
+        }
+
+        lineSearch:
+          minStepLength: {
+            type: double,
+            default_value: 1.0e-2,
+            description: "Minimum line-search step",
+            validation: {
+              gt: [0.0]
+            }
+          }
+
+          maxStepLength: {
+            type: double,
+            default_value: 1.0,
+            description: "Maximum line-search step",
+            validation: {
+              gt: [0.0]
+            }
+          }
+
+          hessianCorrectionStrategy: {
+            type: string,
+            default_value: "DIAGONAL_SHIFT",
+            description: "Hessian correction strategy"
+          }
+
+          hessianCorrectionMultiple: {
+            type: double,
+            default_value: 1.0e-5,
+            description: "Hessian correction multiple",
+            validation: {
+              gt: [0.0]
+            }
+          }
+
+      sqp:
+        nThreads: {
+          type: int,
+          default_value: 1,
+          description: "Number of SQP threads",
+          validation: {
+            gt: [0]
+          }
+        }
+
+        dt: {
+          type: double,
+          default_value: 0.01,
+          description: "SQP time step",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        sqpIteration: {
+          type: int,
+          default_value: 1,
+          description: "Maximum SQP iterations",
+          validation: {
+            gt: [0]
+          }
+        }
+
+        deltaTol: {
+          type: double,
+          default_value: 1.0e-4,
+          description: "SQP delta tolerance",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        costTol: {
+          type: double,
+          default_value: 1.0e-4,
+          description: "SQP cost tolerance",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        g_max: {
+          type: double,
+          default_value: 1.0e-2,
+          description: "Upper merit-function penalty bound",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        g_min: {
+          type: double,
+          default_value: 1.0e-6,
+          description: "Lower merit-function penalty bound",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        inequalityConstraintMu: {
+          type: double,
+          default_value: 0.1,
+          description: "Inequality barrier mu",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        inequalityConstraintDelta: {
+          type: double,
+          default_value: 5.0,
+          description: "Inequality barrier delta",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        enableLogging: {
+          type: bool,
+          default_value: false,
+          description: "Enable SQP logging"
+        }
+
+        projectStateInputEqualityConstraints: {
+          type: bool,
+          default_value: false,
+          description: "Forward dynamics has no state-input equality constraints"
+        }
+
+        extractProjectionMultiplier: {
+          type: bool,
+          default_value: false,
+          description: "No equality projection multiplier is used by the forward dynamics OCP"
+        }
+
+        printSolverStatistics: {
+          type: bool,
+          default_value: true,
+          description: "Print SQP statistics"
+        }
+
+        printSolverStatus: {
+          type: bool,
+          default_value: false,
+          description: "Print SQP status"
+        }
+
+        printLinesearch: {
+          type: bool,
+          default_value: false,
+          description: "Print SQP line-search diagnostics"
+        }
+
+        useFeedbackPolicy: {
+          type: bool,
+          default_value: false,
+          description: "Enable SQP feedback policy"
+        }
+
+        integratorType: {
+          type: string,
+          default_value: "RK2",
+          description: "SQP sensitivity integrator type"
+        }
+
+        threadPriority: {
+          type: int,
+          default_value: 50,
+          description: "SQP thread priority",
+          validation: {
+            gt_eq: [0]
+          }
+        }
+
+        logFilePath: {
+          type: string,
+          default_value: "/tmp/ocs2/sqp_log/",
+          description: "SQP log path"
+        }
+
+      rollout:
+        AbsTolODE: {
+          type: double,
+          default_value: 1.0e-5,
+          description: "Rollout absolute tolerance",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        RelTolODE: {
+          type: double,
+          default_value: 1.0e-3,
+          description: "Rollout relative tolerance",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        timeStep: {
+          type: double,
+          default_value: 0.01,
+          description: "Rollout time step",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        integratorType: {
+          type: string,
+          default_value: "ODE45",
+          description: "Rollout integrator type"
+        }
+
+        maxNumStepsPerSecond: {
+          type: int,
+          default_value: 10000,
+          description: "Maximum rollout steps per second",
+          validation: {
+            gt: [0]
+          }
+        }
+
+        checkNumericalStability: {
+          type: bool,
+          default_value: false,
+          description: "Check rollout numerical stability"
+        }
+
+      inputCost:
+        R:
+          jointTorque:
+            scaling: {
+              type: double,
+              default_value: 1.0e-4,
+              description: "Joint torque input cost scaling",
+              validation: {
+                gt_eq: [0.0]
+              }
+            }
+
+            diagonal: {
+              type: double_array,
+              default_value: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+              description: "Joint torque cost diagonal"
+            }
+
+      inputLimits:
+        activate: {
+          type: bool,
+          default_value: true,
+          description: "Enforce hard joint torque bounds in the OCP"
+        }
+
+        mu: {
+          type: double,
+          default_value: 1.0e-2,
+          description: "Legacy relaxed-barrier scale for input bounds; hard OCP input bounds use SQP inequality settings",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        delta: {
+          type: double,
+          default_value: 1.0e-2,
+          description: "Legacy relaxed-barrier relaxation for input bounds; hard OCP input bounds use SQP inequality settings",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        jointTorque:
+          lowerBound: {
+            type: double_array,
+            default_value: [-150.0, -150.0, -150.0, -28.0, -28.0, -28.0],
+            description: "Joint torque lower bounds in Nm"
+          }
+
+          upperBound: {
+            type: double_array,
+            default_value: [150.0, 150.0, 150.0, 28.0, 28.0, 28.0],
+            description: "Joint torque upper bounds in Nm"
+          }
+
+      stateLimits:
+        activate: {
+          type: bool,
+          default_value: false,
+          description: "Enforce hard joint position and velocity bounds in the OCP"
+        }
+
+        jointPosition:
+          lowerBound: {
+            type: double_array,
+            default_value: [-6.283185307, -6.283185307, -6.283185307, -6.283185307, -6.283185307, -6.283185307],
+            description: "Joint position lower bounds in rad"
+          }
+
+          upperBound: {
+            type: double_array,
+            default_value: [6.283185307, 6.283185307, 6.283185307, 6.283185307, 6.283185307, 6.283185307],
+            description: "Joint position upper bounds in rad"
+          }
+
+        jointVelocity:
+          lowerBound: {
+            type: double_array,
+            default_value: [-3.15, -3.15, -3.15, -3.2, -3.2, -3.2],
+            description: "Joint velocity lower bounds in rad/s"
+          }
+
+          upperBound: {
+            type: double_array,
+            default_value: [3.15, 3.15, 3.15, 3.2, 3.2, 3.2],
+            description: "Joint velocity upper bounds in rad/s"
+          }
+
+      jointTracking:
+        activate: {
+          type: bool,
+          default_value: true,
+          description: "Enable joint-space tracking"
+        }
+
+        scaling: {
+          type: double,
+          default_value: 2.0,
+          description: "Joint-position tracking scale",
+          validation: {
+            gt_eq: [0.0]
+          }
+        }
+
+        diagonal: {
+          type: double_array,
+          default_value: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+          description: "Joint-position tracking diagonal"
+        }
+
+        velocityScaling: {
+          type: double,
+          default_value: 2.0,
+          description: "Joint-velocity tracking scale applied to the jointTracking diagonal",
+          validation: {
+            gt_eq: [0.0]
+          }
+        }
+
+  paths:
+    libFolder: {
+      type: string,
+      default_value: "",
+      description: "Path to generated CppAD libraries"
+    }
+
+    urdfFile: {
+      type: string,
+      default_value: "",
+      description: "Path to robot URDF"
+    }
+
+  topics:
+    target_trajectories_topic: {
+      type: string,
+      default_value: "/target_trajectories",
+      description: "Target trajectory topic"
+    }
+
+    mpc_observation_topic: {
+      type: string,
+      default_value: "/forward_dynamics_mpc_observation",
+      description: "Published OCS2 observation with the controller virtual time"
+    }
+
+    mpc_policy_topic: {
+      type: string,
+      default_value: "/forward_dynamics_mpc_policy",
+      description: "Published flattened forward-dynamics MPC policy"
+    }
+
+  policyPublishing:
+    publish: {
+      type: bool,
+      default_value: true,
+      description: "Publish optimized MPC state, input, and controller trajectories"
+    }
+
+    publishRate: {
+      type: double,
+      default_value: 10.0,
+      description: "Maximum flattened MPC policy publication frequency in Hz",
+      validation: {
+        gt: [0.0]
+      }
+    }
+
+  lowLevelPDFeedback:
+    activate: {
+      type: bool,
+      default_value: false,
+      description: "Add optional joint-space PD torque feedback tau_cmd = tau_mpc + Kp(q_mpc - q) + Kd(v_mpc - v)"
+    }
+
+    jointKp: {
+      type: double_array,
+      default_value: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      description: "Joint-position torque gains in Nm/rad"
+    }
+
+    jointKd: {
+      type: double_array,
+      default_value: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      description: "Joint-velocity torque gains in Nm/(rad/s)"
+    }
+
+  numeric:
+    statusLogPeriod: {
+      type: double,
+      default_value: 2.0,
+      description: "Period in seconds for throttled MPC_ACTIVE and HOLD status logs",
+      validation: {
+        gt: [0.0]
+      }
+    }
+
+    commandSmoothingAlpha: {
+      type: double,
+      default_value: 1.0,
+      description: "Outgoing torque smoothing factor",
+      validation: {
+        gt_eq: [0.0],
+        lt_eq: [1.0]
+      }
+    }
+
+    gravityCompensationOnly: {
+      type: bool,
+      default_value: false,
+      description: "Bypass MPC policy output and command Pinocchio nonlinear torque hold only"
+    }
+
+    holdVelocityDamping: {
+      type: double_array,
+      default_value: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      description: "Joint-space damping gain used by hold mode as desired acceleration a_hold = -D * v"
+    }
+
+    holdAccelerationLowerBound: {
+      type: double_array,
+      default_value: [-10.0, -10.0, -10.0, -20.0, -20.0, -20.0],
+      description: "Lower acceleration bound used only by the nonlinear hold and MPC initializer"
+    }
+
+    holdAccelerationUpperBound: {
+      type: double_array,
+      default_value: [10.0, 10.0, 10.0, 20.0, 20.0, 20.0],
+      description: "Upper acceleration bound used only by the nonlinear hold and MPC initializer"
+    }
+
+    policyValidation:
+      activate: {
+        type: bool,
+        default_value: true,
+        description: "Reject MPC policies that fail solver or input-bound checks"
+      }
+
+      maxDynamicsViolationSSE: {
+        type: double,
+        default_value: 1.0e-2,
+        description: "Maximum accepted OCS2 dynamics-violation SSE",
+        validation: {
+          gt_eq: [0.0]
+        }
+      }
+
+      maxInequalityConstraintsSSE: {
+        type: double,
+        default_value: 1.0e-6,
+        description: "Maximum accepted OCS2 inequality-constraint SSE",
+        validation: {
+          gt_eq: [0.0]
+        }
+      }
+
+      inputBoundTolerance: {
+        type: double,
+        default_value: 1.0e-3,
+        description: "Allowed numerical input-bound violation",
+        validation: {
+          gt_eq: [0.0]
+        }
+      }
+
+  robot:
+    prefix: {
+      type: string,
+      default_value: "",
+      description: "Robot joint/link prefix"
+    }
+
+    body_joint_names:
+      type: string_array
+      default_value: []
+      description: "Controller joint keys encoded as body_joint_name"
+      validation: {
+        unique<>: null
+      }
+
+    __map_body_joint_names:
+      command_interfaces:
+        type: string_array
+        default_value: []
+        description: "Command interfaces to claim"
+        read_only: true
+        validation: {
+          unique<>: null,
+          subset_of<>: [["position", "velocity", "acceleration", "effort"]]
+        }
+
+      state_interfaces:
+        type: string_array
+        default_value: []
+        description: "State interfaces to claim"
+        read_only: true
+        validation: {
+          unique<>: null,
+          subset_of<>: [["position", "velocity", "acceleration", "effort"]]
+        }

@@ -1,0 +1,949 @@
+#include "dynamics_mpc_controller/forward_dynamics_mpc/forward_dynamics_mpc_controller.hpp"
+
+#include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <filesystem>
+#include <functional>
+#include <limits>
+#include <sstream>
+#include <stdexcept>
+#include <utility>
+
+#include <hardware_interface/types/hardware_interface_type_values.hpp>
+#include <ocs2_core/thread_support/ExecuteAndSleep.h>
+#include <ocs2_ros_interfaces/common/RosMsgConversions.h>
+#include <pluginlib/class_list_macros.hpp>
+
+#include "dynamics_mpc_controller/inverse_dynamics_mpc/diagnostics/mpc_policy_publisher.hpp"
+#include "dynamics_mpc_controller/forward_dynamics_mpc/reference/joint_tracking_target.hpp"
+
+namespace dynamics_mpc_controller
+{
+namespace
+{
+
+Eigen::VectorXd toEigenVector(const std::vector<double>& values)
+{
+  return Eigen::Map<const Eigen::VectorXd>(
+    values.data(), static_cast<Eigen::Index>(values.size()));
+}
+
+Eigen::VectorXd toEigenVectorExact(
+  const std::vector<double>& values,
+  std::size_t expected_size,
+  const std::string& parameter_name)
+{
+  if (values.size() != expected_size) {
+    throw std::runtime_error(
+      parameter_name + " must contain " + std::to_string(expected_size) +
+      " values, got " + std::to_string(values.size()) + ".");
+  }
+  return toEigenVector(values);
+}
+
+}  // namespace
+
+ForwardDynamicsMpcController::~ForwardDynamicsMpcController() = default;
+
+controller_interface::CallbackReturn ForwardDynamicsMpcController::on_init()
+{
+  try {
+    param_listener_ = std::make_shared<ParamListener>(get_node());
+    parameters_ = param_listener_->get_params();
+  } catch (const std::exception& e) {
+    RCLCPP_ERROR(
+      get_node()->get_logger(),
+      "[ForwardDynamicsMpcController] init failed: %s",
+      e.what());
+    return controller_interface::CallbackReturn::ERROR;
+  }
+
+  RCLCPP_INFO(get_node()->get_logger(), "[ForwardDynamicsMpcController] init success");
+  return controller_interface::CallbackReturn::SUCCESS;
+}
+
+controller_interface::CallbackReturn ForwardDynamicsMpcController::on_configure(
+  const rclcpp_lifecycle::State&)
+{
+  if (param_listener_->is_old(parameters_)) {
+    parameters_ = param_listener_->get_params();
+  }
+
+  if (!configure_mpc_data() || !configure_mpc_ocs2()) {
+    return controller_interface::CallbackReturn::ERROR;
+  }
+
+  const auto& model = interface_->getForwardDynamicsMpcModel();
+  target_subscription_ = get_node()->create_subscription<TargetMsg>(
+    mpc_data_.target_trajectories_topic_,
+    rclcpp::SystemDefaultsQoS(),
+    [this](const std::shared_ptr<TargetMsg> msg) {
+      received_target_msg_.writeFromNonRT(msg);
+    });
+  mpc_observation_publisher_ = get_node()->create_publisher<ocs2_msgs::msg::MpcObservation>(
+    mpc_data_.mpc_observation_topic_,
+    rclcpp::QoS(1));
+  realtime_mpc_observation_publisher_ =
+    std::make_shared<realtime_tools::RealtimePublisher<ocs2_msgs::msg::MpcObservation>>(
+      mpc_observation_publisher_);
+
+  mpc_policy_publisher_.reset();
+  if (parameters_.policyPublishing.publish) {
+    mpc_policy_publisher_ =
+      get_node()->create_publisher<ocs2_msgs::msg::MpcFlattenedController>(
+        parameters_.topics.mpc_policy_topic,
+        rclcpp::QoS(1));
+  }
+
+  RCLCPP_INFO(
+    get_node()->get_logger(),
+    "[ForwardDynamicsMpcController] configured | stateDim=%zu inputDim=%zu joints=%zu eeFrame=%s",
+    model.stateDim(),
+    model.inputDim(),
+    model.jointDim(),
+    model.endEffectorFrame().c_str());
+
+  return controller_interface::CallbackReturn::SUCCESS;
+}
+
+bool ForwardDynamicsMpcController::configure_mpc_data()
+{
+  mpc_data_.lib_folder_ = parameters_.paths.libFolder;
+  mpc_data_.urdf_file_ = parameters_.paths.urdfFile;
+  mpc_data_.target_trajectories_topic_ = parameters_.topics.target_trajectories_topic;
+  mpc_data_.mpc_observation_topic_ = parameters_.topics.mpc_observation_topic;
+  mpc_data_.command_smoothing_alpha_ = parameters_.numeric.commandSmoothingAlpha;
+  mpc_data_.gravity_compensation_only_ = parameters_.numeric.gravityCompensationOnly;
+  mpc_data_.hold_velocity_damping_ = parameters_.numeric.holdVelocityDamping;
+  status_log_period_ms_ = std::max<std::int64_t>(
+    1,
+    static_cast<std::int64_t>(std::llround(1000.0 * parameters_.numeric.statusLogPeriod)));
+  solver_type_ = parameters_.ocs2.mpc.solverType;
+
+  if (mpc_data_.lib_folder_.empty() || mpc_data_.urdf_file_.empty()) {
+    RCLCPP_ERROR(
+      get_node()->get_logger(),
+      "[ForwardDynamicsMpcController] paths.libFolder or paths.urdfFile is empty.");
+    return false;
+  }
+
+  std::error_code error;
+  const auto lib_folder = std::filesystem::absolute(mpc_data_.lib_folder_, error);
+  if (error) {
+    RCLCPP_ERROR(
+      get_node()->get_logger(),
+      "[ForwardDynamicsMpcController] failed to resolve CppAD library folder '%s': %s",
+      mpc_data_.lib_folder_.c_str(),
+      error.message().c_str());
+    return false;
+  }
+  std::filesystem::create_directories(lib_folder, error);
+  if (error) {
+    RCLCPP_ERROR(
+      get_node()->get_logger(),
+      "[ForwardDynamicsMpcController] failed to create CppAD library folder '%s': %s",
+      lib_folder.c_str(),
+      error.message().c_str());
+    return false;
+  }
+  mpc_data_.lib_folder_ = lib_folder.lexically_normal().string();
+  parameters_.paths.libFolder = mpc_data_.lib_folder_;
+  RCLCPP_INFO(
+    get_node()->get_logger(),
+    "[ForwardDynamicsMpcController] CppAD library folder: %s | recompileLibraries=%s",
+    mpc_data_.lib_folder_.c_str(),
+    parameters_.ocs2.task.model_settings.recompileLibraries ? "true" : "false");
+  return true;
+}
+
+bool ForwardDynamicsMpcController::configure_mpc_ocs2()
+{
+  try {
+    interface_ = std::make_unique<ForwardDynamicsMpcInterface>(parameters_);
+  } catch (const std::exception& e) {
+    RCLCPP_ERROR(
+      get_node()->get_logger(),
+      "[ForwardDynamicsMpcController] failed to create OCS2 interface: %s",
+      e.what());
+    return false;
+  }
+
+  const auto& model = interface_->getForwardDynamicsMpcModel();
+  joint_tracking_target_ = std::make_unique<reference::ForwardJointTrackingTarget>(*interface_);
+  last_input_ = vector_t::Zero(static_cast<Eigen::Index>(model.inputDim()));
+  last_tau_command_ = vector_t::Zero(static_cast<Eigen::Index>(model.jointDim()));
+  low_level_pd_kp_ = vector_t::Zero(static_cast<Eigen::Index>(model.jointDim()));
+  low_level_pd_kd_ = vector_t::Zero(static_cast<Eigen::Index>(model.jointDim()));
+
+  low_level_pd_feedback_active_ = parameters_.lowLevelPDFeedback.activate;
+  if (low_level_pd_feedback_active_) {
+    try {
+      low_level_pd_kp_ = toEigenVectorExact(
+        parameters_.lowLevelPDFeedback.jointKp,
+        model.jointDim(),
+        "lowLevelPDFeedback.jointKp");
+      low_level_pd_kd_ = toEigenVectorExact(
+        parameters_.lowLevelPDFeedback.jointKd,
+        model.jointDim(),
+        "lowLevelPDFeedback.jointKd");
+    } catch (const std::exception& e) {
+      RCLCPP_ERROR(
+        get_node()->get_logger(),
+        "[ForwardDynamicsMpcController] failed to configure low-level PD feedback: %s",
+        e.what());
+      return false;
+    }
+    RCLCPP_INFO(
+      get_node()->get_logger(),
+      "[ForwardDynamicsMpcController] low-level PD torque feedback is active.");
+  }
+
+  return true;
+}
+
+controller_interface::CallbackReturn ForwardDynamicsMpcController::configure_hardware_interface()
+{
+  const auto logger = get_node()->get_logger();
+  const std::string prefix = parameters_.robot.prefix;
+  robot_hardware_interfaces_.clear();
+
+  for (const auto& [body_joint_name, body_joint_params] : parameters_.robot.body_joint_names_map) {
+    const auto [body_name, joint_name] = resolve_name(body_joint_name, false);
+    HWInterfaces joint_hw;
+
+    for (const auto& interface_name : body_joint_params.state_interfaces) {
+      const auto state_handle = std::find_if(
+        state_interfaces_.begin(),
+        state_interfaces_.end(),
+        [&prefix, &body_name, &joint_name, &interface_name](const auto& interface) {
+          return interface.get_prefix_name() == (prefix + "_" + body_name + "_" + joint_name) &&
+                 interface.get_interface_name() == interface_name;
+        });
+      if (state_handle == state_interfaces_.end()) {
+        RCLCPP_ERROR(
+          logger,
+          "[ForwardDynamicsMpcController] missing state interface %s for %s_%s",
+          interface_name.c_str(),
+          body_name.c_str(),
+          joint_name.c_str());
+        return controller_interface::CallbackReturn::ERROR;
+      }
+      joint_hw.state.emplace(interface_name, std::ref(*state_handle));
+    }
+
+    for (const auto& interface_name : body_joint_params.command_interfaces) {
+      const auto command_handle = std::find_if(
+        command_interfaces_.begin(),
+        command_interfaces_.end(),
+        [&prefix, &body_name, &joint_name, &interface_name](const auto& interface) {
+          return interface.get_prefix_name() == (prefix + "_" + body_name + "_" + joint_name) &&
+                 interface.get_interface_name() == interface_name;
+        });
+      if (command_handle == command_interfaces_.end()) {
+        RCLCPP_ERROR(
+          logger,
+          "[ForwardDynamicsMpcController] missing command interface %s for %s_%s",
+          interface_name.c_str(),
+          body_name.c_str(),
+          joint_name.c_str());
+        return controller_interface::CallbackReturn::ERROR;
+      }
+      joint_hw.command.emplace(interface_name, std::ref(*command_handle));
+    }
+
+    if (joint_hw.command.count(hardware_interface::HW_IF_EFFORT) == 0 ||
+        joint_hw.state.count(hardware_interface::HW_IF_POSITION) == 0 ||
+        joint_hw.state.count(hardware_interface::HW_IF_VELOCITY) == 0) {
+      RCLCPP_ERROR(
+        logger,
+        "[ForwardDynamicsMpcController] each joint requires effort command plus position and velocity states.");
+      return controller_interface::CallbackReturn::ERROR;
+    }
+
+    robot_hardware_interfaces_[body_name].emplace(joint_name, std::move(joint_hw));
+  }
+
+  return controller_interface::CallbackReturn::SUCCESS;
+}
+
+controller_interface::CallbackReturn ForwardDynamicsMpcController::on_activate(
+  const rclcpp_lifecycle::State&)
+{
+  const auto hardware_result = configure_hardware_interface();
+  if (hardware_result != controller_interface::CallbackReturn::SUCCESS) {
+    return hardware_result;
+  }
+
+  const auto& model = interface_->getForwardDynamicsMpcModel();
+  const vector_t q = current_position_vector();
+  const vector_t v = current_velocity_vector();
+  const vector_t tau_nonlinear = interface_->computeNonlinearEffects(q, v);
+  last_input_ = tau_nonlinear;
+  last_tau_command_ = tau_nonlinear;
+
+  reference_manager_ = interface_->getReferenceManagerPtr();
+  policy_performance_acceptable_ = false;
+  reset_mpc_warm_start_requested_ = false;
+  virtual_time_ = 0.0;
+  const SystemObservation initial_observation = build_observation(virtual_time_);
+  reference_manager_->setTargetTrajectories(
+    joint_tracking_target_->fromObservation(initial_observation));
+
+  apply_hold_command();
+
+  if (mpc_data_.gravity_compensation_only_) {
+    RCLCPP_WARN(
+      get_node()->get_logger(),
+      "[ForwardDynamicsMpcController] gravityCompensationOnly=true; bypassing MPC solver and commanding bounded nonlinear torque hold.");
+    RCLCPP_INFO(get_node()->get_logger(), "[ForwardDynamicsMpcController] activated");
+    return controller_interface::CallbackReturn::SUCCESS;
+  }
+
+  if (solver_type_ == "ddp") {
+    mpc_solver_ = std::make_unique<ocs2::GaussNewtonDDP_MPC>(
+      interface_->mpcSettings(),
+      interface_->ddpSettings(),
+      interface_->getRollout(),
+      interface_->getOptimalControlProblem(),
+      interface_->getInitializer());
+  } else if (solver_type_ == "sqp") {
+    mpc_solver_ = std::make_unique<ocs2::SqpMpc>(
+      interface_->mpcSettings(),
+      interface_->sqpSettings(),
+      interface_->getOptimalControlProblem(),
+      interface_->getInitializer());
+  } else {
+    RCLCPP_ERROR(
+      get_node()->get_logger(),
+      "[ForwardDynamicsMpcController] unsupported solver type: %s",
+      solver_type_.c_str());
+    return controller_interface::CallbackReturn::ERROR;
+  }
+
+  mpc_solver_->getSolverPtr()->setReferenceManager(reference_manager_);
+  mrt_interface_ = std::make_unique<ocs2::MPC_MRT_Interface>(*mpc_solver_);
+  mrt_interface_->initRollout(&interface_->getRollout());
+
+  mpc_policy_observer_.reset();
+  if (mpc_policy_publisher_) {
+    mpc_policy_observer_ = std::make_shared<diagnostics::MpcPolicyPublisher>(
+      mpc_policy_publisher_,
+      *mpc_solver_,
+      get_node()->get_logger(),
+      parameters_.policyPublishing.publishRate);
+    mrt_interface_->addMrtObserver(mpc_policy_observer_);
+  }
+
+  mrt_interface_->setCurrentObservation(initial_observation);
+  publish_mpc_observation(initial_observation);
+
+  try {
+    check_initializer(initial_observation);
+
+    std::size_t attempts = 0;
+    while (!mrt_interface_->initialPolicyReceived() && attempts < 20) {
+      const auto solve_start = std::chrono::steady_clock::now();
+      mrt_interface_->advanceMpc();
+      ++attempts;
+      const double solve_time_ms = std::chrono::duration<double, std::milli>(
+        std::chrono::steady_clock::now() - solve_start).count();
+      const double target_frequency =
+        static_cast<double>(parameters_.ocs2.mpc.mpcDesiredFrequency);
+      RCLCPP_INFO(
+        get_node()->get_logger(),
+        "[ForwardDynamicsMpcController][MPC_TIMING] initial advance | attempt=%zu, elapsed=%.3f ms, target period=%.3f ms, overrun=%s.",
+        attempts,
+        solve_time_ms,
+        1000.0 / target_frequency,
+        solve_time_ms * target_frequency > 1000.0 ? "true" : "false");
+    }
+  } catch (const std::exception& e) {
+    apply_hold_command();
+    execute_mpc_ = false;
+    RCLCPP_ERROR(
+      get_node()->get_logger(),
+      "[ForwardDynamicsMpcController] initial MPC solve failed; remaining in bounded hold mode: %s",
+      e.what());
+    RCLCPP_INFO(get_node()->get_logger(), "[ForwardDynamicsMpcController] activated in hold fallback");
+    return controller_interface::CallbackReturn::SUCCESS;
+  }
+
+  if (!mrt_interface_->initialPolicyReceived()) {
+    apply_hold_command();
+    execute_mpc_ = false;
+    RCLCPP_WARN(
+      get_node()->get_logger(),
+      "[ForwardDynamicsMpcController] no initial MPC policy received; remaining in bounded hold mode.");
+    RCLCPP_INFO(get_node()->get_logger(), "[ForwardDynamicsMpcController] activated in hold fallback");
+    return controller_interface::CallbackReturn::SUCCESS;
+  }
+
+  apply_hold_command();
+
+  execute_mpc_ = true;
+  mpc_thread_ = std::thread(&ForwardDynamicsMpcController::mpc_loop, this);
+
+  RCLCPP_INFO(get_node()->get_logger(), "[ForwardDynamicsMpcController] activated");
+  return controller_interface::CallbackReturn::SUCCESS;
+}
+
+controller_interface::CallbackReturn ForwardDynamicsMpcController::on_deactivate(
+  const rclcpp_lifecycle::State&)
+{
+  execute_mpc_ = false;
+  reset_mpc_warm_start_requested_ = false;
+  if (mpc_thread_.joinable()) {
+    mpc_thread_.join();
+  }
+
+  apply_hold_command();
+  robot_hardware_interfaces_.clear();
+
+  RCLCPP_INFO(get_node()->get_logger(), "[ForwardDynamicsMpcController] deactivated");
+  return controller_interface::CallbackReturn::SUCCESS;
+}
+
+std::vector<hardware_interface::CommandInterface>
+ForwardDynamicsMpcController::on_export_reference_interfaces()
+{
+  reference_interfaces_.resize(1, std::numeric_limits<double>::quiet_NaN());
+  std::vector<hardware_interface::CommandInterface> reference_interfaces;
+  reference_interfaces.emplace_back(
+    std::string(get_node()->get_name()),
+    std::string("dummy_forward_dynamics_mpc/") + hardware_interface::HW_IF_EFFORT,
+    reference_interfaces_.data());
+  return reference_interfaces;
+}
+
+controller_interface::InterfaceConfiguration
+ForwardDynamicsMpcController::command_interface_configuration() const
+{
+  std::vector<std::string> conf_names;
+  for (const auto& [body_joint_name, body_joint_params] : parameters_.robot.body_joint_names_map) {
+    for (const auto& interface_type : body_joint_params.command_interfaces) {
+      conf_names.push_back(parameters_.robot.prefix + "_" + body_joint_name + "/" + interface_type);
+    }
+  }
+  return {controller_interface::interface_configuration_type::INDIVIDUAL, conf_names};
+}
+
+controller_interface::InterfaceConfiguration
+ForwardDynamicsMpcController::state_interface_configuration() const
+{
+  std::vector<std::string> conf_names;
+  for (const auto& [body_joint_name, body_joint_params] : parameters_.robot.body_joint_names_map) {
+    for (const auto& interface_type : body_joint_params.state_interfaces) {
+      conf_names.push_back(parameters_.robot.prefix + "_" + body_joint_name + "/" + interface_type);
+    }
+  }
+  return {controller_interface::interface_configuration_type::INDIVIDUAL, conf_names};
+}
+
+void ForwardDynamicsMpcController::mpc_loop()
+{
+  using Clock = std::chrono::steady_clock;
+  const double target_frequency =
+    static_cast<double>(parameters_.ocs2.mpc.mpcDesiredFrequency);
+  const double target_period_ms = 1000.0 / target_frequency;
+  const auto log_period = std::chrono::duration_cast<Clock::duration>(
+    std::chrono::duration<double>(parameters_.numeric.statusLogPeriod));
+
+  Clock::time_point previous_start{};
+  Clock::time_point next_log = Clock::now() + log_period;
+  double accumulated_period_ms = 0.0;
+  double accumulated_advance_ms = 0.0;
+  std::size_t period_samples = 0;
+  std::size_t advance_samples = 0;
+
+  while (execute_mpc_) {
+    try {
+      ocs2::executeAndSleep(
+        [&]() {
+          const auto iteration_start = Clock::now();
+          if (previous_start != Clock::time_point{}) {
+            const double period_ms = std::chrono::duration<double, std::milli>(
+              iteration_start - previous_start).count();
+            accumulated_period_ms += period_ms;
+            ++period_samples;
+          }
+          previous_start = iteration_start;
+
+          if (reset_mpc_warm_start_requested_.exchange(false)) {
+            mrt_interface_->resetMpcNode(reference_manager_->getTargetTrajectories());
+            policy_performance_acceptable_ = false;
+            RCLCPP_WARN(
+              get_node()->get_logger(),
+              "[ForwardDynamicsMpcController] reset MPC warm start after rejected policy; next solve will use the ABA initializer.");
+          }
+
+          mrt_interface_->advanceMpc();
+
+          const auto iteration_end = Clock::now();
+          const double advance_ms = std::chrono::duration<double, std::milli>(
+            iteration_end - iteration_start).count();
+          accumulated_advance_ms += advance_ms;
+          ++advance_samples;
+
+          if (iteration_end >= next_log) {
+            const double average_period_ms = period_samples > 0 ?
+              accumulated_period_ms / static_cast<double>(period_samples) : target_period_ms;
+            const double average_advance_ms = advance_samples > 0 ?
+              accumulated_advance_ms / static_cast<double>(advance_samples) : 0.0;
+            const double actual_frequency = 1000.0 / average_period_ms;
+            RCLCPP_INFO(
+              get_node()->get_logger(),
+              "[ForwardDynamicsMpcController][MPC_TIMING] target=%.2f Hz, actual=%.2f Hz, latest advance=%.3f ms, average advance=%.3f ms, target period=%.3f ms, utilization=%.1f%%.",
+              target_frequency,
+              actual_frequency,
+              advance_ms,
+              average_advance_ms,
+              target_period_ms,
+              100.0 * average_advance_ms / target_period_ms);
+            accumulated_period_ms = 0.0;
+            accumulated_advance_ms = 0.0;
+            period_samples = 0;
+            advance_samples = 0;
+            next_log = iteration_end + log_period;
+          }
+        },
+        parameters_.ocs2.mpc.mpcDesiredFrequency);
+    } catch (const std::exception& e) {
+      execute_mpc_ = false;
+      RCLCPP_ERROR(
+        get_node()->get_logger(),
+        "[ForwardDynamicsMpcController] MPC loop failed: %s",
+        e.what());
+    }
+  }
+}
+
+controller_interface::return_type ForwardDynamicsMpcController::update_reference_from_subscribers()
+{
+  if (mpc_data_.gravity_compensation_only_) {
+    return controller_interface::return_type::OK;
+  }
+
+  auto target_msg_ptr_ptr = received_target_msg_.readFromRT();
+  if (!(target_msg_ptr_ptr && *target_msg_ptr_ptr)) {
+    return controller_interface::return_type::OK;
+  }
+
+  const auto& msg = *(*target_msg_ptr_ptr);
+  if (!joint_tracking_target_->supports(msg)) {
+    RCLCPP_WARN_THROTTLE(
+      get_node()->get_logger(),
+      *get_node()->get_clock(),
+      2000,
+      "[ForwardDynamicsMpcController] only command_type='joint' is supported in the first forward-dynamics pass, got '%s'.",
+      msg.command_type.c_str());
+    return controller_interface::return_type::OK;
+  }
+
+  try {
+    reference_manager_->setTargetTrajectories(joint_tracking_target_->fromMessage(msg));
+  } catch (const std::exception& e) {
+    RCLCPP_ERROR(
+      get_node()->get_logger(),
+      "[ForwardDynamicsMpcController] failed to process target: %s",
+      e.what());
+  }
+  return controller_interface::return_type::OK;
+}
+
+controller_interface::return_type ForwardDynamicsMpcController::update_and_write_commands(
+  const rclcpp::Time&,
+  const rclcpp::Duration& period)
+{
+  const SystemObservation observation = build_observation(virtual_time_);
+  publish_mpc_observation(observation);
+
+  if (mpc_data_.gravity_compensation_only_) {
+    apply_hold_command();
+    RCLCPP_INFO_THROTTLE(
+      get_node()->get_logger(),
+      *get_node()->get_clock(),
+      status_log_period_ms_,
+      "[ForwardDynamicsMpcController][HOLD_MODE] gravityCompensationOnly=true; applying bounded nonlinear torque hold.");
+    virtual_time_ += period.seconds();
+    return controller_interface::return_type::OK;
+  }
+
+  if (!execute_mpc_) {
+    apply_hold_command();
+    RCLCPP_WARN_THROTTLE(
+      get_node()->get_logger(),
+      *get_node()->get_clock(),
+      status_log_period_ms_,
+      "[ForwardDynamicsMpcController][HOLD_FALLBACK] MPC execution is disabled.");
+    virtual_time_ += period.seconds();
+    return controller_interface::return_type::OK;
+  }
+
+  mrt_interface_->setCurrentObservation(observation);
+
+  const bool policy_updated = mrt_interface_->updatePolicy();
+  if (policy_updated) {
+    const auto& performance = mrt_interface_->getPerformanceIndices();
+    const auto& validation = parameters_.numeric.policyValidation;
+    const bool policy_acceptable = policy_performance_is_acceptable(performance);
+    policy_performance_acceptable_ = policy_acceptable;
+
+    if (!policy_acceptable) {
+      if (validation.activate) {
+        reset_mpc_warm_start_requested_ = true;
+      }
+      RCLCPP_WARN_THROTTLE(
+        get_node()->get_logger(),
+        *get_node()->get_clock(),
+        status_log_period_ms_,
+        "[ForwardDynamicsMpcController] rejecting MPC policy: dynamicsSSE=%.6g (max %.6g), inequalitySSE=%.6g (max %.6g).",
+        performance.dynamicsViolationSSE,
+        validation.maxDynamicsViolationSSE,
+        performance.inequalityConstraintsSSE,
+        validation.maxInequalityConstraintsSSE);
+    }
+  }
+
+  if (!policy_performance_acceptable_.load()) {
+    apply_hold_command();
+    RCLCPP_WARN_THROTTLE(
+      get_node()->get_logger(),
+      *get_node()->get_clock(),
+      status_log_period_ms_,
+      "[ForwardDynamicsMpcController][HOLD_FALLBACK] waiting for an acceptable MPC policy.");
+    virtual_time_ += period.seconds();
+    return controller_interface::return_type::OK;
+  }
+
+  const auto policy = mrt_interface_->getPolicy();
+  if (policy.timeTrajectory_.empty()) {
+    apply_hold_command();
+    RCLCPP_WARN_THROTTLE(
+      get_node()->get_logger(),
+      *get_node()->get_clock(),
+      status_log_period_ms_,
+      "[ForwardDynamicsMpcController][HOLD_FALLBACK] received an empty MPC policy.");
+    virtual_time_ += period.seconds();
+    return controller_interface::return_type::OK;
+  }
+
+  vector_t policy_state;
+  vector_t policy_input;
+  std::size_t planned_mode = 0;
+  mrt_interface_->evaluatePolicy(
+    observation.time,
+    observation.state,
+    policy_state,
+    policy_input,
+    planned_mode);
+
+  const auto& model = interface_->getForwardDynamicsMpcModel();
+  if (policy_state.size() != static_cast<Eigen::Index>(model.stateDim()) ||
+      policy_input.size() != static_cast<Eigen::Index>(model.inputDim()) ||
+      !policy_state.allFinite() || !policy_input.allFinite()) {
+    apply_hold_command();
+    RCLCPP_WARN_THROTTLE(
+      get_node()->get_logger(),
+      *get_node()->get_clock(),
+      status_log_period_ms_,
+      "[ForwardDynamicsMpcController][HOLD_FALLBACK] sampled MPC policy has invalid dimensions or non-finite values.");
+    virtual_time_ += period.seconds();
+    return controller_interface::return_type::OK;
+  }
+
+  const vector_t command_input = compute_policy_command_input(observation, policy_state, policy_input);
+
+  double input_bound_violation = 0.0;
+  if (!policy_input_is_acceptable(command_input, input_bound_violation)) {
+    RCLCPP_WARN_THROTTLE(
+      get_node()->get_logger(),
+      *get_node()->get_clock(),
+      status_log_period_ms_,
+      "[ForwardDynamicsMpcController][HOLD_FALLBACK] rejecting MPC command | input-bound violation=%.6g.",
+      input_bound_violation);
+    if (parameters_.numeric.policyValidation.activate) {
+      reset_mpc_warm_start_requested_ = true;
+    }
+    apply_hold_command();
+  } else {
+    apply_torque_command(command_input);
+    const auto& performance = mrt_interface_->getPerformanceIndices();
+    RCLCPP_INFO_THROTTLE(
+      get_node()->get_logger(),
+      *get_node()->get_clock(),
+      status_log_period_ms_,
+      "[ForwardDynamicsMpcController][MPC_ACTIVE] applying MPC torque | cost=%.6g, dynamicsSSE=%.3e, inequalitySSE=%.3e, input-bound violation=%.3e, |tau|_inf=%.3f Nm.",
+      performance.cost,
+      performance.dynamicsViolationSSE,
+      performance.inequalityConstraintsSSE,
+      input_bound_violation,
+      last_tau_command_.lpNorm<Eigen::Infinity>());
+  }
+
+  virtual_time_ += period.seconds();
+  return controller_interface::return_type::OK;
+}
+
+ForwardDynamicsMpcController::SystemObservation
+ForwardDynamicsMpcController::build_observation(double time_sec) const
+{
+  const auto& model = interface_->getForwardDynamicsMpcModel();
+  SystemObservation observation;
+  observation.time = time_sec;
+  observation.state = vector_t::Zero(static_cast<Eigen::Index>(model.stateDim()));
+  observation.input = last_input_;
+  observation.mode = 0;
+
+  observation.state.head(static_cast<Eigen::Index>(model.jointDim())) = current_position_vector();
+  observation.state.tail(static_cast<Eigen::Index>(model.jointDim())) = current_velocity_vector();
+  return observation;
+}
+
+void ForwardDynamicsMpcController::check_initializer(const SystemObservation& observation)
+{
+  const auto& model = interface_->getForwardDynamicsMpcModel();
+  std::unique_ptr<ocs2::Initializer> initializer(interface_->getInitializer().clone());
+  vector_t input;
+  vector_t next_state;
+  initializer->compute(
+    observation.time,
+    observation.state,
+    observation.time + parameters_.ocs2.task.sqp.dt,
+    input,
+    next_state);
+
+  const vector_t acceleration = interface_->computeForwardDynamics(
+    model.getQ(observation.state),
+    model.getV(observation.state),
+    input);
+
+  double bound_violation = 0.0;
+  if (interface_->inputLimitsActive()) {
+    bound_violation = std::max(
+      0.0,
+      std::max(
+        (interface_->inputLowerBounds() - input).maxCoeff(),
+        (input - interface_->inputUpperBounds()).maxCoeff()));
+  }
+
+  RCLCPP_INFO(
+    get_node()->get_logger(),
+    "[ForwardDynamicsMpcController] initializer check | |aba(q,v,tau)|_inf=%.3e, input-bound violation=%.3e",
+    acceleration.lpNorm<Eigen::Infinity>(),
+    bound_violation);
+}
+
+void ForwardDynamicsMpcController::apply_hold_command()
+{
+  const auto& model = interface_->getForwardDynamicsMpcModel();
+  const std::size_t n = model.jointDim();
+  const vector_t q = current_position_vector();
+  const vector_t v = current_velocity_vector();
+  vector_t a_hold = vector_t::Zero(static_cast<Eigen::Index>(n));
+
+  for (std::size_t i = 0; i < n && i < mpc_data_.hold_velocity_damping_.size(); ++i) {
+    a_hold(static_cast<Eigen::Index>(i)) =
+      -mpc_data_.hold_velocity_damping_[i] * v(static_cast<Eigen::Index>(i));
+  }
+
+  const vector_t acceleration_lower = toEigenVectorExact(
+    parameters_.numeric.holdAccelerationLowerBound,
+    n,
+    "numeric.holdAccelerationLowerBound");
+  const vector_t acceleration_upper = toEigenVectorExact(
+    parameters_.numeric.holdAccelerationUpperBound,
+    n,
+    "numeric.holdAccelerationUpperBound");
+  a_hold = a_hold.cwiseMax(acceleration_lower).cwiseMin(acceleration_upper);
+
+  vector_t tau = interface_->computeRneaTorque(q, v, a_hold);
+
+  if (interface_->inputLimitsActive()) {
+    tau = tau.cwiseMax(interface_->inputLowerBounds());
+    tau = tau.cwiseMin(interface_->inputUpperBounds());
+  }
+
+  write_torque_command(tau);
+
+  last_input_ = tau;
+  last_tau_command_ = tau;
+}
+
+ForwardDynamicsMpcController::vector_t ForwardDynamicsMpcController::compute_policy_command_input(
+  const SystemObservation& observation,
+  const vector_t& policy_state,
+  const vector_t& policy_input) const
+{
+  const auto& model = interface_->getForwardDynamicsMpcModel();
+  vector_t command_input = policy_input;
+
+  if (low_level_pd_feedback_active_) {
+    const vector_t q = model.getQ(observation.state);
+    const vector_t v = model.getV(observation.state);
+    const vector_t q_nominal = model.getQ(policy_state);
+    const vector_t v_nominal = model.getV(policy_state);
+
+    command_input +=
+      low_level_pd_kp_.cwiseProduct(q_nominal - q) +
+      low_level_pd_kd_.cwiseProduct(v_nominal - v);
+  }
+
+  if (interface_->inputLimitsActive()) {
+    command_input = command_input.cwiseMax(interface_->inputLowerBounds());
+    command_input = command_input.cwiseMin(interface_->inputUpperBounds());
+  }
+
+  if (last_tau_command_.size() == command_input.size()) {
+    const double alpha = mpc_data_.command_smoothing_alpha_;
+    command_input = alpha * command_input + (1.0 - alpha) * last_tau_command_;
+  }
+
+  return command_input;
+}
+
+void ForwardDynamicsMpcController::apply_torque_command(const vector_t& command_input)
+{
+  write_torque_command(command_input);
+  last_input_ = command_input;
+  last_tau_command_ = command_input;
+}
+
+void ForwardDynamicsMpcController::write_torque_command(const vector_t& torque)
+{
+  const auto& dof_names = interface_->getForwardDynamicsMpcModel().dofNames();
+  for (std::size_t i = 0; i < dof_names.size(); ++i) {
+    const auto [body_name, joint_name] = resolve_name(dof_names[i], true);
+    robot_hardware_interfaces_.at(body_name)
+      .at(joint_name)
+      .command.at(hardware_interface::HW_IF_EFFORT)
+      .get()
+      .set_value(torque(static_cast<Eigen::Index>(i)));
+  }
+}
+
+bool ForwardDynamicsMpcController::policy_input_is_acceptable(
+  const vector_t& command_input,
+  double& input_bound_violation) const
+{
+  input_bound_violation = std::numeric_limits<double>::infinity();
+
+  const auto& model = interface_->getForwardDynamicsMpcModel();
+  if (command_input.size() != static_cast<Eigen::Index>(model.inputDim()) ||
+      !command_input.allFinite()) {
+    return false;
+  }
+
+  input_bound_violation = 0.0;
+  if (interface_->inputLimitsActive()) {
+    const vector_t lower_violation = interface_->inputLowerBounds() - command_input;
+    const vector_t upper_violation = command_input - interface_->inputUpperBounds();
+    input_bound_violation = std::max(
+      0.0,
+      std::max(lower_violation.maxCoeff(), upper_violation.maxCoeff()));
+  }
+
+  const auto& validation = parameters_.numeric.policyValidation;
+  return !validation.activate ||
+    input_bound_violation <= validation.inputBoundTolerance;
+}
+
+bool ForwardDynamicsMpcController::policy_performance_is_acceptable(
+  const ocs2::PerformanceIndex& performance) const
+{
+  const auto& validation = parameters_.numeric.policyValidation;
+  return !validation.activate ||
+    (std::isfinite(performance.cost) &&
+    std::isfinite(performance.dynamicsViolationSSE) &&
+    std::isfinite(performance.inequalityConstraintsSSE) &&
+    performance.dynamicsViolationSSE <= validation.maxDynamicsViolationSSE &&
+    performance.inequalityConstraintsSSE <= validation.maxInequalityConstraintsSSE);
+}
+
+void ForwardDynamicsMpcController::publish_mpc_observation(const SystemObservation& observation)
+{
+  if (!realtime_mpc_observation_publisher_) {
+    return;
+  }
+
+  const auto msg = ocs2::ros_msg_conversions::createObservationMsg(observation);
+#if REALTIME_TOOLS_NEW_API
+  realtime_mpc_observation_publisher_->try_publish(msg);
+#else
+  if (realtime_mpc_observation_publisher_->trylock()) {
+    realtime_mpc_observation_publisher_->msg_ = msg;
+    realtime_mpc_observation_publisher_->unlockAndPublish();
+  }
+#endif
+}
+
+ForwardDynamicsMpcController::vector_t ForwardDynamicsMpcController::current_position_vector() const
+{
+  const auto& dof_names = interface_->getForwardDynamicsMpcModel().dofNames();
+  vector_t q(static_cast<Eigen::Index>(dof_names.size()));
+  for (std::size_t i = 0; i < dof_names.size(); ++i) {
+    const auto [body_name, joint_name] = resolve_name(dof_names[i], true);
+    q(static_cast<Eigen::Index>(i)) =
+      robot_hardware_interfaces_.at(body_name)
+        .at(joint_name)
+        .state.at(hardware_interface::HW_IF_POSITION)
+        .get()
+        .get_value();
+  }
+  return q;
+}
+
+ForwardDynamicsMpcController::vector_t ForwardDynamicsMpcController::current_velocity_vector() const
+{
+  const auto& dof_names = interface_->getForwardDynamicsMpcModel().dofNames();
+  vector_t v(static_cast<Eigen::Index>(dof_names.size()));
+  for (std::size_t i = 0; i < dof_names.size(); ++i) {
+    const auto [body_name, joint_name] = resolve_name(dof_names[i], true);
+    v(static_cast<Eigen::Index>(i)) =
+      robot_hardware_interfaces_.at(body_name)
+        .at(joint_name)
+        .state.at(hardware_interface::HW_IF_VELOCITY)
+        .get()
+        .get_value();
+  }
+  return v;
+}
+
+std::pair<std::string, std::string> ForwardDynamicsMpcController::resolve_name(
+  const std::string& name,
+  bool has_prefix) const
+{
+  std::stringstream ss(name);
+  std::string item;
+  std::vector<std::string> parts;
+  while (std::getline(ss, item, '_')) {
+    parts.push_back(item);
+  }
+
+  std::string body_name;
+  std::string joint_name;
+  if (has_prefix) {
+    if (parts.size() >= 3) {
+      body_name = parts[1];
+      joint_name = parts[2];
+      for (std::size_t i = 3; i < parts.size(); ++i) {
+        joint_name += "_" + parts[i];
+      }
+    }
+  } else {
+    if (parts.size() >= 2) {
+      body_name = parts[0];
+      joint_name = parts[1];
+      for (std::size_t i = 2; i < parts.size(); ++i) {
+        joint_name += "_" + parts[i];
+      }
+    }
+  }
+  return {body_name, joint_name};
+}
+
+}  // namespace dynamics_mpc_controller
+
+PLUGINLIB_EXPORT_CLASS(
+  dynamics_mpc_controller::ForwardDynamicsMpcController,
+  controller_interface::ChainableControllerInterface)

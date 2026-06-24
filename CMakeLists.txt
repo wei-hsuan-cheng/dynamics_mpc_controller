@@ -41,6 +41,9 @@ endforeach()
 generate_parameter_library(inverse_dynamics_mpc_controller_parameters
   src/inverse_dynamics_mpc/inverse_dynamics_mpc_controller_parameter.yaml
 )
+generate_parameter_library(forward_dynamics_mpc_controller_parameters
+  src/forward_dynamics_mpc/forward_dynamics_mpc_controller_parameter.yaml
+)
 
 add_library(${PROJECT_NAME} SHARED
   src/pinocchio_utils.cpp
@@ -56,6 +59,13 @@ add_library(${PROJECT_NAME} SHARED
   src/inverse_dynamics_mpc/inverse_dynamics_mpc_controller.cpp
   src/inverse_dynamics_mpc/inverse_dynamics_mpc_interface.cpp
   src/inverse_dynamics_mpc/inverse_dynamics_mpc_model.cpp
+  src/forward_dynamics_mpc/cost/forward_dynamics_state_input_cost.cpp
+  src/forward_dynamics_mpc/dynamics/forward_dynamics_aba_dynamics_ad.cpp
+  src/forward_dynamics_mpc/initialization/forward_dynamics_initializer.cpp
+  src/forward_dynamics_mpc/reference/joint_tracking_target.cpp
+  src/forward_dynamics_mpc/forward_dynamics_mpc_controller.cpp
+  src/forward_dynamics_mpc/forward_dynamics_mpc_interface.cpp
+  src/forward_dynamics_mpc/forward_dynamics_mpc_model.cpp
 )
 
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
@@ -68,6 +78,7 @@ target_link_libraries(${PROJECT_NAME}
   PUBLIC
     Eigen3::Eigen
     inverse_dynamics_mpc_controller_parameters
+    forward_dynamics_mpc_controller_parameters
 )
 ament_target_dependencies(${PROJECT_NAME} PUBLIC ${THIS_PACKAGE_INCLUDE_DEPENDS})
 
@@ -121,7 +132,10 @@ install(PROGRAMS launch/joint_tracking_target.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
-install(TARGETS ${PROJECT_NAME} inverse_dynamics_mpc_controller_parameters
+install(TARGETS
+  ${PROJECT_NAME}
+  inverse_dynamics_mpc_controller_parameters
+  forward_dynamics_mpc_controller_parameters
   EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
