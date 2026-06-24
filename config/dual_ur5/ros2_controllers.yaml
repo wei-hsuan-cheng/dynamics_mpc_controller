@@ -20,7 +20,7 @@ inverse_dynamics_mpc_controller:
         mpcDesiredFrequency: $(var mpcFreq)
         mrtDesiredFrequency: $(var mrtFreq)
         solverType: "sqp" # ddp | sqp
-        timeHorizon: 2.0
+        timeHorizon: 1.0
         solutionTimeWindow: 0.2
         coldStart: false
         debugPrint: false
@@ -281,7 +281,7 @@ forward_dynamics_mpc_controller:
         mpcDesiredFrequency: $(var mpcFreq)
         mrtDesiredFrequency: $(var mrtFreq)
         solverType: "sqp" # ddp | sqp
-        timeHorizon: 2.0
+        timeHorizon: 1.0
         solutionTimeWindow: 0.2
         coldStart: false
         debugPrint: false
