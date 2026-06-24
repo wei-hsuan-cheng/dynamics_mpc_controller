@@ -27,6 +27,13 @@ cd <workspace_dir>/src/dynamics_mpc_controller/launch && \
 python3 joint_tracking_target.py
 ```
 
+For dual UR5:
+
+```bash
+cd <workspace_dir>/src/dynamics_mpc_controller/launch && \
+python3 dual_arm_joint_tracking_target.py
+```
+
 Useful topics:
 
 ```bash

@@ -128,7 +128,9 @@ install(DIRECTORY auto_generated/
 install(FILES dynamics_mpc_controller_plugin.xml
   DESTINATION share/${PROJECT_NAME}
 )
-install(PROGRAMS launch/joint_tracking_target.py
+install(PROGRAMS
+  launch/joint_tracking_target.py
+  launch/dual_arm_joint_tracking_target.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

@@ -38,7 +38,7 @@ def generate_launch_description():
             default_value=lib_folder_default,
             description="Writable folder for generated or cached CppAD libraries",
         ),
-        DeclareLaunchArgument("mpcFreq", default_value="50", description="MPC update frequency (should be integer)"),
+        DeclareLaunchArgument("mpcFreq", default_value="40", description="MPC update frequency (should be integer)"),
         DeclareLaunchArgument("mrtFreq", default_value="1000", description="MRT update frequency (should be integer)"),
         DeclareLaunchArgument("controllersFile", default_value=controllers_default),
         DeclareLaunchArgument("mpcControllerName", default_value="inverse_dynamics_mpc_controller"),
