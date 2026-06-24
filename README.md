@@ -17,18 +17,11 @@ cd <workspace_dir>/src/dynamics_mpc_controller/launch && \
 python3 joint_tracking_target.py
 ```
 
-The target publisher waits for the controller observation topic and stamps target
-trajectory times from OCS2 virtual time:
+Useful topics
 
 ```bash
-ros2 topic echo /inverse_dynamics_mpc_observation # or /forward_dynamics_mpc_observation
-```
-
-Inspect diagnostics:
-
-```bash
-ros2 topic hz /inverse_dynamics_mpc_observation
-ros2 topic hz /inverse_dynamics_mpc_policy
+ros2 topic echo /mpc_observation
+ros2 topic echo /mpc_policy
 ros2 topic echo /estimated_ee_wrench
 ```
 
