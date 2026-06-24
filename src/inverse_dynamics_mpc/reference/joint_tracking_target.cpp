@@ -65,26 +65,23 @@ JointTrackingTarget::TargetTrajectories JointTrackingTarget::fromMessage(
     throw std::runtime_error("joint target input and state trajectory sizes must match when inputs are provided");
   }
 
-  std::vector<std::size_t> reorder_indices(n);
-  for (std::size_t i = 0; i < n; ++i) {
-    reorder_indices[i] = i;
+  if (msg.joint_names.size() != n) {
+    throw std::runtime_error("joint_names size must match the MPC joint dimension");
   }
-  if (msg.joint_names.size() == n) {
-    std::unordered_map<std::string, std::size_t> incoming;
-    for (std::size_t i = 0; i < msg.joint_names.size(); ++i) {
-      if (!incoming.emplace(msg.joint_names[i], i).second) {
-        throw std::runtime_error("duplicate joint target name: " + msg.joint_names[i]);
-      }
+
+  std::vector<std::size_t> reorder_indices(n);
+  std::unordered_map<std::string, std::size_t> incoming;
+  for (std::size_t i = 0; i < msg.joint_names.size(); ++i) {
+    if (!incoming.emplace(msg.joint_names[i], i).second) {
+      throw std::runtime_error("duplicate joint target name: " + msg.joint_names[i]);
     }
-    for (std::size_t i = 0; i < n; ++i) {
-      const auto it = incoming.find(model.dofNames()[i]);
-      if (it == incoming.end()) {
-        throw std::runtime_error("missing joint target for " + model.dofNames()[i]);
-      }
-      reorder_indices[i] = it->second;
+  }
+  for (std::size_t i = 0; i < n; ++i) {
+    const auto it = incoming.find(model.dofNames()[i]);
+    if (it == incoming.end()) {
+      throw std::runtime_error("missing joint target for " + model.dofNames()[i]);
     }
-  } else if (!msg.joint_names.empty()) {
-    throw std::runtime_error("joint_names size must be zero or match the MPC joint dimension");
+    reorder_indices[i] = it->second;
   }
 
   ocs2::vector_array_t state_trajectory;
