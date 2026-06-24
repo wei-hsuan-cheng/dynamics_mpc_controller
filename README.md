@@ -17,7 +17,7 @@ cd <workspace_dir>/src/dynamics_mpc_controller/launch && \
 python3 joint_tracking_target.py
 ```
 
-Useful topics
+Useful topics:
 
 ```bash
 ros2 topic echo /mpc_observation
