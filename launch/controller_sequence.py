@@ -17,8 +17,6 @@ from controller_manager_msgs.srv import (
 )
 
 
-
-
 def response_error_string(result):
     if result is None:
         return ''

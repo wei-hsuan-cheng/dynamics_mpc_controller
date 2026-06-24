@@ -12,7 +12,7 @@ from ocs2_msgs.msg import MpcObservation, MpcState, MpcTargetTrajectories
 from std_msgs.msg import Float64MultiArray
 
 DEFAULT_TARGET_TOPIC = "/mpc_targets"
-DEFAULT_OBSERVATION_TOPIC = "/forward_dynamics_mpc_observation" # "/inverse_dynamics_mpc_observation" | "/forward_dynamics_mpc_observation"
+DEFAULT_OBSERVATION_TOPIC = "/mpc_observation"
 
 DEFAULT_JOINT_NAMES = [
     "ur_arm_shoulder_pan_joint",

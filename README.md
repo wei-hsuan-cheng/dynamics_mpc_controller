@@ -6,9 +6,7 @@ ROS 2 controller package for fixed-base dynamics MPC using OCS2 and Pinocchio Cp
 
 ```bash
 ros2 launch dynamics_mpc_controller ur5.launch.py \
-  mujoco_headless:=true
-
-ros2 launch dynamics_mpc_controller ur5_forward_dynamics_mpc.launch.py \
+  mpcControllerName:="inverse_dynamics_mpc_controller" \
   mujoco_headless:=true
 ```
 
