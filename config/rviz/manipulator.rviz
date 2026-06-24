@@ -253,7 +253,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /forward_dynamics_mpc/visualization/optimizedStateTrajectory
+        Value: /visualization/optimizedStateTrajectory
       Value: true
     - Class: rviz_default_plugins/MarkerArray
       Enabled: true

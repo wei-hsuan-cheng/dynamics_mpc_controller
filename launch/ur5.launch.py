@@ -46,6 +46,7 @@ def generate_launch_description():
         DeclareLaunchArgument("targetTrajectoriesTopic", default_value="/mpc_targets"),
         DeclareLaunchArgument("estimatedEeWrenchTopic", default_value="/estimated_ee_wrench"),
         DeclareLaunchArgument("mpcObservationTopic", default_value="/mpc_observation"),
+        DeclareLaunchArgument("mpcPolicyTopic", default_value="/mpc_policy"),
         DeclareLaunchArgument("optimizedStateTrajectoryVisualization", default_value="true"),
         DeclareLaunchArgument("initialPoseFile", default_value=initial_pose_default),
         DeclareLaunchArgument("mujocoModelFile", default_value="scene.xml"),
