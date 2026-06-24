@@ -47,7 +47,7 @@ def generate_launch_description():
         DeclareLaunchArgument("mpcObservationTopic", default_value="/forward_dynamics_mpc_observation"),
         DeclareLaunchArgument("optimizedStateTrajectoryVisualization", default_value="true"),
         DeclareLaunchArgument("initialPoseFile", default_value=initial_pose_default),
-        DeclareLaunchArgument("mujocoModelFile", default_value="scene_open_door.xml"),
+        DeclareLaunchArgument("mujocoModelFile", default_value="scene.xml"),
     ]
 
     use_mujoco_sim = LaunchConfiguration("use_mujoco_sim")
