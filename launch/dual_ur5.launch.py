@@ -21,7 +21,7 @@ def generate_launch_description():
     lib_folder_default = os.path.join(package_root, "auto_generated", "dual_ur5")
 
     urdf_default = PathJoinSubstitution([mpc_share, "description", "dual_ur5", "urdf", "dual_ur5.urdf"])
-    controllers_default = PathJoinSubstitution([mpc_share, "config", "dual_ur5", "inverse_dynamics_mpc_controller.yaml"])
+    controllers_default = PathJoinSubstitution([mpc_share, "config", "dual_ur5", "ros2_controllers.yaml"])
     arm_control_xacro = PathJoinSubstitution([mpc_share, "description", "dual_ur5", "urdf", "dual_ur5.ros2_control.xacro"])
 
     declared_arguments = [
@@ -41,10 +41,12 @@ def generate_launch_description():
         DeclareLaunchArgument("mpcFreq", default_value="50", description="MPC update frequency (should be integer)"),
         DeclareLaunchArgument("mrtFreq", default_value="1000", description="MRT update frequency (should be integer)"),
         DeclareLaunchArgument("controllersFile", default_value=controllers_default),
+        DeclareLaunchArgument("mpcControllerName", default_value="inverse_dynamics_mpc_controller"),
         DeclareLaunchArgument("ros2ControlCommandInterface", default_value="effort"),
         DeclareLaunchArgument("targetTrajectoriesTopic", default_value="/mpc_targets"),
         DeclareLaunchArgument("estimatedEeWrenchTopic", default_value="/estimated_ee_wrench"),
-        DeclareLaunchArgument("mpcObservationTopic", default_value="/inverse_dynamics_mpc_observation"),
+        DeclareLaunchArgument("mpcObservationTopic", default_value="/mpc_observation"),
+        DeclareLaunchArgument("mpcPolicyTopic", default_value="/mpc_policy"),
         DeclareLaunchArgument("optimizedStateTrajectoryVisualization", default_value="true"),
         DeclareLaunchArgument("initialPoseFile", default_value=initial_pose_default),
         DeclareLaunchArgument("mujocoModelFile", default_value="scene_open_door.xml"),
@@ -125,6 +127,8 @@ def generate_launch_description():
             "/controller_manager",
             "--robot-description-topic",
             "/robot_description",
+            "--controller-name",
+            LaunchConfiguration("mpcControllerName"),
             "--timeout",
             "120",
         ],
@@ -139,6 +143,8 @@ def generate_launch_description():
             "/controller_manager",
             "--robot-description-topic",
             "/robot_description",
+            "--controller-name",
+            LaunchConfiguration("mpcControllerName"),
             "--timeout",
             "120",
             "--use-mujoco-sim",

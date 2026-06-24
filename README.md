@@ -4,10 +4,20 @@ ROS 2 controller package for fixed-base inverse/forward dynamics MPC using OCS2 
 
 ## UR5 MuJoCo Example
 
+Single `ur5` example:
 ```bash
 ros2 launch dynamics_mpc_controller ur5.launch.py \
   mpcControllerName:="inverse_dynamics_mpc_controller" \
   mujoco_headless:=true
+# mpcControllerName:="inverse_dynamics_mpc_controller" | forward_dynamics_mpc_controller"
+```
+
+Dual `ur5` example:
+```bash
+ros2 launch dynamics_mpc_controller dual_ur5.launch.py \
+  mpcControllerName:="inverse_dynamics_mpc_controller" \
+  mujoco_headless:=true
+# mpcControllerName:="inverse_dynamics_mpc_controller" | forward_dynamics_mpc_controller"
 ```
 
 Publish a joint target:

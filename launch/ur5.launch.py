@@ -41,7 +41,7 @@ def generate_launch_description():
         DeclareLaunchArgument("mpcFreq", default_value="50", description="MPC update frequency (should be integer)"),
         DeclareLaunchArgument("mrtFreq", default_value="1000", description="MRT update frequency (should be integer)"),
         DeclareLaunchArgument("controllersFile", default_value=controllers_default),
-         DeclareLaunchArgument("mpcControllerName", default_value="forward_dynamics_mpc_controller"),
+         DeclareLaunchArgument("mpcControllerName", default_value="inverse_dynamics_mpc_controller"),
         DeclareLaunchArgument("ros2ControlCommandInterface", default_value="effort"),
         DeclareLaunchArgument("targetTrajectoriesTopic", default_value="/mpc_targets"),
         DeclareLaunchArgument("estimatedEeWrenchTopic", default_value="/estimated_ee_wrench"),
