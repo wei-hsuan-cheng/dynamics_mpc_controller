@@ -313,27 +313,34 @@ void InverseDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
 
   ocs2::matrix_t Q = ocs2::matrix_t::Zero(2 * n, 2 * n);
   if (parameters.ocs2.task.jointTracking.activate) {
-    const auto q_weights = vectorFromArray(
-      parameters.ocs2.task.jointTracking.diagonal,
-      n,
-      1.0) * parameters.ocs2.task.jointTracking.scaling;
+    const ocs2::vector_t q_weights =
+      (vectorFromArray(
+        parameters.ocs2.task.jointTracking.diagonal,
+        n,
+        1.0) * parameters.ocs2.task.jointTracking.scaling).eval();
+    const ocs2::vector_t v_weights =
+      (vectorFromArray(
+        parameters.ocs2.task.jointTracking.diagonal,
+        n,
+        1.0) * parameters.ocs2.task.jointTracking.velocityScaling).eval();
     Q.topLeftCorner(static_cast<Eigen::Index>(n), static_cast<Eigen::Index>(n)) = q_weights.asDiagonal();
     Q.bottomRightCorner(static_cast<Eigen::Index>(n), static_cast<Eigen::Index>(n)) =
-      (parameters.ocs2.task.jointTracking.velocityScaling *
-      vectorFromArray(parameters.ocs2.task.jointTracking.diagonal, n, 1.0)).asDiagonal();
+      v_weights.asDiagonal();
   }
 
   ocs2::matrix_t R = ocs2::matrix_t::Zero(
     static_cast<Eigen::Index>(inverse_dynamics_model_.inputDim()),
     static_cast<Eigen::Index>(inverse_dynamics_model_.inputDim()));
-  const auto a_weights = vectorFromArray(
-    parameters.ocs2.task.inputCost.R.jointAcceleration.diagonal,
-    n,
-    1.0) * parameters.ocs2.task.inputCost.R.jointAcceleration.scaling;
-  const auto tau_weights = vectorFromArray(
-    parameters.ocs2.task.inputCost.R.jointTorque.diagonal,
-    n,
-    1.0) * parameters.ocs2.task.inputCost.R.jointTorque.scaling;
+  const ocs2::vector_t a_weights =
+    (vectorFromArray(
+      parameters.ocs2.task.inputCost.R.jointAcceleration.diagonal,
+      n,
+      1.0) * parameters.ocs2.task.inputCost.R.jointAcceleration.scaling).eval();
+  const ocs2::vector_t tau_weights =
+    (vectorFromArray(
+      parameters.ocs2.task.inputCost.R.jointTorque.diagonal,
+      n,
+      1.0) * parameters.ocs2.task.inputCost.R.jointTorque.scaling).eval();
   R.block(
     static_cast<Eigen::Index>(inverse_dynamics_model_.aOffset()),
     static_cast<Eigen::Index>(inverse_dynamics_model_.aOffset()),
@@ -345,16 +352,25 @@ void InverseDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
     static_cast<Eigen::Index>(n),
     static_cast<Eigen::Index>(n)) = tau_weights.asDiagonal();
   if (has_ee_wrench) {
-    const auto wrench_weights = vectorFromArray(
-      parameters.ocs2.task.inputCost.R.eeWrench.diagonal,
-      6,
-      1.0) * parameters.ocs2.task.inputCost.R.eeWrench.scaling;
+    const ocs2::vector_t wrench_weights =
+      (vectorFromArray(
+        parameters.ocs2.task.inputCost.R.eeWrench.diagonal,
+        6,
+        1.0) * parameters.ocs2.task.inputCost.R.eeWrench.scaling).eval();
     R.block(
       static_cast<Eigen::Index>(inverse_dynamics_model_.wrenchOffset()),
       static_cast<Eigen::Index>(inverse_dynamics_model_.wrenchOffset()),
       6,
       6) = wrench_weights.asDiagonal();
   }
+
+  std::cerr << "\n #### InverseDynamicsMpcInterface costs:";
+  std::cerr << "\n #### =============================================================================";
+  std::cerr << "\n #### jointTracking.activate: "
+            << (parameters.ocs2.task.jointTracking.activate ? "true" : "false");
+  std::cerr << "\n #### Q diagonal: " << Q.diagonal().transpose();
+  std::cerr << "\n #### R diagonal: " << R.diagonal().transpose();
+  std::cerr << "\n #### =============================================================================\n";
 
   problem_.costPtr->add(
     "stateInputTracking",

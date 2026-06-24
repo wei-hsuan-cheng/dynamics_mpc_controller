@@ -321,24 +321,38 @@ void ForwardDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
 
   ocs2::matrix_t Q = ocs2::matrix_t::Zero(2 * n, 2 * n);
   if (parameters.ocs2.task.jointTracking.activate) {
-    const auto q_weights = vectorFromArray(
-      parameters.ocs2.task.jointTracking.diagonal,
-      n,
-      1.0) * parameters.ocs2.task.jointTracking.scaling;
+    const ocs2::vector_t q_weights =
+      (vectorFromArray(
+        parameters.ocs2.task.jointTracking.diagonal,
+        n,
+        1.0) * parameters.ocs2.task.jointTracking.scaling).eval();
+    const ocs2::vector_t v_weights =
+      (vectorFromArray(
+        parameters.ocs2.task.jointTracking.diagonal,
+        n,
+        1.0) * parameters.ocs2.task.jointTracking.velocityScaling).eval();
     Q.topLeftCorner(static_cast<Eigen::Index>(n), static_cast<Eigen::Index>(n)) = q_weights.asDiagonal();
     Q.bottomRightCorner(static_cast<Eigen::Index>(n), static_cast<Eigen::Index>(n)) =
-      (parameters.ocs2.task.jointTracking.velocityScaling *
-      vectorFromArray(parameters.ocs2.task.jointTracking.diagonal, n, 1.0)).asDiagonal();
+      v_weights.asDiagonal();
   }
 
   ocs2::matrix_t R = ocs2::matrix_t::Zero(
     static_cast<Eigen::Index>(forward_dynamics_model_.inputDim()),
     static_cast<Eigen::Index>(forward_dynamics_model_.inputDim()));
-  const auto tau_weights = vectorFromArray(
-    parameters.ocs2.task.inputCost.R.jointTorque.diagonal,
-    n,
-    1.0) * parameters.ocs2.task.inputCost.R.jointTorque.scaling;
+  const ocs2::vector_t tau_weights =
+    (vectorFromArray(
+      parameters.ocs2.task.inputCost.R.jointTorque.diagonal,
+      n,
+      1.0) * parameters.ocs2.task.inputCost.R.jointTorque.scaling).eval();
   R.diagonal() = tau_weights;
+
+  std::cerr << "\n #### ForwardDynamicsMpcInterface costs:";
+  std::cerr << "\n #### =============================================================================";
+  std::cerr << "\n #### jointTracking.activate: "
+            << (parameters.ocs2.task.jointTracking.activate ? "true" : "false");
+  std::cerr << "\n #### Q diagonal: " << Q.diagonal().transpose();
+  std::cerr << "\n #### R diagonal: " << R.diagonal().transpose();
+  std::cerr << "\n #### =============================================================================\n";
 
   problem_.costPtr->add(
     "stateInputTracking",
