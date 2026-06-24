@@ -46,7 +46,7 @@ inverse_dynamics_mpc_controller:
           # Only valid when wrenchInRNEA is true.
           # true: desired wrench is always zero.
           # false: desired wrench is read from the incoming target input trajectory when provided.
-          trackZeroWrench: false
+          trackZeroWrench: true
 
         ddp:
           algorithm: SLQ
