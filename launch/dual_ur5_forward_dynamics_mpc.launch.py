@@ -44,6 +44,7 @@ def generate_launch_description():
         DeclareLaunchArgument("controllerName", default_value="forward_dynamics_mpc_controller"),
         DeclareLaunchArgument("ros2ControlCommandInterface", default_value="effort"),
         DeclareLaunchArgument("targetTrajectoriesTopic", default_value="/mpc_targets"),
+        DeclareLaunchArgument("estimatedEeWrenchTopic", default_value="/estimated_ee_wrench"),
         DeclareLaunchArgument("mpcObservationTopic", default_value="/forward_dynamics_mpc_observation"),
         DeclareLaunchArgument("optimizedStateTrajectoryVisualization", default_value="true"),
         DeclareLaunchArgument("initialPoseFile", default_value=initial_pose_default),

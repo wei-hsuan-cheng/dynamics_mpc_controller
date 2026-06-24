@@ -16,6 +16,7 @@
 #include <pluginlib/class_list_macros.hpp>
 
 #include "dynamics_mpc_controller/inverse_dynamics_mpc/diagnostics/mpc_policy_publisher.hpp"
+#include "dynamics_mpc_controller/estimation/momentum_observer_wrench_estimator.hpp"
 #include "dynamics_mpc_controller/forward_dynamics_mpc/reference/joint_tracking_target.hpp"
 
 namespace dynamics_mpc_controller
@@ -87,6 +88,16 @@ controller_interface::CallbackReturn ForwardDynamicsMpcController::on_configure(
   realtime_mpc_observation_publisher_ =
     std::make_shared<realtime_tools::RealtimePublisher<ocs2_msgs::msg::MpcObservation>>(
       mpc_observation_publisher_);
+  wrench_estimate_publisher_.reset();
+  realtime_wrench_estimate_publisher_.reset();
+  if (parameters_.wrenchEstimation.publish) {
+    wrench_estimate_publisher_ = get_node()->create_publisher<geometry_msgs::msg::WrenchStamped>(
+      parameters_.topics.estimated_ee_wrench_topic,
+      rclcpp::SensorDataQoS());
+    realtime_wrench_estimate_publisher_ =
+      std::make_shared<realtime_tools::RealtimePublisher<geometry_msgs::msg::WrenchStamped>>(
+        wrench_estimate_publisher_);
+  }
 
   mpc_policy_publisher_.reset();
   if (parameters_.policyPublishing.publish) {
@@ -175,6 +186,7 @@ bool ForwardDynamicsMpcController::configure_mpc_ocs2()
   last_tau_command_ = vector_t::Zero(static_cast<Eigen::Index>(model.jointDim()));
   low_level_pd_kp_ = vector_t::Zero(static_cast<Eigen::Index>(model.jointDim()));
   low_level_pd_kd_ = vector_t::Zero(static_cast<Eigen::Index>(model.jointDim()));
+  estimated_ee_wrench_ = vector_t::Zero(6);
 
   low_level_pd_feedback_active_ = parameters_.lowLevelPDFeedback.activate;
   if (low_level_pd_feedback_active_) {
@@ -197,6 +209,33 @@ bool ForwardDynamicsMpcController::configure_mpc_ocs2()
     RCLCPP_INFO(
       get_node()->get_logger(),
       "[ForwardDynamicsMpcController] low-level PD torque feedback is active.");
+  }
+
+  wrench_estimator_.reset();
+  if (parameters_.wrenchEstimation.activate) {
+    try {
+      estimation::MomentumObserverWrenchEstimatorSettings settings;
+      settings.observer_gains = toEigenVector(parameters_.wrenchEstimation.observerGains);
+      settings.velocity_filter_cutoff_hz = parameters_.wrenchEstimation.velocityFilterCutoffHz;
+      settings.torque_bias = toEigenVector(parameters_.wrenchEstimation.torqueBias);
+      settings.joint_torque_std_dev =
+        toEigenVector(parameters_.wrenchEstimation.jointTorqueStdDev);
+      settings.damping_min = parameters_.wrenchEstimation.dampingMin;
+      settings.damping_high = parameters_.wrenchEstimation.dampingHigh;
+      settings.sigma_min_threshold = parameters_.wrenchEstimation.sigmaMinThreshold;
+      settings.relative_projection_error_threshold =
+        parameters_.wrenchEstimation.relativeProjectionErrorThreshold;
+      wrench_estimator_ = std::make_unique<estimation::MomentumObserverWrenchEstimator>(
+        interface_->getPinocchioInterface().getModel(),
+        model.endEffectorFrameId(),
+        std::move(settings));
+    } catch (const std::exception& e) {
+      RCLCPP_ERROR(
+        get_node()->get_logger(),
+        "[ForwardDynamicsMpcController] failed to configure wrench estimator: %s",
+        e.what());
+      return false;
+    }
   }
 
   return true;
@@ -260,6 +299,13 @@ controller_interface::CallbackReturn ForwardDynamicsMpcController::configure_har
         "[ForwardDynamicsMpcController] each joint requires effort command plus position and velocity states.");
       return controller_interface::CallbackReturn::ERROR;
     }
+    if (parameters_.wrenchEstimation.activate &&
+        joint_hw.state.count(hardware_interface::HW_IF_EFFORT) == 0) {
+      RCLCPP_ERROR(
+        logger,
+        "[ForwardDynamicsMpcController] wrench estimation requires an effort state for every joint.");
+      return controller_interface::CallbackReturn::ERROR;
+    }
 
     robot_hardware_interfaces_[body_name].emplace(joint_name, std::move(joint_hw));
   }
@@ -278,6 +324,24 @@ controller_interface::CallbackReturn ForwardDynamicsMpcController::on_activate(
   const auto& model = interface_->getForwardDynamicsMpcModel();
   const vector_t q = current_position_vector();
   const vector_t v = current_velocity_vector();
+  estimated_ee_wrench_.setZero();
+  wrench_publish_elapsed_ = 0.0;
+  observer_residual_norm_ = 0.0;
+  jacobian_sigma_min_ = 0.0;
+  jacobian_condition_number_ = 0.0;
+  relative_projection_error_ = 0.0;
+  wrench_estimate_valid_ = false;
+  if (wrench_estimator_) {
+    try {
+      wrench_estimator_->reset(q, v, current_effort_vector());
+    } catch (const std::exception& e) {
+      RCLCPP_ERROR(
+        get_node()->get_logger(),
+        "[ForwardDynamicsMpcController] failed to reset wrench estimator: %s",
+        e.what());
+      return controller_interface::CallbackReturn::ERROR;
+    }
+  }
   const vector_t tau_nonlinear = interface_->computeNonlinearEffects(q, v);
   last_input_ = tau_nonlinear;
   last_tau_command_ = tau_nonlinear;
@@ -398,6 +462,8 @@ controller_interface::CallbackReturn ForwardDynamicsMpcController::on_deactivate
   }
 
   apply_hold_command();
+  wrench_estimate_valid_ = false;
+  wrench_publish_elapsed_ = 0.0;
   robot_hardware_interfaces_.clear();
 
   RCLCPP_INFO(get_node()->get_logger(), "[ForwardDynamicsMpcController] deactivated");
@@ -552,9 +618,22 @@ controller_interface::return_type ForwardDynamicsMpcController::update_reference
 }
 
 controller_interface::return_type ForwardDynamicsMpcController::update_and_write_commands(
-  const rclcpp::Time&,
+  const rclcpp::Time& time,
   const rclcpp::Duration& period)
 {
+  const double period_sec = period.seconds();
+  update_wrench_estimate(period_sec);
+  if (parameters_.wrenchEstimation.activate && parameters_.wrenchEstimation.publish &&
+      realtime_wrench_estimate_publisher_ &&
+      std::isfinite(period_sec) && period_sec > 0.0) {
+    wrench_publish_elapsed_ += period_sec;
+    const double publish_period = 1.0 / parameters_.wrenchEstimation.publishRate;
+    if (wrench_publish_elapsed_ >= publish_period) {
+      publish_wrench_estimate(time);
+      wrench_publish_elapsed_ = std::fmod(wrench_publish_elapsed_, publish_period);
+    }
+  }
+
   const SystemObservation observation = build_observation(virtual_time_);
   publish_mpc_observation(observation);
 
@@ -669,16 +748,26 @@ controller_interface::return_type ForwardDynamicsMpcController::update_and_write
   } else {
     apply_torque_command(command_input);
     const auto& performance = mrt_interface_->getPerformanceIndices();
+    const double force_norm = wrench_estimate_valid_ ? estimated_ee_wrench_.head(3).norm() :
+      std::numeric_limits<double>::quiet_NaN();
+    const double moment_norm = wrench_estimate_valid_ ? estimated_ee_wrench_.tail(3).norm() :
+      std::numeric_limits<double>::quiet_NaN();
     RCLCPP_INFO_THROTTLE(
       get_node()->get_logger(),
       *get_node()->get_clock(),
       status_log_period_ms_,
-      "[ForwardDynamicsMpcController][MPC_ACTIVE] applying MPC torque | cost=%.6g, dynamicsSSE=%.3e, inequalitySSE=%.3e, input-bound violation=%.3e, |tau|_inf=%.3f Nm.",
+      "[ForwardDynamicsMpcController][MPC_ACTIVE] applying MPC torque | cost=%.6g, dynamicsSSE=%.3e, inequalitySSE=%.3e, input-bound violation=%.3e, |tau|_inf=%.3f Nm, wrenchEstimateValid=%s, |F_est|_2=%.3f N, |M_est|_2=%.3f Nm, observerResidual=%.3e Nm, sigmaMin=%.3e, relativeProjectionError=%.3e.",
       performance.cost,
       performance.dynamicsViolationSSE,
       performance.inequalityConstraintsSSE,
       input_bound_violation,
-      last_tau_command_.lpNorm<Eigen::Infinity>());
+      last_tau_command_.lpNorm<Eigen::Infinity>(),
+      wrench_estimate_valid_ ? "true" : "false",
+      force_norm,
+      moment_norm,
+      observer_residual_norm_,
+      jacobian_sigma_min_,
+      relative_projection_error_);
   }
 
   virtual_time_ += period.seconds();
@@ -860,6 +949,47 @@ bool ForwardDynamicsMpcController::policy_performance_is_acceptable(
     performance.inequalityConstraintsSSE <= validation.maxInequalityConstraintsSSE);
 }
 
+void ForwardDynamicsMpcController::update_wrench_estimate(double period_sec)
+{
+  wrench_estimate_valid_ = false;
+  if (!parameters_.wrenchEstimation.activate || !wrench_estimator_) {
+    return;
+  }
+
+  try {
+    const auto& estimate = wrench_estimator_->update(
+      current_position_vector(),
+      current_velocity_vector(),
+      current_effort_vector(),
+      period_sec);
+    estimated_ee_wrench_ = estimate.wrench;
+    observer_residual_norm_ = estimate.observer_residual_norm;
+    jacobian_sigma_min_ = estimate.jacobian_sigma_min;
+    jacobian_condition_number_ = estimate.jacobian_condition_number;
+    relative_projection_error_ = estimate.relative_projection_error;
+    wrench_estimate_valid_ = estimate.valid;
+
+    if (!wrench_estimate_valid_) {
+      RCLCPP_WARN_THROTTLE(
+        get_node()->get_logger(),
+        *get_node()->get_clock(),
+        status_log_period_ms_,
+        "[ForwardDynamicsMpcController] wrench estimate invalid | residual=%.3e Nm, sigmaMin=%.3e, condition=%.3e, relativeProjectionError=%.3e.",
+        observer_residual_norm_,
+        jacobian_sigma_min_,
+        jacobian_condition_number_,
+        relative_projection_error_);
+    }
+  } catch (const std::exception& e) {
+    RCLCPP_WARN_THROTTLE(
+      get_node()->get_logger(),
+      *get_node()->get_clock(),
+      status_log_period_ms_,
+      "[ForwardDynamicsMpcController] end-effector wrench estimation failed: %s",
+      e.what());
+  }
+}
+
 void ForwardDynamicsMpcController::publish_mpc_observation(const SystemObservation& observation)
 {
   if (!realtime_mpc_observation_publisher_) {
@@ -873,6 +1003,31 @@ void ForwardDynamicsMpcController::publish_mpc_observation(const SystemObservati
   if (realtime_mpc_observation_publisher_->trylock()) {
     realtime_mpc_observation_publisher_->msg_ = msg;
     realtime_mpc_observation_publisher_->unlockAndPublish();
+  }
+#endif
+}
+
+void ForwardDynamicsMpcController::publish_wrench_estimate(const rclcpp::Time& stamp)
+{
+  if (!wrench_estimate_valid_ || !realtime_wrench_estimate_publisher_) {
+    return;
+  }
+
+  geometry_msgs::msg::WrenchStamped msg;
+  msg.header.stamp = stamp;
+  msg.header.frame_id = parameters_.ocs2.task.model_information.endEffectorFrame;
+  msg.wrench.force.x = estimated_ee_wrench_(0);
+  msg.wrench.force.y = estimated_ee_wrench_(1);
+  msg.wrench.force.z = estimated_ee_wrench_(2);
+  msg.wrench.torque.x = estimated_ee_wrench_(3);
+  msg.wrench.torque.y = estimated_ee_wrench_(4);
+  msg.wrench.torque.z = estimated_ee_wrench_(5);
+#if REALTIME_TOOLS_NEW_API
+  realtime_wrench_estimate_publisher_->try_publish(msg);
+#else
+  if (realtime_wrench_estimate_publisher_->trylock()) {
+    realtime_wrench_estimate_publisher_->msg_ = msg;
+    realtime_wrench_estimate_publisher_->unlockAndPublish();
   }
 #endif
 }
@@ -907,6 +1062,22 @@ ForwardDynamicsMpcController::vector_t ForwardDynamicsMpcController::current_vel
         .get_value();
   }
   return v;
+}
+
+ForwardDynamicsMpcController::vector_t ForwardDynamicsMpcController::current_effort_vector() const
+{
+  const auto& dof_names = interface_->getForwardDynamicsMpcModel().dofNames();
+  vector_t effort(static_cast<Eigen::Index>(dof_names.size()));
+  for (std::size_t i = 0; i < dof_names.size(); ++i) {
+    const auto [body_name, joint_name] = resolve_name(dof_names[i], true);
+    effort(static_cast<Eigen::Index>(i)) =
+      robot_hardware_interfaces_.at(body_name)
+        .at(joint_name)
+        .state.at(hardware_interface::HW_IF_EFFORT)
+        .get()
+        .get_value();
+  }
+  return effort;
 }
 
 std::pair<std::string, std::string> ForwardDynamicsMpcController::resolve_name(

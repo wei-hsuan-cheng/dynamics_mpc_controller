@@ -1,4 +1,4 @@
-#include "dynamics_mpc_controller/inverse_dynamics_mpc/estimation/momentum_observer_wrench_estimator.hpp"
+#include "dynamics_mpc_controller/estimation/momentum_observer_wrench_estimator.hpp"
 
 #include <algorithm>
 #include <cmath>

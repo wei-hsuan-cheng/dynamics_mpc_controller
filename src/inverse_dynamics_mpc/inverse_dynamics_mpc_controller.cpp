@@ -15,7 +15,7 @@
 #include <ocs2_ros_interfaces/common/RosMsgConversions.h>
 #include <pluginlib/class_list_macros.hpp>
 
-#include "dynamics_mpc_controller/inverse_dynamics_mpc/estimation/momentum_observer_wrench_estimator.hpp"
+#include "dynamics_mpc_controller/estimation/momentum_observer_wrench_estimator.hpp"
 #include "dynamics_mpc_controller/inverse_dynamics_mpc/diagnostics/mpc_policy_publisher.hpp"
 #include "dynamics_mpc_controller/inverse_dynamics_mpc/reference/joint_tracking_target.hpp"
 

@@ -160,6 +160,32 @@ std::unique_ptr<ocs2::LinearStateInputConstraint> createInputBoxConstraint(
     std::move(e), std::move(C), std::move(D));
 }
 
+std::unique_ptr<ocs2::LinearStateInputConstraint> createStateBoxConstraint(
+  std::size_t inputDim,
+  const ocs2::vector_t& lowerBound,
+  const ocs2::vector_t& upperBound)
+{
+  if (lowerBound.size() != upperBound.size()) {
+    throw std::runtime_error("[InverseDynamicsMpcInterface] state limit lower/upper dimensions do not match.");
+  }
+
+  const Eigen::Index state_dim = lowerBound.size();
+  ocs2::vector_t e = ocs2::vector_t::Zero(2 * state_dim);
+  ocs2::matrix_t C = ocs2::matrix_t::Zero(2 * state_dim, state_dim);
+  ocs2::matrix_t D = ocs2::matrix_t::Zero(2 * state_dim, static_cast<Eigen::Index>(inputDim));
+
+  for (Eigen::Index i = 0; i < state_dim; ++i) {
+    e(i) = -lowerBound(i);
+    C(i, i) = 1.0;
+
+    e(state_dim + i) = upperBound(i);
+    C(state_dim + i, i) = -1.0;
+  }
+
+  return std::make_unique<ocs2::LinearStateInputConstraint>(
+    std::move(e), std::move(C), std::move(D));
+}
+
 }  // namespace
 
 InverseDynamicsMpcInterface::InverseDynamicsMpcInterface(const Params& parameters)
@@ -451,6 +477,35 @@ void InverseDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
         inverse_dynamics_model_.stateDim(),
         input_lower_bounds_,
         input_upper_bounds_));
+  }
+
+  const auto& state_limits = parameters.ocs2.task.stateLimits;
+  const ocs2::vector_t position_lower = vectorFromArrayExact(
+    state_limits.jointPosition.lowerBound, n, "stateLimits.jointPosition.lowerBound");
+  const ocs2::vector_t position_upper = vectorFromArrayExact(
+    state_limits.jointPosition.upperBound, n, "stateLimits.jointPosition.upperBound");
+  const ocs2::vector_t velocity_lower = vectorFromArrayExact(
+    state_limits.jointVelocity.lowerBound, n, "stateLimits.jointVelocity.lowerBound");
+  const ocs2::vector_t velocity_upper = vectorFromArrayExact(
+    state_limits.jointVelocity.upperBound, n, "stateLimits.jointVelocity.upperBound");
+  validateBounds(position_lower, position_upper, "joint position");
+  validateBounds(velocity_lower, velocity_upper, "joint velocity");
+
+  state_limits_active_ = state_limits.activate;
+  state_lower_bounds_.resize(static_cast<Eigen::Index>(inverse_dynamics_model_.stateDim()));
+  state_upper_bounds_.resize(static_cast<Eigen::Index>(inverse_dynamics_model_.stateDim()));
+  state_lower_bounds_.head(static_cast<Eigen::Index>(n)) = position_lower;
+  state_upper_bounds_.head(static_cast<Eigen::Index>(n)) = position_upper;
+  state_lower_bounds_.tail(static_cast<Eigen::Index>(n)) = velocity_lower;
+  state_upper_bounds_.tail(static_cast<Eigen::Index>(n)) = velocity_upper;
+
+  if (state_limits_active_) {
+    problem_.inequalityConstraintPtr->add(
+      "stateLimits",
+      createStateBoxConstraint(
+        inverse_dynamics_model_.inputDim(),
+        state_lower_bounds_,
+        state_upper_bounds_));
   }
 
   ocs2::rollout::Settings rollout_settings;

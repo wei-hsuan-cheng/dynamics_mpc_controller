@@ -52,7 +52,7 @@ add_library(${PROJECT_NAME} SHARED
   src/inverse_dynamics_mpc/cost/inverse_dynamics_state_input_cost.cpp
   src/inverse_dynamics_mpc/diagnostics/mpc_policy_publisher.cpp
   src/inverse_dynamics_mpc/dynamics/inverse_dynamics_kinematic_dynamics_ad.cpp
-  src/inverse_dynamics_mpc/estimation/momentum_observer_wrench_estimator.cpp
+  src/estimation/momentum_observer_wrench_estimator.cpp
   src/inverse_dynamics_mpc/initialization/inverse_dynamics_initializer.cpp
   src/inverse_dynamics_mpc/reference/joint_tracking_target.cpp
   src/inverse_dynamics_mpc/visualization/optimized_state_trajectory_visualization.cpp

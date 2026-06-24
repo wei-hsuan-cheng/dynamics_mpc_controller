@@ -126,6 +126,7 @@ forward_dynamics_mpc_controller:
 
     topics:
       target_trajectories_topic: "$(var targetTrajectoriesTopic)"
+      estimated_ee_wrench_topic: "$(var estimatedEeWrenchTopic)"
       mpc_observation_topic: "$(var mpcObservationTopic)"
       mpc_policy_topic: "/forward_dynamics_mpc_policy"
 
@@ -137,6 +138,19 @@ forward_dynamics_mpc_controller:
       activate: false
       jointKp: [25.0, 25.0, 25.0, 16.0, 16.0, 16.0]
       jointKd: [10.0, 10.0, 10.0, 8.0, 8.0, 8.0]
+
+    wrenchEstimation:
+      activate: true
+      publish: true
+      observerGains: [100.0, 100.0, 100.0, 100.0, 100.0, 100.0]
+      velocityFilterCutoffHz: 20.0
+      torqueBias: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+      jointTorqueStdDev: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+      dampingMin: 0.01
+      dampingHigh: 0.5
+      sigmaMinThreshold: 0.03
+      relativeProjectionErrorThreshold: 0.3
+      publishRate: 10.0
 
     numeric:
       statusLogPeriod: 1.0
@@ -163,27 +177,27 @@ forward_dynamics_mpc_controller:
 
       arm_shoulder_pan_joint:
         command_interfaces: [effort]
-        state_interfaces: [position, velocity]
+        state_interfaces: [position, velocity, effort]
 
       arm_shoulder_lift_joint:
         command_interfaces: [effort]
-        state_interfaces: [position, velocity]
+        state_interfaces: [position, velocity, effort]
 
       arm_elbow_joint:
         command_interfaces: [effort]
-        state_interfaces: [position, velocity]
+        state_interfaces: [position, velocity, effort]
 
       arm_wrist_1_joint:
         command_interfaces: [effort]
-        state_interfaces: [position, velocity]
+        state_interfaces: [position, velocity, effort]
 
       arm_wrist_2_joint:
         command_interfaces: [effort]
-        state_interfaces: [position, velocity]
+        state_interfaces: [position, velocity, effort]
 
       arm_wrist_3_joint:
         command_interfaces: [effort]
-        state_interfaces: [position, velocity]
+        state_interfaces: [position, velocity, effort]
 
 optimized_state_trajectory_visualization:
   ros__parameters:

@@ -134,6 +134,7 @@ forward_dynamics_mpc_controller:
 
     topics:
       target_trajectories_topic: "$(var targetTrajectoriesTopic)"
+      estimated_ee_wrench_topic: "$(var estimatedEeWrenchTopic)"
       mpc_observation_topic: "$(var mpcObservationTopic)"
       mpc_policy_topic: "/forward_dynamics_mpc_policy"
 
@@ -147,6 +148,22 @@ forward_dynamics_mpc_controller:
                 25.0, 25.0, 25.0, 16.0, 16.0, 16.0]
       jointKd: [10.0, 10.0, 10.0, 8.0, 8.0, 8.0,
                 10.0, 10.0, 10.0, 8.0, 8.0, 8.0]
+
+    wrenchEstimation:
+      activate: true
+      publish: true
+      observerGains: [100.0, 100.0, 100.0, 100.0, 100.0, 100.0,
+                      100.0, 100.0, 100.0, 100.0, 100.0, 100.0]
+      velocityFilterCutoffHz: 20.0
+      torqueBias: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                   0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+      jointTorqueStdDev: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                          1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+      dampingMin: 0.01
+      dampingHigh: 0.5
+      sigmaMinThreshold: 0.03
+      relativeProjectionErrorThreshold: 0.3
+      publishRate: 10.0
 
     numeric:
       statusLogPeriod: 0.5
@@ -182,51 +199,51 @@ forward_dynamics_mpc_controller:
 
       arm1_shoulder_pan_joint:
         command_interfaces: [effort]
-        state_interfaces: [position, velocity]
+        state_interfaces: [position, velocity, effort]
 
       arm1_shoulder_lift_joint:
         command_interfaces: [effort]
-        state_interfaces: [position, velocity]
+        state_interfaces: [position, velocity, effort]
 
       arm1_elbow_joint:
         command_interfaces: [effort]
-        state_interfaces: [position, velocity]
+        state_interfaces: [position, velocity, effort]
 
       arm1_wrist_1_joint:
         command_interfaces: [effort]
-        state_interfaces: [position, velocity]
+        state_interfaces: [position, velocity, effort]
 
       arm1_wrist_2_joint:
         command_interfaces: [effort]
-        state_interfaces: [position, velocity]
+        state_interfaces: [position, velocity, effort]
 
       arm1_wrist_3_joint:
         command_interfaces: [effort]
-        state_interfaces: [position, velocity]
+        state_interfaces: [position, velocity, effort]
 
       arm2_shoulder_pan_joint:
         command_interfaces: [effort]
-        state_interfaces: [position, velocity]
+        state_interfaces: [position, velocity, effort]
 
       arm2_shoulder_lift_joint:
         command_interfaces: [effort]
-        state_interfaces: [position, velocity]
+        state_interfaces: [position, velocity, effort]
 
       arm2_elbow_joint:
         command_interfaces: [effort]
-        state_interfaces: [position, velocity]
+        state_interfaces: [position, velocity, effort]
 
       arm2_wrist_1_joint:
         command_interfaces: [effort]
-        state_interfaces: [position, velocity]
+        state_interfaces: [position, velocity, effort]
 
       arm2_wrist_2_joint:
         command_interfaces: [effort]
-        state_interfaces: [position, velocity]
+        state_interfaces: [position, velocity, effort]
 
       arm2_wrist_3_joint:
         command_interfaces: [effort]
-        state_interfaces: [position, velocity]
+        state_interfaces: [position, velocity, effort]
 
 optimized_state_trajectory_visualization:
   ros__parameters:

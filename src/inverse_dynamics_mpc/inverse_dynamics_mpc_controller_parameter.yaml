@@ -623,6 +623,39 @@ inverse_dynamics_mpc_controller:
             description: "Environment-on-robot end-effector wrench upper bounds [N, N, N, Nm, Nm, Nm]"
           }
 
+      stateLimits:
+        activate: {
+          type: bool,
+          default_value: false,
+          description: "Enforce hard joint position and velocity bounds in the OCP"
+        }
+
+        jointPosition:
+          lowerBound: {
+            type: double_array,
+            default_value: [-6.283185307, -6.283185307, -6.283185307, -6.283185307, -6.283185307, -6.283185307],
+            description: "Joint position lower bounds in rad"
+          }
+
+          upperBound: {
+            type: double_array,
+            default_value: [6.283185307, 6.283185307, 6.283185307, 6.283185307, 6.283185307, 6.283185307],
+            description: "Joint position upper bounds in rad"
+          }
+
+        jointVelocity:
+          lowerBound: {
+            type: double_array,
+            default_value: [-3.15, -3.15, -3.15, -3.2, -3.2, -3.2],
+            description: "Joint velocity lower bounds in rad/s"
+          }
+
+          upperBound: {
+            type: double_array,
+            default_value: [3.15, 3.15, 3.15, 3.2, 3.2, 3.2],
+            description: "Joint velocity upper bounds in rad/s"
+          }
+
       jointTracking:
         activate: {
           type: bool,

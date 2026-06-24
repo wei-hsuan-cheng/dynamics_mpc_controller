@@ -637,6 +637,12 @@ forward_dynamics_mpc_controller:
       description: "Target trajectory topic"
     }
 
+    estimated_ee_wrench_topic: {
+      type: string,
+      default_value: "/estimated_ee_wrench",
+      description: "Published filtered end-effector wrench estimate"
+    }
+
     mpc_observation_topic: {
       type: string,
       default_value: "/forward_dynamics_mpc_observation",
@@ -682,6 +688,91 @@ forward_dynamics_mpc_controller:
       type: double_array,
       default_value: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
       description: "Joint-velocity torque gains in Nm/(rad/s)"
+    }
+
+  wrenchEstimation:
+    activate: {
+      type: bool,
+      default_value: false,
+      description: "Estimate the LOCAL end-effector wrench with a generalized momentum observer"
+    }
+
+    publish: {
+      type: bool,
+      default_value: true,
+      description: "Publish the estimated end-effector wrench when wrench estimation is active"
+    }
+
+    observerGains: {
+      type: double_array,
+      default_value: [20.0, 20.0, 20.0, 20.0, 20.0, 20.0],
+      description: "Per-joint generalized momentum observer gains in 1/s"
+    }
+
+    velocityFilterCutoffHz: {
+      type: double,
+      default_value: 20.0,
+      description: "Low-pass cutoff frequency for observer joint velocity",
+      validation: {
+        gt: [0.0]
+      }
+    }
+
+    torqueBias: {
+      type: double_array,
+      default_value: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      description: "Per-joint effort-state bias subtracted before the observer update"
+    }
+
+    jointTorqueStdDev: {
+      type: double_array,
+      default_value: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+      description: "Per-joint torque standard deviation used by weighted wrench least squares"
+    }
+
+    dampingMin: {
+      type: double,
+      default_value: 0.01,
+      description: "Wrench least-squares damping outside singular configurations",
+      validation: {
+        gt: [0.0]
+      }
+    }
+
+    dampingHigh: {
+      type: double,
+      default_value: 0.5,
+      description: "Wrench least-squares damping near singular configurations",
+      validation: {
+        gt: [0.0]
+      }
+    }
+
+    sigmaMinThreshold: {
+      type: double,
+      default_value: 0.03,
+      description: "Minimum Jacobian singular value below which high damping is used",
+      validation: {
+        gt: [0.0]
+      }
+    }
+
+    relativeProjectionErrorThreshold: {
+      type: double,
+      default_value: 0.3,
+      description: "Maximum residual fraction unexplained by a single end-effector wrench",
+      validation: {
+        gt_eq: [0.0]
+      }
+    }
+
+    publishRate: {
+      type: double,
+      default_value: 100.0,
+      description: "Maximum estimated wrench publication frequency in Hz",
+      validation: {
+        gt: [0.0]
+      }
     }
 
   numeric:

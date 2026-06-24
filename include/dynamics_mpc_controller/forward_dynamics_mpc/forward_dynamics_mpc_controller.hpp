@@ -11,6 +11,7 @@
 #include <vector>
 
 #include <controller_interface/chainable_controller_interface.hpp>
+#include <geometry_msgs/msg/wrench_stamped.hpp>
 #include <hardware_interface/loaned_command_interface.hpp>
 #include <hardware_interface/loaned_state_interface.hpp>
 #include <ocs2_core/Types.h>
@@ -34,6 +35,11 @@
 
 namespace dynamics_mpc_controller
 {
+
+namespace estimation
+{
+class MomentumObserverWrenchEstimator;
+}
 
 namespace diagnostics
 {
@@ -91,11 +97,14 @@ private:
     const vector_t& command_input,
     double& input_bound_violation) const;
   bool policy_performance_is_acceptable(const ocs2::PerformanceIndex& performance) const;
+  void update_wrench_estimate(double period_sec);
   void publish_mpc_observation(const SystemObservation& observation);
+  void publish_wrench_estimate(const rclcpp::Time& stamp);
   void mpc_loop();
 
   vector_t current_position_vector() const;
   vector_t current_velocity_vector() const;
+  vector_t current_effort_vector() const;
   std::pair<std::string, std::string> resolve_name(const std::string& name, bool has_prefix) const;
 
   std::shared_ptr<ParamListener> param_listener_;
@@ -107,6 +116,7 @@ private:
   std::shared_ptr<ocs2::ReferenceManagerInterface> reference_manager_;
   std::unique_ptr<ocs2::MPC_BASE> mpc_solver_;
   std::unique_ptr<ocs2::MPC_MRT_Interface> mrt_interface_;
+  std::unique_ptr<estimation::MomentumObserverWrenchEstimator> wrench_estimator_;
   std::unique_ptr<reference::ForwardJointTrackingTarget> joint_tracking_target_;
   std::shared_ptr<diagnostics::MpcPolicyPublisher> mpc_policy_observer_;
 
@@ -117,7 +127,14 @@ private:
   vector_t last_tau_command_;
   vector_t low_level_pd_kp_;
   vector_t low_level_pd_kd_;
+  vector_t estimated_ee_wrench_;
+  double wrench_publish_elapsed_{0.0};
+  double observer_residual_norm_{0.0};
+  double jacobian_sigma_min_{0.0};
+  double jacobian_condition_number_{0.0};
+  double relative_projection_error_{0.0};
   bool low_level_pd_feedback_active_{false};
+  bool wrench_estimate_valid_{false};
 
   std::thread mpc_thread_;
   std::atomic_bool execute_mpc_{false};
@@ -127,9 +144,12 @@ private:
   realtime_tools::RealtimeBuffer<std::shared_ptr<TargetMsg>> received_target_msg_;
   rclcpp::Subscription<TargetMsg>::SharedPtr target_subscription_;
   rclcpp::Publisher<ocs2_msgs::msg::MpcObservation>::SharedPtr mpc_observation_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::WrenchStamped>::SharedPtr wrench_estimate_publisher_;
   rclcpp::Publisher<ocs2_msgs::msg::MpcFlattenedController>::SharedPtr mpc_policy_publisher_;
   std::shared_ptr<realtime_tools::RealtimePublisher<ocs2_msgs::msg::MpcObservation>>
     realtime_mpc_observation_publisher_;
+  std::shared_ptr<realtime_tools::RealtimePublisher<geometry_msgs::msg::WrenchStamped>>
+    realtime_wrench_estimate_publisher_;
 
   std::map<std::string, std::map<std::string, HWInterfaces>> robot_hardware_interfaces_;
 };

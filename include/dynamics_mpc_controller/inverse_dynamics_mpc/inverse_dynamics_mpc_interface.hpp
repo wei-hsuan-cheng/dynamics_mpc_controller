@@ -48,6 +48,9 @@ public:
   bool inputLimitsActive() const { return input_limits_active_; }
   const ocs2::vector_t& inputLowerBounds() const { return input_lower_bounds_; }
   const ocs2::vector_t& inputUpperBounds() const { return input_upper_bounds_; }
+  bool stateLimitsActive() const { return state_limits_active_; }
+  const ocs2::vector_t& stateLowerBounds() const { return state_lower_bounds_; }
+  const ocs2::vector_t& stateUpperBounds() const { return state_upper_bounds_; }
 
   InverseDynamicsEvaluation evaluateInverseDynamics(
     const ocs2::vector_t& q,
@@ -88,8 +91,11 @@ private:
 
   InverseDynamicsMpcModel inverse_dynamics_model_;
   bool input_limits_active_{false};
+  bool state_limits_active_{false};
   ocs2::vector_t input_lower_bounds_;
   ocs2::vector_t input_upper_bounds_;
+  ocs2::vector_t state_lower_bounds_;
+  ocs2::vector_t state_upper_bounds_;
 };
 
 }  // namespace dynamics_mpc_controller
