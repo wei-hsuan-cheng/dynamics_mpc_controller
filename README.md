@@ -1,6 +1,6 @@
 # Dynamics MPC Controller
 
-ROS 2 controller package for fixed-base dynamics MPC using OCS2 and Pinocchio CppAD.
+ROS 2 controller package for fixed-base inverse/forward dynamics MPC using OCS2 and Pinocchio CppAD.
 
 ## UR5 MuJoCo Example
 
