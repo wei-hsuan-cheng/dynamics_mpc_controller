@@ -89,7 +89,7 @@ inverse_dynamics_mpc_controller:
           printSolverStatistics: false
           printSolverStatus: false
           printLinesearch: false
-          useFeedbackPolicy: false
+          useFeedbackPolicy: true
           integratorType: RK4
           threadPriority: 50
           logFilePath: /tmp/ocs2/sqp_log/
@@ -149,7 +149,7 @@ inverse_dynamics_mpc_controller:
       publishRate: 30.0
 
     lowLevelPDFeedback:
-      activate: true
+      activate: false
       jointKp: [25.0, 25.0, 25.0, 16.0, 16.0, 16.0]
       jointKd: [10.0, 10.0, 10.0, 8.0, 8.0, 8.0]
 
