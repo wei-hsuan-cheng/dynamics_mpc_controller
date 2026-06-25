@@ -177,7 +177,7 @@ inverse_dynamics_mpc_controller:
       jointTorqueStdDev: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
       dampingMin: 0.01
       dampingHigh: 0.5
-      sigmaMinThreshold: 0.03
+      sigmaMinThreshold: 0.005
       relativeProjectionErrorThreshold: 0.3
       publishRate: 50.0
 
@@ -372,7 +372,7 @@ forward_dynamics_mpc_controller:
       jointTorqueStdDev: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
       dampingMin: 0.01
       dampingHigh: 0.5
-      sigmaMinThreshold: 0.03
+      sigmaMinThreshold: 0.005
       relativeProjectionErrorThreshold: 0.3
       publishRate: 50.0
 
