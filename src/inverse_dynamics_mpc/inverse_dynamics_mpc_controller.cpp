@@ -721,10 +721,9 @@ controller_interface::return_type InverseDynamicsMpcController::update_and_write
   if (policy_updated) {
     const auto& performance = mrt_interface_->getPerformanceIndices();
     const auto& validation = parameters_.numeric.policyValidation;
-    const bool policy_acceptable = policy_performance_is_acceptable(performance);
-    policy_performance_acceptable_ = policy_acceptable;
+    policy_performance_acceptable_ = policy_performance_is_acceptable(performance);
 
-    if (!policy_acceptable) {
+    if (!policy_performance_acceptable_.load()) {
       if (validation.activate) {
         reset_mpc_warm_start_requested_ = true;
       }
