@@ -172,14 +172,14 @@ inverse_dynamics_mpc_controller:
       activate: true
       publish: true
       observerGains: [100.0, 100.0, 100.0, 100.0, 100.0, 100.0]
-      velocityFilterCutoffHz: 20.0
+      velocityFilterCutoffHz: 100.0
       torqueBias: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
       jointTorqueStdDev: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
       dampingMin: 0.01
       dampingHigh: 0.5
       sigmaMinThreshold: 0.03
       relativeProjectionErrorThreshold: 0.3
-      publishRate: 30.0
+      publishRate: 50.0
 
     numeric:
       statusLogPeriod: 1.0
@@ -367,14 +367,14 @@ forward_dynamics_mpc_controller:
       activate: true
       publish: true
       observerGains: [100.0, 100.0, 100.0, 100.0, 100.0, 100.0]
-      velocityFilterCutoffHz: 20.0
+      velocityFilterCutoffHz: 100.0
       torqueBias: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
       jointTorqueStdDev: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
       dampingMin: 0.01
       dampingHigh: 0.5
       sigmaMinThreshold: 0.03
       relativeProjectionErrorThreshold: 0.3
-      publishRate: 30.0
+      publishRate: 50.0
 
     numeric:
       statusLogPeriod: 1.0
