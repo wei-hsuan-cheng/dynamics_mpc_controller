@@ -13,6 +13,7 @@ from std_msgs.msg import Float64MultiArray
 
 DEFAULT_TARGET_TOPIC = "/mpc_targets"
 DEFAULT_OBSERVATION_TOPIC = "/mpc_observation"
+DEFAULT_COMMAND_TYPE = "joint_position"  # "joint_position" | "joint_velocity" | "joint"
 
 DEFAULT_JOINT_NAMES = [
     "ur_arm_shoulder_pan_joint",
@@ -23,12 +24,16 @@ DEFAULT_JOINT_NAMES = [
     "ur_arm_wrist_3_joint",
 ]
 
-# DEFAULT_CENTER = [0.0, -1.5708, 1.5708, 3.1416, -1.5708, 0.0]
-# DEFAULT_AMPLITUDE = [0.4, 0.4, 0.4, 0.4, 0.4, 0.4]
-DEFAULT_CENTER = [1.0, -0.0, 1.0, 3.1416, -1.5708, 0.0]
-DEFAULT_AMPLITUDE = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+DEFAULT_POSITION_CENTER = [0.0, -1.5708, 1.5708, 3.1416, -1.5708, 0.0]
+DEFAULT_POSITION_AMPLITUDE = [0.4, 0.4, 0.4, 0.4, 0.4, 0.4]
+# DEFAULT_POSITION_CENTER = [1.0, -0.0, 1.0, 3.1416, -1.5708, 0.0]
+# DEFAULT_POSITION_AMPLITUDE = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+DEFAULT_POSITION_PHASE = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5]
 
-DEFAULT_PHASE = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5]
+DEFAULT_VELOCITY_CENTER = [0.5, 0.2, 0.0, 0.0, 0.0, 0.0]
+DEFAULT_VELOCITY_AMPLITUDE = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+DEFAULT_VELOCITY_PHASE = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5]
+
 DEFAULT_POSITION_WEIGHTS = [20.0, 20.0, 20.0, 20.0, 20.0, 20.0]
 DEFAULT_VELOCITY_WEIGHTS = [2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
 
@@ -52,7 +57,7 @@ class JointTrackingTargetPublisher(Node):
 
         self.declare_parameter("topic", DEFAULT_TARGET_TOPIC)
         self.declare_parameter("observation_topic", DEFAULT_OBSERVATION_TOPIC)
-        self.declare_parameter("command_type", "joint")
+        self.declare_parameter("command_type", DEFAULT_COMMAND_TYPE)
         self.declare_parameter("wait_for_observation", True)
         self.declare_parameter("publish_rate", 50.0)
         self.declare_parameter("trajectory_duration", 2.0)
@@ -60,9 +65,12 @@ class JointTrackingTargetPublisher(Node):
         self.declare_parameter("sine_frequency", 0.5)
         self.declare_parameter("time_offset", 0.0)
         self.declare_parameter("joint_names", DEFAULT_JOINT_NAMES)
-        self.declare_parameter("center", DEFAULT_CENTER)
-        self.declare_parameter("amplitude", DEFAULT_AMPLITUDE)
-        self.declare_parameter("phase", DEFAULT_PHASE)
+        self.declare_parameter("position_center", DEFAULT_POSITION_CENTER)
+        self.declare_parameter("position_amplitude", DEFAULT_POSITION_AMPLITUDE)
+        self.declare_parameter("position_phase", DEFAULT_POSITION_PHASE)
+        self.declare_parameter("velocity_center", DEFAULT_VELOCITY_CENTER)
+        self.declare_parameter("velocity_amplitude", DEFAULT_VELOCITY_AMPLITUDE)
+        self.declare_parameter("velocity_phase", DEFAULT_VELOCITY_PHASE)
         self.declare_parameter("position_weights", DEFAULT_POSITION_WEIGHTS)
         self.declare_parameter("velocity_weights", DEFAULT_VELOCITY_WEIGHTS)
 
@@ -82,9 +90,36 @@ class JointTrackingTargetPublisher(Node):
         self.joint_names = _as_list(self.get_parameter("joint_names").value, DEFAULT_JOINT_NAMES)
 
         joint_count = len(self.joint_names)
-        self.center = _resize(_as_list(self.get_parameter("center").value, DEFAULT_CENTER), joint_count, 0.0)
-        self.amplitude = _resize(_as_list(self.get_parameter("amplitude").value, DEFAULT_AMPLITUDE), joint_count, 0.0)
-        self.phase = _resize(_as_list(self.get_parameter("phase").value, DEFAULT_PHASE), joint_count, 0.0)
+        self.position_center = _resize(
+            _as_list(self.get_parameter("position_center").value, DEFAULT_POSITION_CENTER),
+            joint_count,
+            0.0,
+        )
+        self.position_amplitude = _resize(
+            _as_list(self.get_parameter("position_amplitude").value, DEFAULT_POSITION_AMPLITUDE),
+            joint_count,
+            0.0,
+        )
+        self.position_phase = _resize(
+            _as_list(self.get_parameter("position_phase").value, DEFAULT_POSITION_PHASE),
+            joint_count,
+            0.0,
+        )
+        self.velocity_center = _resize(
+            _as_list(self.get_parameter("velocity_center").value, DEFAULT_VELOCITY_CENTER),
+            joint_count,
+            0.0,
+        )
+        self.velocity_amplitude = _resize(
+            _as_list(self.get_parameter("velocity_amplitude").value, DEFAULT_VELOCITY_AMPLITUDE),
+            joint_count,
+            0.0,
+        )
+        self.velocity_phase = _resize(
+            _as_list(self.get_parameter("velocity_phase").value, DEFAULT_VELOCITY_PHASE),
+            joint_count,
+            0.0,
+        )
         self.position_weights = _resize(
             _as_list(self.get_parameter("position_weights").value, DEFAULT_POSITION_WEIGHTS),
             joint_count,
@@ -144,11 +179,13 @@ class JointTrackingTargetPublisher(Node):
     def joint_target(self, t: float):
         omega = 2.0 * math.pi * self.sine_frequency
         position = [
-            self.center[i] + self.amplitude[i] * math.sin(omega * t + self.phase[i])
+            self.position_center[i] +
+            self.position_amplitude[i] * math.sin(omega * t + self.position_phase[i])
             for i in range(len(self.joint_names))
         ]
         velocity = [
-            self.amplitude[i] * omega * math.cos(omega * t + self.phase[i])
+            self.velocity_center[i] +
+            self.velocity_amplitude[i] * math.sin(omega * t + self.velocity_phase[i])
             for i in range(len(self.joint_names))
         ]
         return position, velocity
