@@ -30,9 +30,10 @@
     <light directional="true" diffuse="0.6 0.6 0.6" specular="0.2 0.2 0.2" pos="0 0 4" dir="0 0 -1" />
 
     <geom name="floor" pos="0 0 -0.02" size="0 0 0.05" type="plane" material="groundplane"
-          condim="4"
+          contype="1" conaffinity="1"
+          condim="4" margin="0.002"
           friction="15 15 1"
-          solref="0.02 1" solimp="0.8 0.95 0.001"/>
+          solref="0.002 1" solimp="0.95 0.99 0.001"/>
 
     <camera name="fixed" pos="1.8 -2.4 1.35" xyaxes="0.8 0.6 0 -0.28 0.38 0.88" />
     <camera name="track" mode="trackcom" pos="1.6 -2.2 1.25" xyaxes="0.8 0.6 0 -0.28 0.38 0.88" />
