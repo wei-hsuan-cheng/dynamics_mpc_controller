@@ -793,6 +793,15 @@ forward_dynamics_mpc_controller:
       }
     }
 
+    targetTimeout: {
+      type: double,
+      default_value: 0.2,
+      description: "Maximum received target command age before falling back to hold mode. Set to 0.0 to disable.",
+      validation: {
+        gt_eq: [0.0]
+      }
+    }
+
     commandSmoothingAlpha: {
       type: double,
       default_value: 1.0,

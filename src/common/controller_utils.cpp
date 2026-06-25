@@ -1,6 +1,7 @@
 #include "dynamics_mpc_controller/common/controller_utils.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <sstream>
 
 #include <hardware_interface/types/hardware_interface_type_values.hpp>
@@ -81,6 +82,21 @@ double maxBoundViolation(
   const vector_t lower_violation = lowerBound - value;
   const vector_t upper_violation = value - upperBound;
   return std::max(0.0, std::max(lower_violation.maxCoeff(), upper_violation.maxCoeff()));
+}
+
+bool commandIsStale(
+  bool commandReceived,
+  double currentTimeSec,
+  double latestCommandTimeSec,
+  double timeoutSec)
+{
+  if (!commandReceived || timeoutSec <= 0.0) {
+    return false;
+  }
+  if (!std::isfinite(currentTimeSec) || !std::isfinite(latestCommandTimeSec)) {
+    return true;
+  }
+  return (currentTimeSec - latestCommandTimeSec) >= timeoutSec;
 }
 
 void publishMpcObservation(

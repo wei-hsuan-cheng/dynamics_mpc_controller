@@ -13,7 +13,7 @@ from std_msgs.msg import Float64MultiArray
 
 DEFAULT_TARGET_TOPIC = "/mpc_targets"
 DEFAULT_OBSERVATION_TOPIC = "/mpc_observation"
-DEFAULT_COMMAND_TYPE = "joint_position"  # "joint_position" | "joint_velocity" | "joint"
+DEFAULT_COMMAND_TYPE = "joint_velocity"  # "joint_position" | "joint_velocity" | "joint"
 
 DEFAULT_JOINT_NAMES = [
     "ur_arm_shoulder_pan_joint",
@@ -35,7 +35,7 @@ DEFAULT_VELOCITY_AMPLITUDE = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 DEFAULT_VELOCITY_PHASE = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5]
 
 DEFAULT_POSITION_WEIGHTS = [20.0, 20.0, 20.0, 20.0, 20.0, 20.0]
-DEFAULT_VELOCITY_WEIGHTS = [2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
+DEFAULT_VELOCITY_WEIGHTS = [20.0, 20.0, 20.0, 20.0, 20.0, 20.0]
 
 
 def _as_list(value, fallback: List):

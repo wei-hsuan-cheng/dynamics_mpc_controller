@@ -139,8 +139,10 @@ private:
   std::atomic_bool execute_mpc_{false};
   std::atomic_bool policy_performance_acceptable_{false};
   std::atomic_bool reset_mpc_warm_start_requested_{false};
+  std::atomic_bool target_received_{false};
 
   realtime_tools::RealtimeBuffer<std::shared_ptr<TargetMsg>> received_target_msg_;
+  realtime_tools::RealtimeBuffer<double> latest_target_receive_time_sec_;
   rclcpp::Subscription<TargetMsg>::SharedPtr target_subscription_;
   rclcpp::Publisher<ocs2_msgs::msg::MpcObservation>::SharedPtr mpc_observation_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::WrenchStamped>::SharedPtr wrench_estimate_publisher_;

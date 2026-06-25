@@ -39,6 +39,12 @@ double maxBoundViolation(
   const vector_t& lowerBound,
   const vector_t& upperBound);
 
+bool commandIsStale(
+  bool commandReceived,
+  double currentTimeSec,
+  double latestCommandTimeSec,
+  double timeoutSec);
+
 void publishMpcObservation(
   const ocs2::SystemObservation& observation,
   const std::shared_ptr<realtime_tools::RealtimePublisher<ocs2_msgs::msg::MpcObservation>>& publisher);

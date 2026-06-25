@@ -80,6 +80,8 @@ controller_interface::CallbackReturn InverseDynamicsMpcController::on_configure(
     rclcpp::SystemDefaultsQoS(),
     [this](const std::shared_ptr<TargetMsg> msg) {
       received_target_msg_.writeFromNonRT(msg);
+      latest_target_receive_time_sec_.writeFromNonRT(get_node()->get_clock()->now().seconds());
+      target_received_ = true;
     });
   mpc_observation_publisher_ = get_node()->create_publisher<ocs2_msgs::msg::MpcObservation>(
     mpc_data_.mpc_observation_topic_,
@@ -348,6 +350,9 @@ controller_interface::CallbackReturn InverseDynamicsMpcController::on_activate(
   reference_manager_ = interface_->getReferenceManagerPtr();
   policy_performance_acceptable_ = false;
   reset_mpc_warm_start_requested_ = false;
+  target_received_ = false;
+  received_target_msg_.writeFromNonRT(std::shared_ptr<TargetMsg>{});
+  latest_target_receive_time_sec_.writeFromNonRT(0.0);
   virtual_time_ = 0.0;
   const SystemObservation initial_observation = build_observation(virtual_time_);
   reference_manager_->setTargetTrajectories(
@@ -357,8 +362,10 @@ controller_interface::CallbackReturn InverseDynamicsMpcController::on_activate(
   apply_hold_command();
 
   if (mpc_data_.gravity_compensation_only_) {
-    RCLCPP_WARN(
+    RCLCPP_WARN_THROTTLE(
       get_node()->get_logger(),
+      *get_node()->get_clock(),
+      status_log_period_ms_,
       "[InverseDynamicsMpcController] gravityCompensationOnly=true; bypassing MPC solver and commanding bounded inverse-dynamics hold.");
     RCLCPP_INFO(get_node()->get_logger(), "[InverseDynamicsMpcController] activated");
     return controller_interface::CallbackReturn::SUCCESS;
@@ -438,8 +445,10 @@ controller_interface::CallbackReturn InverseDynamicsMpcController::on_activate(
     // Hold robot
     apply_hold_command();
     execute_mpc_ = false;
-    RCLCPP_WARN(
+    RCLCPP_WARN_THROTTLE(
       get_node()->get_logger(),
+      *get_node()->get_clock(),
+      status_log_period_ms_,
       "[InverseDynamicsMpcController] no initial MPC policy received; remaining in bounded hold mode.");
     RCLCPP_INFO(get_node()->get_logger(), "[InverseDynamicsMpcController] activated in hold fallback");
     return controller_interface::CallbackReturn::SUCCESS;
@@ -460,6 +469,9 @@ controller_interface::CallbackReturn InverseDynamicsMpcController::on_deactivate
 {
   execute_mpc_ = false;
   reset_mpc_warm_start_requested_ = false;
+  target_received_ = false;
+  received_target_msg_.writeFromNonRT(std::shared_ptr<TargetMsg>{});
+  latest_target_receive_time_sec_.writeFromNonRT(0.0);
   if (mpc_thread_.joinable()) {
     mpc_thread_.join();
   }
@@ -542,8 +554,10 @@ void InverseDynamicsMpcController::mpc_loop()
           if (reset_mpc_warm_start_requested_.exchange(false)) {
             mrt_interface_->resetMpcNode(reference_manager_->getTargetTrajectories());
             policy_performance_acceptable_ = false;
-            RCLCPP_WARN(
+            RCLCPP_WARN_THROTTLE(
               get_node()->get_logger(),
+              *get_node()->get_clock(),
+              status_log_period_ms_,
               "[InverseDynamicsMpcController] reset MPC warm start after rejected policy; next solve will use the inverse-dynamics initializer.");
           }
 
@@ -599,12 +613,23 @@ controller_interface::return_type InverseDynamicsMpcController::update_reference
     return controller_interface::return_type::OK;
   }
 
+  const double* latest_target_time_sec_ptr = latest_target_receive_time_sec_.readFromRT();
+  const double latest_target_time_sec =
+    latest_target_time_sec_ptr ? *latest_target_time_sec_ptr : 0.0;
+  if (controller_utils::commandIsStale(
+      target_received_.load(),
+      get_node()->get_clock()->now().seconds(),
+      latest_target_time_sec,
+      parameters_.numeric.targetTimeout)) {
+    return controller_interface::return_type::OK;
+  }
+
   const auto& msg = *(*target_msg_ptr_ptr);
   if (!joint_tracking_target_->supports(msg)) {
     RCLCPP_WARN_THROTTLE(
       get_node()->get_logger(),
       *get_node()->get_clock(),
-      2000,
+      status_log_period_ms_,
       "[InverseDynamicsMpcController] supported command_type values are 'joint_position', 'joint_velocity', and 'joint', got '%s'.",
       msg.command_type.c_str());
     return controller_interface::return_type::OK;
@@ -661,6 +686,31 @@ controller_interface::return_type InverseDynamicsMpcController::update_and_write
       *get_node()->get_clock(),
       status_log_period_ms_,
       "[InverseDynamicsMpcController][HOLD_FALLBACK] MPC execution is disabled.");
+    virtual_time_ += period.seconds();
+    return controller_interface::return_type::OK;
+  }
+
+  // Check for stale target
+  const double* latest_target_time_sec_ptr = latest_target_receive_time_sec_.readFromRT();
+  const double latest_target_time_sec =
+    latest_target_time_sec_ptr ? *latest_target_time_sec_ptr : 0.0;
+  if (controller_utils::commandIsStale(
+      target_received_.load(),
+      time.seconds(),
+      latest_target_time_sec,
+      parameters_.numeric.targetTimeout)) {
+    reference_manager_->setTargetTrajectories(joint_tracking_target_->fromObservation(observation));
+    policy_performance_acceptable_ = false;
+    reset_mpc_warm_start_requested_ = true;
+    // Hold robot
+    apply_hold_command();
+    RCLCPP_WARN_THROTTLE(
+      get_node()->get_logger(),
+      *get_node()->get_clock(),
+      status_log_period_ms_,
+      "[InverseDynamicsMpcController][HOLD_FALLBACK] target command timed out: age=%.3f s, timeout=%.3f s.",
+      time.seconds() - latest_target_time_sec,
+      parameters_.numeric.targetTimeout);
     virtual_time_ += period.seconds();
     return controller_interface::return_type::OK;
   }
