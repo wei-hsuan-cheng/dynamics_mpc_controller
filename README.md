@@ -8,12 +8,12 @@ ROS 2 controller package for fixed-base inverse/forward dynamics MPC using [OCS2
 ## Build and Install
 Clone this repo and all sub-repo with vcs;
 ```bash
-# clone
+# Clone repos
 cd <workspace_dir>/src
 git clone https://github.com/wei-hsuan-cheng/dynamics_mpc_controller.git -b main
 vcs import < dynamics_mpc_controller.repos # clone in the same directory as dynamics_mpc_controller
 
-# resdep install
+# Install by resdep
 cd <workspace_dir>
 rosdep update
 rosdep install --from-paths src --ignore-src -r -y
