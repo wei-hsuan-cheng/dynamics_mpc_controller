@@ -50,12 +50,12 @@ add_library(${PROJECT_NAME} SHARED
   src/inverse_dynamics_mpc/constraint/inverse_dynamics_constraint_cppad.cpp
   src/inverse_dynamics_mpc/constraint/inverse_dynamics_with_ee_wrench_constraint_cppad.cpp
   src/inverse_dynamics_mpc/cost/inverse_dynamics_state_input_cost.cpp
-  src/inverse_dynamics_mpc/diagnostics/mpc_policy_publisher.cpp
+  src/diagnostics/mpc_policy_publisher.cpp
   src/inverse_dynamics_mpc/dynamics/inverse_dynamics_kinematic_dynamics_ad.cpp
   src/estimation/momentum_observer_wrench_estimator.cpp
   src/inverse_dynamics_mpc/initialization/inverse_dynamics_initializer.cpp
   src/inverse_dynamics_mpc/reference/joint_tracking_target.cpp
-  src/inverse_dynamics_mpc/visualization/optimized_state_trajectory_visualization.cpp
+  src/visualization/optimized_state_trajectory_visualization.cpp
   src/inverse_dynamics_mpc/inverse_dynamics_mpc_controller.cpp
   src/inverse_dynamics_mpc/inverse_dynamics_mpc_interface.cpp
   src/inverse_dynamics_mpc/inverse_dynamics_mpc_model.cpp
@@ -89,7 +89,7 @@ pluginlib_export_plugin_description_file(
 )
 
 add_executable(optimized_state_trajectory_visualization_node
-  src/inverse_dynamics_mpc/visualization/optimized_state_trajectory_visualization_node.cpp
+  src/visualization/optimized_state_trajectory_visualization_node.cpp
 )
 target_compile_features(optimized_state_trajectory_visualization_node PUBLIC cxx_std_17)
 target_include_directories(optimized_state_trajectory_visualization_node

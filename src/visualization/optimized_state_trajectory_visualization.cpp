@@ -1,4 +1,4 @@
-#include "dynamics_mpc_controller/inverse_dynamics_mpc/visualization/optimized_state_trajectory_visualization.hpp"
+#include "dynamics_mpc_controller/visualization/optimized_state_trajectory_visualization.hpp"
 
 #include <algorithm>
 #include <array>

@@ -1,4 +1,4 @@
-#include "dynamics_mpc_controller/inverse_dynamics_mpc/diagnostics/mpc_policy_publisher.hpp"
+#include "dynamics_mpc_controller/diagnostics/mpc_policy_publisher.hpp"
 
 #include <cmath>
 #include <cstdint>

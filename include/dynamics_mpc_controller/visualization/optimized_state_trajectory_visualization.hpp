@@ -1,5 +1,5 @@
-#ifndef DYNAMICS_MPC_CONTROLLER__INVERSE_DYNAMICS_MPC__VISUALIZATION__OPTIMIZED_STATE_TRAJECTORY_VISUALIZATION_HPP_
-#define DYNAMICS_MPC_CONTROLLER__INVERSE_DYNAMICS_MPC__VISUALIZATION__OPTIMIZED_STATE_TRAJECTORY_VISUALIZATION_HPP_
+#ifndef DYNAMICS_MPC_CONTROLLER__VISUALIZATION__OPTIMIZED_STATE_TRAJECTORY_VISUALIZATION_HPP_
+#define DYNAMICS_MPC_CONTROLLER__VISUALIZATION__OPTIMIZED_STATE_TRAJECTORY_VISUALIZATION_HPP_
 
 #include <chrono>
 #include <cstddef>
@@ -21,7 +21,7 @@ class OptimizedStateTrajectoryVisualization
 public:
   struct Settings
   {
-    std::string marker_topic{"/inverse_dynamics_mpc/visualization/optimizedStateTrajectory"};
+    std::string marker_topic{"/visualization/optimizedStateTrajectory"};
     std::string frame_id{"world"};
     double publish_rate_hz{10.0};
     double line_width{0.01};
@@ -54,4 +54,4 @@ private:
 
 }  // namespace dynamics_mpc_controller::visualization
 
-#endif  // DYNAMICS_MPC_CONTROLLER__INVERSE_DYNAMICS_MPC__VISUALIZATION__OPTIMIZED_STATE_TRAJECTORY_VISUALIZATION_HPP_
+#endif  // DYNAMICS_MPC_CONTROLLER__VISUALIZATION__OPTIMIZED_STATE_TRAJECTORY_VISUALIZATION_HPP_

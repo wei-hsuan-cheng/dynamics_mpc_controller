@@ -9,7 +9,7 @@
 #include <pinocchio/multibody/model.hpp>
 #include <rclcpp/rclcpp.hpp>
 
-#include "dynamics_mpc_controller/inverse_dynamics_mpc/visualization/optimized_state_trajectory_visualization.hpp"
+#include "dynamics_mpc_controller/visualization/optimized_state_trajectory_visualization.hpp"
 #include "dynamics_mpc_controller/pinocchio_utils.hpp"
 
 namespace dynamics_mpc_controller
@@ -51,7 +51,7 @@ public:
 
     visualization::OptimizedStateTrajectoryVisualization::Settings settings;
     settings.marker_topic = declare_parameter<std::string>(
-      "markerTopic", "/inverse_dynamics_mpc/visualization/optimizedStateTrajectory");
+      "markerTopic", "/visualization/optimizedStateTrajectory");
     settings.frame_id = declare_parameter<std::string>("frameId", "world");
     settings.publish_rate_hz = declare_parameter<double>("publishRate", 10.0);
     settings.line_width = declare_parameter<double>("lineWidth", 0.01);
