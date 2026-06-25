@@ -13,7 +13,7 @@ from std_msgs.msg import Float64MultiArray
 
 DEFAULT_TARGET_TOPIC = "/mpc_targets"
 DEFAULT_OBSERVATION_TOPIC = "/mpc_observation"
-DEFAULT_COMMAND_TYPE = "joint_velocity"  # "joint_position" | "joint_velocity" | "joint"
+DEFAULT_COMMAND_TYPE = "joint_position"  # "joint_position" | "joint_velocity" | "joint"
 
 DEFAULT_JOINT_NAMES = [
     "ur_arm_shoulder_pan_joint",
