@@ -605,7 +605,7 @@ controller_interface::return_type ForwardDynamicsMpcController::update_reference
       get_node()->get_logger(),
       *get_node()->get_clock(),
       2000,
-      "[ForwardDynamicsMpcController] only command_type='joint' is supported in the first forward-dynamics pass, got '%s'.",
+      "[ForwardDynamicsMpcController] supported command_type values are 'joint_position', 'joint_velocity', and 'joint', got '%s'.",
       msg.command_type.c_str());
     return controller_interface::return_type::OK;
   }

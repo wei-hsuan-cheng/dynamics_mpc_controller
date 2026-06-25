@@ -605,7 +605,7 @@ controller_interface::return_type InverseDynamicsMpcController::update_reference
       get_node()->get_logger(),
       *get_node()->get_clock(),
       2000,
-      "[InverseDynamicsMpcController] only command_type='joint' is supported in the first inverse-dynamics pass, got '%s'.",
+      "[InverseDynamicsMpcController] supported command_type values are 'joint_position', 'joint_velocity', and 'joint', got '%s'.",
       msg.command_type.c_str());
     return controller_interface::return_type::OK;
   }

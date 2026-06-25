@@ -16,10 +16,11 @@
 #include <ocs2_core/integration/SensitivityIntegrator.h>
 #include <ocs2_oc/rollout/TimeTriggeredRollout.h>
 
-#include "dynamics_mpc_controller/forward_dynamics_mpc/cost/forward_dynamics_state_input_cost.hpp"
+#include "dynamics_mpc_controller/common/cost/input_tracking_cost.hpp"
+#include "dynamics_mpc_controller/common/cost/joint_tracking_cost.hpp"
+#include "dynamics_mpc_controller/common/pinocchio_utils.hpp"
 #include "dynamics_mpc_controller/forward_dynamics_mpc/dynamics/forward_dynamics_aba_dynamics_ad.hpp"
 #include "dynamics_mpc_controller/forward_dynamics_mpc/initialization/forward_dynamics_initializer.hpp"
-#include "dynamics_mpc_controller/common/pinocchio_utils.hpp"
 
 namespace dynamics_mpc_controller
 {
@@ -355,10 +356,16 @@ void ForwardDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
   std::cerr << "\n #### R diagonal: " << R.diagonal().transpose();
   std::cerr << "\n #### =============================================================================\n";
 
+  if (parameters.ocs2.task.jointTracking.activate) {
+    problem_.costPtr->add(
+      "jointTracking",
+      std::make_unique<cost::JointTrackingCost>(
+        default_position_weights, default_velocity_weights, n));
+  }
   problem_.costPtr->add(
-    "stateInputTracking",
-    std::make_unique<ForwardDynamicsStateInputCost>(
-      R, default_position_weights, default_velocity_weights, n, forward_dynamics_model_.inputDim()));
+    "inputTracking",
+    std::make_unique<cost::InputTrackingCost>(
+      R, forward_dynamics_model_.inputDim()));
 
   problem_.dynamicsPtr = std::make_unique<ForwardDynamicsAbaDynamicsAD>(
     *pinocchio_interface_ptr_,

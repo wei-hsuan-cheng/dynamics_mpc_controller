@@ -52,6 +52,7 @@ class JointTrackingTargetPublisher(Node):
 
         self.declare_parameter("topic", DEFAULT_TARGET_TOPIC)
         self.declare_parameter("observation_topic", DEFAULT_OBSERVATION_TOPIC)
+        self.declare_parameter("command_type", "joint")
         self.declare_parameter("wait_for_observation", True)
         self.declare_parameter("publish_rate", 50.0)
         self.declare_parameter("trajectory_duration", 2.0)
@@ -67,6 +68,11 @@ class JointTrackingTargetPublisher(Node):
 
         self.topic = self.get_parameter("topic").value
         self.observation_topic = self.get_parameter("observation_topic").value
+        self.command_type = str(self.get_parameter("command_type").value)
+        if self.command_type not in ("joint_position", "joint_velocity", "joint"):
+            raise RuntimeError(
+                "command_type must be 'joint_position', 'joint_velocity', or 'joint'"
+            )
         self.wait_for_observation = bool(self.get_parameter("wait_for_observation").value)
         self.publish_rate = float(self.get_parameter("publish_rate").value)
         self.trajectory_duration = float(self.get_parameter("trajectory_duration").value)
@@ -108,7 +114,7 @@ class JointTrackingTargetPublisher(Node):
         self.timer = self.create_timer(1.0 / self.publish_rate, self.publish)
 
         self.get_logger().info(
-            f"Publishing joint DynamicsMpcTargets to {self.topic} with {joint_count} joints, "
+            f"Publishing {self.command_type} DynamicsMpcTargets to {self.topic} with {joint_count} joints, "
             f"{self.trajectory_samples} ZOH trajectory samples over {self.trajectory_duration:.3f} s "
             f"with dt {self.trajectory_dt:.3f} s, using OCS2 time from "
             f"{self.observation_topic}"
@@ -135,20 +141,33 @@ class JointTrackingTargetPublisher(Node):
             self.last_wait_log_time = now
         return None
 
-    def joint_target(self, t: float) -> List[float]:
+    def joint_target(self, t: float):
         omega = 2.0 * math.pi * self.sine_frequency
-        return [
+        position = [
             self.center[i] + self.amplitude[i] * math.sin(omega * t + self.phase[i])
             for i in range(len(self.joint_names))
         ]
+        velocity = [
+            self.amplitude[i] * omega * math.cos(omega * t + self.phase[i])
+            for i in range(len(self.joint_names))
+        ]
+        return position, velocity
 
     def fill_trajectory(self, msg: DynamicsMpcTargets, t0: float):
-        zoh_target = self.joint_target(t0)
+        zoh_position, zoh_velocity = self.joint_target(t0)
 
         for sample_index in range(self.trajectory_samples):
             t = t0 + sample_index * self.trajectory_dt
             state = MpcState()
-            state.value = [float(q) for q in zoh_target]
+            if self.command_type == "joint_position":
+                state.value = [float(q) for q in zoh_position]
+            elif self.command_type == "joint_velocity":
+                state.value = [float(v) for v in zoh_velocity]
+            else:
+                state.value = (
+                    [float(q) for q in zoh_position] +
+                    [float(v) for v in zoh_velocity]
+                )
 
             msg.time_trajectory.append(float(t))
             msg.state_trajectory.append(state)
@@ -160,12 +179,14 @@ class JointTrackingTargetPublisher(Node):
 
         msg = DynamicsMpcTargets()
         msg.header.stamp = self.get_clock().now().to_msg()
-        msg.command_type = "joint"
+        msg.command_type = self.command_type
         msg.joint_names = list(self.joint_names)
-        msg.joint_position_tracking_weights = Float64MultiArray()
-        msg.joint_position_tracking_weights.data = [float(w) for w in self.position_weights]
-        msg.joint_velocity_tracking_weights = Float64MultiArray()
-        msg.joint_velocity_tracking_weights.data = [float(w) for w in self.velocity_weights]
+        if self.command_type in ("joint_position", "joint"):
+            msg.joint_position_tracking_weights = Float64MultiArray()
+            msg.joint_position_tracking_weights.data = [float(w) for w in self.position_weights]
+        if self.command_type in ("joint_velocity", "joint"):
+            msg.joint_velocity_tracking_weights = Float64MultiArray()
+            msg.joint_velocity_tracking_weights.data = [float(w) for w in self.velocity_weights]
         self.fill_trajectory(msg, t0)
 
         self.publisher.publish(msg)

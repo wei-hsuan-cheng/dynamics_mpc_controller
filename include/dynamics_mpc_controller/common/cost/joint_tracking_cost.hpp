@@ -1,5 +1,5 @@
-#ifndef DYNAMICS_MPC_CONTROLLER__FORWARD_DYNAMICS_MPC__COST__FORWARD_DYNAMICS_STATE_INPUT_COST_HPP_
-#define DYNAMICS_MPC_CONTROLLER__FORWARD_DYNAMICS_MPC__COST__FORWARD_DYNAMICS_STATE_INPUT_COST_HPP_
+#ifndef DYNAMICS_MPC_CONTROLLER__COMMON__COST__JOINT_TRACKING_COST_HPP_
+#define DYNAMICS_MPC_CONTROLLER__COMMON__COST__JOINT_TRACKING_COST_HPP_
 
 #include <cstddef>
 
@@ -7,22 +7,28 @@
 
 namespace dynamics_mpc_controller
 {
+namespace cost
+{
 
-class ForwardDynamicsStateInputCost final : public ocs2::StateInputCost
+class JointTrackingCost final : public ocs2::StateInputCost
 {
 public:
-  ForwardDynamicsStateInputCost(
-    ocs2::matrix_t R,
+  JointTrackingCost(
     ocs2::vector_t defaultPositionWeights,
     ocs2::vector_t defaultVelocityWeights,
-    std::size_t jointDim,
-    std::size_t inputDim);
+    std::size_t jointDim);
 
-  ~ForwardDynamicsStateInputCost() override = default;
-  ForwardDynamicsStateInputCost* clone() const override { return new ForwardDynamicsStateInputCost(*this); }
+  ~JointTrackingCost() override = default;
+  JointTrackingCost* clone() const override { return new JointTrackingCost(*this); }
 
 private:
-  ForwardDynamicsStateInputCost(const ForwardDynamicsStateInputCost& rhs) = default;
+  struct Target
+  {
+    ocs2::vector_t state;
+    ocs2::vector_t weights;
+  };
+
+  JointTrackingCost(const JointTrackingCost& rhs) = default;
 
   ocs2::scalar_t getValue(
     ocs2::scalar_t time,
@@ -38,13 +44,16 @@ private:
     const ocs2::TargetTrajectories& targetTrajectories,
     const ocs2::PreComputation& preComp) const override;
 
-  ocs2::matrix_t R_;
+  Target getTarget(
+    ocs2::scalar_t time,
+    const ocs2::TargetTrajectories& targetTrajectories) const;
+
   ocs2::vector_t default_position_weights_;
   ocs2::vector_t default_velocity_weights_;
   std::size_t joint_dim_{0};
-  std::size_t input_dim_{0};
 };
 
+}  // namespace cost
 }  // namespace dynamics_mpc_controller
 
-#endif  // DYNAMICS_MPC_CONTROLLER__FORWARD_DYNAMICS_MPC__COST__FORWARD_DYNAMICS_STATE_INPUT_COST_HPP_
+#endif  // DYNAMICS_MPC_CONTROLLER__COMMON__COST__JOINT_TRACKING_COST_HPP_

@@ -71,21 +71,66 @@ void validateTrajectorySize(
   }
 }
 
+enum class JointCommandMode
+{
+  Position,
+  Velocity,
+  PositionVelocity,
+};
+
+bool supportsJointCommandType(const std::string& commandType)
+{
+  return commandType == "joint_position" ||
+         commandType == "joint_velocity" ||
+         commandType == "joint";
+}
+
+JointCommandMode jointCommandModeFromMessage(const std::string& commandType)
+{
+  if (commandType == "joint_position") {
+    return JointCommandMode::Position;
+  }
+  if (commandType == "joint_velocity") {
+    return JointCommandMode::Velocity;
+  }
+  if (commandType == "joint") {
+    return JointCommandMode::PositionVelocity;
+  }
+  throw std::invalid_argument(
+    "joint tracking target requires command_type='joint_position', 'joint_velocity', or 'joint', got '" +
+    commandType + "'");
+}
+
 ocs2::vector_t makeTargetState(
   const ocs2::vector_t& state,
+  JointCommandMode mode,
   const ocs2::vector_t* positionWeights,
   const ocs2::vector_t* velocityWeights)
 {
-  if (positionWeights == nullptr || velocityWeights == nullptr) {
+  const Eigen::Index state_dim = state.size();
+  const Eigen::Index n = state_dim / 2;
+
+  if (mode == JointCommandMode::Position && positionWeights == nullptr) {
+    return state.head(n).eval();
+  }
+  if (mode == JointCommandMode::Velocity && velocityWeights == nullptr) {
+    ocs2::vector_t velocity_only_state = ocs2::vector_t::Zero(3 * n);
+    velocity_only_state.head(n) = state.tail(n);
+    return velocity_only_state;
+  }
+  if (mode == JointCommandMode::PositionVelocity &&
+      positionWeights == nullptr && velocityWeights == nullptr) {
     return state;
   }
 
-  const Eigen::Index state_dim = state.size();
-  const Eigen::Index n = state_dim / 2;
   ocs2::vector_t weighted_state = ocs2::vector_t::Zero(2 * state_dim);
   weighted_state.head(state_dim) = state;
-  weighted_state.segment(state_dim, n) = *positionWeights;
-  weighted_state.segment(state_dim + n, n) = *velocityWeights;
+  if (positionWeights != nullptr) {
+    weighted_state.segment(state_dim, n) = *positionWeights;
+  }
+  if (velocityWeights != nullptr) {
+    weighted_state.segment(state_dim + n, n) = *velocityWeights;
+  }
   return weighted_state;
 }
 
@@ -98,7 +143,7 @@ ForwardJointTrackingTarget::ForwardJointTrackingTarget(const ForwardDynamicsMpcI
 
 bool ForwardJointTrackingTarget::supports(const TargetMsg& msg) const noexcept
 {
-  return msg.command_type == "joint";
+  return supportsJointCommandType(msg.command_type);
 }
 
 ForwardJointTrackingTarget::TargetTrajectories ForwardJointTrackingTarget::fromObservation(
@@ -123,9 +168,11 @@ ForwardJointTrackingTarget::TargetTrajectories ForwardJointTrackingTarget::fromM
 {
   if (!supports(msg)) {
     throw std::invalid_argument(
-      "joint tracking target requires command_type='joint', got '" + msg.command_type + "'");
+      "joint tracking target requires command_type='joint_position', 'joint_velocity', or 'joint', got '" +
+      msg.command_type + "'");
   }
   const auto& model = interface_.getForwardDynamicsMpcModel();
+  const JointCommandMode command_mode = jointCommandModeFromMessage(msg.command_type);
   const std::size_t n = model.jointDim();
   if (msg.time_trajectory.empty() || msg.state_trajectory.empty()) {
     throw std::runtime_error("joint target trajectory is empty");
@@ -164,7 +211,8 @@ ForwardJointTrackingTarget::TargetTrajectories ForwardJointTrackingTarget::fromM
 
   const bool has_position_weights = !msg.joint_position_tracking_weights.data.empty();
   const bool has_velocity_weights = !msg.joint_velocity_tracking_weights.data.empty();
-  if (has_position_weights != has_velocity_weights) {
+  if (command_mode == JointCommandMode::PositionVelocity &&
+      has_position_weights != has_velocity_weights) {
     throw std::runtime_error(
       "joint_position_tracking_weights and joint_velocity_tracking_weights must be provided together");
   }
@@ -186,18 +234,32 @@ ForwardJointTrackingTarget::TargetTrajectories ForwardJointTrackingTarget::fromM
     const ocs2::vector_t raw_state = vectorFromMessage(msg.state_trajectory[sample]);
     ocs2::vector_t state =
       ocs2::vector_t::Zero(static_cast<Eigen::Index>(model.stateDim()));
-    if (raw_state.size() == static_cast<Eigen::Index>(n) ||
-        raw_state.size() == static_cast<Eigen::Index>(2 * n)) {
+    if (command_mode == JointCommandMode::Position) {
+      if (raw_state.size() != static_cast<Eigen::Index>(n)) {
+        throw std::runtime_error("joint_position target state dimension must be n");
+      }
       for (std::size_t i = 0; i < n; ++i) {
         state(static_cast<Eigen::Index>(i)) =
           raw_state(static_cast<Eigen::Index>(reorder_indices[i]));
-        if (raw_state.size() == static_cast<Eigen::Index>(2 * n)) {
-          state(static_cast<Eigen::Index>(n + i)) =
-            raw_state(static_cast<Eigen::Index>(n + reorder_indices[i]));
-        }
+      }
+    } else if (command_mode == JointCommandMode::Velocity) {
+      if (raw_state.size() != static_cast<Eigen::Index>(n)) {
+        throw std::runtime_error("joint_velocity target state dimension must be n");
+      }
+      for (std::size_t i = 0; i < n; ++i) {
+        state(static_cast<Eigen::Index>(n + i)) =
+          raw_state(static_cast<Eigen::Index>(reorder_indices[i]));
       }
     } else {
-      throw std::runtime_error("joint target state dimension must be n or 2n");
+      if (raw_state.size() != static_cast<Eigen::Index>(2 * n)) {
+        throw std::runtime_error("joint target state dimension must be 2n");
+      }
+      for (std::size_t i = 0; i < n; ++i) {
+        state(static_cast<Eigen::Index>(i)) =
+          raw_state(static_cast<Eigen::Index>(reorder_indices[i]));
+        state(static_cast<Eigen::Index>(n + i)) =
+          raw_state(static_cast<Eigen::Index>(n + reorder_indices[i]));
+      }
     }
 
     ocs2::vector_t input = interface_.computeNonlinearEffects(
@@ -218,8 +280,11 @@ ForwardJointTrackingTarget::TargetTrajectories ForwardJointTrackingTarget::fromM
 
     state_trajectory.push_back(makeTargetState(
       state,
-      has_position_weights ? &position_weights : nullptr,
-      has_velocity_weights ? &velocity_weights : nullptr));
+      command_mode,
+      (has_position_weights && command_mode != JointCommandMode::Velocity) ?
+      &position_weights : nullptr,
+      (has_velocity_weights && command_mode != JointCommandMode::Position) ?
+      &velocity_weights : nullptr));
     input_trajectory.push_back(std::move(input));
   }
 
