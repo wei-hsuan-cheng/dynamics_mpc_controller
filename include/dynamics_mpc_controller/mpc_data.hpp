@@ -30,7 +30,7 @@ struct MPCData
   bool gravity_compensation_only_{false};
   std::vector<double> hold_velocity_damping_;
   std::string target_trajectories_topic_{"/target_trajectories"};
-  std::string mpc_observation_topic_{"/inverse_dynamics_mpc_observation"};
+  std::string mpc_observation_topic_{"/mpc_observation"};
 };
 
 }  // namespace dynamics_mpc_controller
