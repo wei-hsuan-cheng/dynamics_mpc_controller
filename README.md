@@ -74,6 +74,7 @@ Useful topics:
 ros2 topic echo /mpc_targets
 ros2 topic echo /mpc_observation
 ros2 topic echo /mpc_policy
+
 # Momemtum observed-based external EE wrench estimation
 ros2 topic echo /estimated_ee_wrench
 ```
