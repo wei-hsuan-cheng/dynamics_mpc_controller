@@ -354,7 +354,7 @@ controller_interface::CallbackReturn InverseDynamicsMpcController::on_activate(
   reference_manager_->setTargetTrajectories(
     joint_tracking_target_->fromObservation(initial_observation));
 
-  // Write a bounded inverse-dynamics command before any potentially long initial solve.
+  // Hold robot
   apply_hold_command();
 
   if (mpc_data_.gravity_compensation_only_) {
@@ -424,6 +424,7 @@ controller_interface::CallbackReturn InverseDynamicsMpcController::on_activate(
         solve_time_ms * target_frequency > 1000.0 ? "true" : "false");
     }
   } catch (const std::exception& e) {
+    // Hold robot
     apply_hold_command();
     execute_mpc_ = false;
     RCLCPP_ERROR(
@@ -435,6 +436,7 @@ controller_interface::CallbackReturn InverseDynamicsMpcController::on_activate(
   }
 
   if (!mrt_interface_->initialPolicyReceived()) {
+    // Hold robot
     apply_hold_command();
     execute_mpc_ = false;
     RCLCPP_WARN(
@@ -444,6 +446,7 @@ controller_interface::CallbackReturn InverseDynamicsMpcController::on_activate(
     return controller_interface::CallbackReturn::SUCCESS;
   }
 
+  // Hold robot
   apply_hold_command();
 
   execute_mpc_ = true;
@@ -462,6 +465,7 @@ controller_interface::CallbackReturn InverseDynamicsMpcController::on_deactivate
     mpc_thread_.join();
   }
 
+  // Hold robot
   apply_hold_command();
   wrench_estimate_valid_ = false;
   wrench_publish_elapsed_ = 0.0;
@@ -639,6 +643,7 @@ controller_interface::return_type InverseDynamicsMpcController::update_and_write
   publish_mpc_observation(observation);
 
   if (mpc_data_.gravity_compensation_only_) {
+    // Hold robot
     apply_hold_command();
     RCLCPP_INFO_THROTTLE(
       get_node()->get_logger(),
@@ -650,6 +655,7 @@ controller_interface::return_type InverseDynamicsMpcController::update_and_write
   }
 
   if (!execute_mpc_) {
+    // Hold robot
     apply_hold_command();
     RCLCPP_WARN_THROTTLE(
       get_node()->get_logger(),
@@ -688,6 +694,7 @@ controller_interface::return_type InverseDynamicsMpcController::update_and_write
   }
 
   if (!policy_performance_acceptable_.load()) {
+    // Hold robot
     apply_hold_command();
     RCLCPP_WARN_THROTTLE(
       get_node()->get_logger(),
@@ -700,6 +707,7 @@ controller_interface::return_type InverseDynamicsMpcController::update_and_write
 
   const auto policy = mrt_interface_->getPolicy();
   if (policy.timeTrajectory_.empty()) {
+    // Hold robot
     apply_hold_command();
     RCLCPP_WARN_THROTTLE(
       get_node()->get_logger(),
@@ -724,6 +732,7 @@ controller_interface::return_type InverseDynamicsMpcController::update_and_write
   if (policy_state.size() != static_cast<Eigen::Index>(model.stateDim()) ||
       policy_input.size() != static_cast<Eigen::Index>(model.inputDim()) ||
       !policy_state.allFinite() || !policy_input.allFinite()) {
+    // Hold robot
     apply_hold_command();
     RCLCPP_WARN_THROTTLE(
       get_node()->get_logger(),
@@ -736,6 +745,7 @@ controller_interface::return_type InverseDynamicsMpcController::update_and_write
 
   const vector_t command_input = compute_policy_command_input(observation, policy_state, policy_input);
 
+  // Check input bounds and apply torque command
   double rnea_residual = 0.0;
   double input_bound_violation = 0.0;
   if (!policy_input_is_acceptable(
@@ -750,32 +760,10 @@ controller_interface::return_type InverseDynamicsMpcController::update_and_write
     if (parameters_.numeric.policyValidation.activate) {
       reset_mpc_warm_start_requested_ = true;
     }
+    // Hold robot
     apply_hold_command();
   } else {
     apply_torque_command(command_input);
-    const auto& performance = mrt_interface_->getPerformanceIndices();
-    const double force_norm = wrench_estimate_valid_ ? estimated_ee_wrench_.head(3).norm() :
-      std::numeric_limits<double>::quiet_NaN();
-    const double moment_norm = wrench_estimate_valid_ ? estimated_ee_wrench_.tail(3).norm() :
-      std::numeric_limits<double>::quiet_NaN();
-    RCLCPP_INFO_THROTTLE(
-      get_node()->get_logger(),
-      *get_node()->get_clock(),
-      status_log_period_ms_,
-      "[InverseDynamicsMpcController][MPC_ACTIVE] applying MPC torque | cost=%.6g, equalitySSE=%.3e, dynamicsSSE=%.3e, inequalitySSE=%.3e, RNEA residual=%.3e Nm, input-bound violation=%.3e, |tau|_inf=%.3f Nm, wrenchEstimateValid=%s, |F_est|_2=%.3f N, |M_est|_2=%.3f Nm, observerResidual=%.3e Nm, sigmaMin=%.3e, relativeProjectionError=%.3e.",
-      performance.cost,
-      performance.equalityConstraintsSSE,
-      performance.dynamicsViolationSSE,
-      performance.inequalityConstraintsSSE,
-      rnea_residual,
-      input_bound_violation,
-      last_tau_command_.lpNorm<Eigen::Infinity>(),
-      wrench_estimate_valid_ ? "true" : "false",
-      force_norm,
-      moment_norm,
-      observer_residual_norm_,
-      jacobian_sigma_min_,
-      relative_projection_error_);
   }
 
   virtual_time_ += period.seconds();
@@ -848,6 +836,7 @@ void InverseDynamicsMpcController::check_initializer(const SystemObservation& ob
     bound_violation);
 }
 
+// Hold robot in its current position using a bounded RNEA nonlinear torque command
 void InverseDynamicsMpcController::apply_hold_command()
 {
   const auto& model = interface_->getInverseDynamicsMpcModel();
@@ -909,6 +898,7 @@ InverseDynamicsMpcController::vector_t InverseDynamicsMpcController::compute_pol
   const std::size_t n = model.jointDim();
   vector_t command_input = policy_input;
 
+  // Additional low-level PD feedback gains for torque compensation
   if (low_level_pd_feedback_active_) {
     const vector_t q = model.getQ(observation.state);
     const vector_t v = model.getV(observation.state);
@@ -920,6 +910,7 @@ InverseDynamicsMpcController::vector_t InverseDynamicsMpcController::compute_pol
       low_level_pd_kp_.cwiseProduct(q_nominal - q) +
       low_level_pd_kd_.cwiseProduct(v_nominal - v);
 
+    // Clamp within input bounds
     if (interface_->inputLimitsActive()) {
       acceleration_command = acceleration_command.cwiseMax(
         interface_->inputLowerBounds().segment(
