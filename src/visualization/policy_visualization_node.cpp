@@ -71,7 +71,7 @@ public:
       throw std::runtime_error("Pinocchio model does not contain end-effector frame: " + end_effector_frame);
     }
 
-    visualization_ = std::make_unique<visualization::OptimizedStateTrajectoryVisualization>(
+    optimized_state_trajectory_visualization_ = std::make_unique<visualization::OptimizedStateTrajectoryVisualization>(
       std::move(pinocchio_interface),
       end_effector_frame_id,
       *this,
@@ -82,7 +82,9 @@ public:
       rclcpp::QoS(1),
       [this](const ocs2_msgs::msg::MpcFlattenedController::SharedPtr msg) {
         try {
-          visualization_->publish(*msg);
+          // Publish visualization components
+          optimized_state_trajectory_visualization_->publish(*msg);
+          // TODO: Other components can be added in the future
         } catch (const std::exception& error) {
           RCLCPP_WARN_THROTTLE(
             get_logger(),
@@ -103,7 +105,7 @@ public:
   }
 
 private:
-  std::unique_ptr<visualization::OptimizedStateTrajectoryVisualization> visualization_;
+  std::unique_ptr<visualization::OptimizedStateTrajectoryVisualization> optimized_state_trajectory_visualization_;
   rclcpp::Subscription<ocs2_msgs::msg::MpcFlattenedController>::SharedPtr policy_subscription_;
 };
 
