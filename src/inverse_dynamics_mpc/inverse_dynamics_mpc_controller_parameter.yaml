@@ -715,13 +715,13 @@ inverse_dynamics_mpc_controller:
 
     mpc_observation_topic: {
       type: string,
-      default_value: "/inverse_dynamics_mpc_observation",
+      default_value: "/mpc_observation",
       description: "Published OCS2 observation with the controller virtual time"
     }
 
     mpc_policy_topic: {
       type: string,
-      default_value: "/inverse_dynamics_mpc_policy",
+      default_value: "/mpc_policy",
       description: "Published flattened inverse-dynamics MPC policy"
     }
 
