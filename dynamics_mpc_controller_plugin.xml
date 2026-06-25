@@ -4,7 +4,7 @@
     type="dynamics_mpc_controller::InverseDynamicsMpcController"
     base_class_type="controller_interface::ChainableControllerInterface">
     <description>
-      OCS2 fixed-base inverse-dynamics torque MPC controller.
+      OCS2 fixed-base inverse dynamics torque MPC controller using Pinocchio RNEA.
     </description>
   </class>
   <class
@@ -12,7 +12,7 @@
     type="dynamics_mpc_controller::ForwardDynamicsMpcController"
     base_class_type="controller_interface::ChainableControllerInterface">
     <description>
-      OCS2 fixed-base forward-dynamics torque MPC controller using Pinocchio ABA.
+      OCS2 fixed-base forward dynamics torque MPC controller using Pinocchio ABA.
     </description>
   </class>
 </library>
