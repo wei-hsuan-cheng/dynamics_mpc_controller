@@ -40,13 +40,13 @@ inverse_dynamics_mpc_controller:
           ##### wrenchInRNEA #####
           # false: u=[jointAcceleration, jointTorque], RNEA-tau=0
           # true: u=[jointAcceleration, jointTorque, eeWrench], RNEA-J^T*wrench-tau=0
-          wrenchInRNEA: false
+          wrenchInRNEA: true
 
           ##### trackZeroWrench ##### 
           # Only valid when wrenchInRNEA is true.
           # true: hard equality enforces eeWrench=0.
           # false: hard equality enforces eeWrench from the incoming target input trajectory when provided, otherwise zero.
-          trackZeroWrench: false
+          trackZeroWrench: true
 
         ddp:
           algorithm: SLQ # SLQ | ILQR
