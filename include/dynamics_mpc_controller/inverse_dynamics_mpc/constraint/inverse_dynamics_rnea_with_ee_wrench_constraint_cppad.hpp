@@ -1,5 +1,5 @@
-#ifndef DYNAMICS_MPC_CONTROLLER__INVERSE_DYNAMICS_MPC__CONSTRAINT__INVERSE_DYNAMICS_WITH_EE_WRENCH_CONSTRAINT_CPPAD_HPP_
-#define DYNAMICS_MPC_CONTROLLER__INVERSE_DYNAMICS_MPC__CONSTRAINT__INVERSE_DYNAMICS_WITH_EE_WRENCH_CONSTRAINT_CPPAD_HPP_
+#ifndef DYNAMICS_MPC_CONTROLLER__INVERSE_DYNAMICS_MPC__CONSTRAINT__INVERSE_DYNAMICS_RNEA_WITH_EE_WRENCH_CONSTRAINT_CPPAD_HPP_
+#define DYNAMICS_MPC_CONTROLLER__INVERSE_DYNAMICS_MPC__CONSTRAINT__INVERSE_DYNAMICS_RNEA_WITH_EE_WRENCH_CONSTRAINT_CPPAD_HPP_
 
 #include <cstddef>
 #include <string>
@@ -11,11 +11,11 @@
 namespace dynamics_mpc_controller
 {
 
-class InverseDynamicsWithEeWrenchConstraintCppAd final
+class InverseDynamicsRneaWithEeWrenchConstraintCppAd final
   : public ocs2::StateInputConstraintCppAd
 {
 public:
-  InverseDynamicsWithEeWrenchConstraintCppAd(
+  InverseDynamicsRneaWithEeWrenchConstraintCppAd(
     const ocs2::PinocchioInterface& pinocchioInterface,
     pinocchio::FrameIndex endEffectorFrameId,
     std::size_t jointDim,
@@ -24,18 +24,18 @@ public:
     bool recompileLibraries = true,
     bool verbose = true);
 
-  ~InverseDynamicsWithEeWrenchConstraintCppAd() override = default;
+  ~InverseDynamicsRneaWithEeWrenchConstraintCppAd() override = default;
 
-  InverseDynamicsWithEeWrenchConstraintCppAd* clone() const override
+  InverseDynamicsRneaWithEeWrenchConstraintCppAd* clone() const override
   {
-    return new InverseDynamicsWithEeWrenchConstraintCppAd(*this);
+    return new InverseDynamicsRneaWithEeWrenchConstraintCppAd(*this);
   }
 
   std::size_t getNumConstraints(ocs2::scalar_t time) const override;
 
 private:
-  InverseDynamicsWithEeWrenchConstraintCppAd(
-    const InverseDynamicsWithEeWrenchConstraintCppAd& rhs);
+  InverseDynamicsRneaWithEeWrenchConstraintCppAd(
+    const InverseDynamicsRneaWithEeWrenchConstraintCppAd& rhs);
 
   ocs2::ad_vector_t constraintFunction(
     ocs2::ad_scalar_t time,
@@ -50,4 +50,4 @@ private:
 
 }  // namespace dynamics_mpc_controller
 
-#endif  // DYNAMICS_MPC_CONTROLLER__INVERSE_DYNAMICS_MPC__CONSTRAINT__INVERSE_DYNAMICS_WITH_EE_WRENCH_CONSTRAINT_CPPAD_HPP_
+#endif  // DYNAMICS_MPC_CONTROLLER__INVERSE_DYNAMICS_MPC__CONSTRAINT__INVERSE_DYNAMICS_RNEA_WITH_EE_WRENCH_CONSTRAINT_CPPAD_HPP_

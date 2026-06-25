@@ -18,8 +18,8 @@
 #include <ocs2_core/integration/SensitivityIntegrator.h>
 #include <ocs2_oc/rollout/TimeTriggeredRollout.h>
 
-#include "dynamics_mpc_controller/inverse_dynamics_mpc/constraint/inverse_dynamics_constraint_cppad.hpp"
-#include "dynamics_mpc_controller/inverse_dynamics_mpc/constraint/inverse_dynamics_with_ee_wrench_constraint_cppad.hpp"
+#include "dynamics_mpc_controller/inverse_dynamics_mpc/constraint/inverse_dynamics_rnea_constraint_cppad.hpp"
+#include "dynamics_mpc_controller/inverse_dynamics_mpc/constraint/inverse_dynamics_rnea_with_ee_wrench_constraint_cppad.hpp"
 #include "dynamics_mpc_controller/inverse_dynamics_mpc/cost/inverse_dynamics_state_input_cost.hpp"
 #include "dynamics_mpc_controller/inverse_dynamics_mpc/dynamics/inverse_dynamics_kinematic_dynamics_ad.hpp"
 #include "dynamics_mpc_controller/inverse_dynamics_mpc/initialization/inverse_dynamics_initializer.hpp"
@@ -414,22 +414,22 @@ void InverseDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
 
   if (has_ee_wrench) {
     problem_.equalityConstraintPtr->add(
-      "inverseDynamicsWithEeWrench",
-      std::make_unique<InverseDynamicsWithEeWrenchConstraintCppAd>(
+      "inverseDynamicsRneaWithEeWrench",
+      std::make_unique<InverseDynamicsRneaWithEeWrenchConstraintCppAd>(
         *pinocchio_interface_ptr_,
         inverse_dynamics_model_.endEffectorFrameId(),
         n,
-        "inverse_dynamics_with_ee_wrench",
+        "inverse_dynamics_rnea_with_ee_wrench",
         parameters.paths.libFolder,
         recompile_libraries,
         true));
   } else {
     problem_.equalityConstraintPtr->add(
-      "inverseDynamics",
-      std::make_unique<InverseDynamicsConstraintCppAd>(
+      "inverseDynamicsRnea",
+      std::make_unique<InverseDynamicsRneaConstraintCppAd>(
         *pinocchio_interface_ptr_,
         n,
-        "inverse_dynamics_no_wrench",
+        "inverse_dynamics_rnea_no_wrench",
         parameters.paths.libFolder,
         recompile_libraries,
         true));

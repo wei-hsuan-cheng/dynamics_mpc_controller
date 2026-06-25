@@ -2,6 +2,9 @@
 
 ROS 2 controller package for fixed-base inverse/forward dynamics MPC using OCS2 and Pinocchio CppAD.
 
+- The inverse dynamics MPC formulation uses [`pinocchio::rnea()`](./src/inverse_dynamics_mpc/constraint/inverse_dynamics_rnea_constraint_cppad.cpp#L50) as state-input equality constraint.
+- The forward dynamics MPC formulation uses [`pinocchio::aba()`](./src/forward_dynamics_mpc/dynamics/forward_dynamics_aba_dynamics_ad.cpp#L41) as system dynamics model.
+
 ## UR5 MuJoCo Example
 
 Single `ur5` example:

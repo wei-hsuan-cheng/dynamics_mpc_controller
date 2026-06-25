@@ -1,11 +1,11 @@
-#include "dynamics_mpc_controller/inverse_dynamics_mpc/constraint/inverse_dynamics_constraint_cppad.hpp"
+#include "dynamics_mpc_controller/inverse_dynamics_mpc/constraint/inverse_dynamics_rnea_constraint_cppad.hpp"
 
 #include <pinocchio/algorithm/rnea.hpp>
 
 namespace dynamics_mpc_controller
 {
 
-InverseDynamicsConstraintCppAd::InverseDynamicsConstraintCppAd(
+InverseDynamicsRneaConstraintCppAd::InverseDynamicsRneaConstraintCppAd(
   const ocs2::PinocchioInterface& pinocchioInterface,
   std::size_t jointDim,
   const std::string& modelName,
@@ -19,20 +19,20 @@ InverseDynamicsConstraintCppAd::InverseDynamicsConstraintCppAd(
   initialize(2 * joint_dim_, 2 * joint_dim_, 0, modelName, modelFolder, recompileLibraries, verbose);
 }
 
-InverseDynamicsConstraintCppAd::InverseDynamicsConstraintCppAd(
-  const InverseDynamicsConstraintCppAd& rhs)
+InverseDynamicsRneaConstraintCppAd::InverseDynamicsRneaConstraintCppAd(
+  const InverseDynamicsRneaConstraintCppAd& rhs)
 : ocs2::StateInputConstraintCppAd(rhs),
   pinocchio_interface_cpp_ad_(rhs.pinocchio_interface_cpp_ad_),
   joint_dim_(rhs.joint_dim_)
 {
 }
 
-std::size_t InverseDynamicsConstraintCppAd::getNumConstraints(ocs2::scalar_t) const
+std::size_t InverseDynamicsRneaConstraintCppAd::getNumConstraints(ocs2::scalar_t) const
 {
   return joint_dim_;
 }
 
-ocs2::ad_vector_t InverseDynamicsConstraintCppAd::constraintFunction(
+ocs2::ad_vector_t InverseDynamicsRneaConstraintCppAd::constraintFunction(
   ocs2::ad_scalar_t,
   const ocs2::ad_vector_t& state,
   const ocs2::ad_vector_t& input,

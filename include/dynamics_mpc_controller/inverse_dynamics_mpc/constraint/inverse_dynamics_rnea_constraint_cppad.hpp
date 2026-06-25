@@ -1,5 +1,5 @@
-#ifndef DYNAMICS_MPC_CONTROLLER__INVERSE_DYNAMICS_MPC__CONSTRAINT__INVERSE_DYNAMICS_CONSTRAINT_CPPAD_HPP_
-#define DYNAMICS_MPC_CONTROLLER__INVERSE_DYNAMICS_MPC__CONSTRAINT__INVERSE_DYNAMICS_CONSTRAINT_CPPAD_HPP_
+#ifndef DYNAMICS_MPC_CONTROLLER__INVERSE_DYNAMICS_MPC__CONSTRAINT__INVERSE_DYNAMICS_RNEA_CONSTRAINT_CPPAD_HPP_
+#define DYNAMICS_MPC_CONTROLLER__INVERSE_DYNAMICS_MPC__CONSTRAINT__INVERSE_DYNAMICS_RNEA_CONSTRAINT_CPPAD_HPP_
 
 #include <cstddef>
 #include <string>
@@ -10,10 +10,10 @@
 namespace dynamics_mpc_controller
 {
 
-class InverseDynamicsConstraintCppAd final : public ocs2::StateInputConstraintCppAd
+class InverseDynamicsRneaConstraintCppAd final : public ocs2::StateInputConstraintCppAd
 {
 public:
-  InverseDynamicsConstraintCppAd(
+  InverseDynamicsRneaConstraintCppAd(
     const ocs2::PinocchioInterface& pinocchioInterface,
     std::size_t jointDim,
     const std::string& modelName,
@@ -21,17 +21,17 @@ public:
     bool recompileLibraries = true,
     bool verbose = true);
 
-  ~InverseDynamicsConstraintCppAd() override = default;
+  ~InverseDynamicsRneaConstraintCppAd() override = default;
 
-  InverseDynamicsConstraintCppAd* clone() const override
+  InverseDynamicsRneaConstraintCppAd* clone() const override
   {
-    return new InverseDynamicsConstraintCppAd(*this);
+    return new InverseDynamicsRneaConstraintCppAd(*this);
   }
 
   std::size_t getNumConstraints(ocs2::scalar_t time) const override;
 
 private:
-  InverseDynamicsConstraintCppAd(const InverseDynamicsConstraintCppAd& rhs);
+  InverseDynamicsRneaConstraintCppAd(const InverseDynamicsRneaConstraintCppAd& rhs);
 
   ocs2::ad_vector_t constraintFunction(
     ocs2::ad_scalar_t time,
@@ -45,4 +45,4 @@ private:
 
 }  // namespace dynamics_mpc_controller
 
-#endif  // DYNAMICS_MPC_CONTROLLER__INVERSE_DYNAMICS_MPC__CONSTRAINT__INVERSE_DYNAMICS_CONSTRAINT_CPPAD_HPP_
+#endif  // DYNAMICS_MPC_CONTROLLER__INVERSE_DYNAMICS_MPC__CONSTRAINT__INVERSE_DYNAMICS_RNEA_CONSTRAINT_CPPAD_HPP_
