@@ -1,5 +1,5 @@
-<mujoco model="ur5 scene_open_door">
-  <include file="ur5.xml"/>
+<mujoco model="dual_ur5 scene_open_door">
+  <include file="dual_ur5.xml"/>
 
   <option timestep="0.0002"
           iterations="400"

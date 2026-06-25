@@ -49,7 +49,7 @@ def generate_launch_description():
         DeclareLaunchArgument("mpcPolicyTopic", default_value="/mpc_policy"),
         DeclareLaunchArgument("policyVisualization", default_value="true"),
         DeclareLaunchArgument("initialPoseFile", default_value=initial_pose_default),
-        DeclareLaunchArgument("mujocoModelFile", default_value="scene_open_door.xml"),
+        DeclareLaunchArgument("mujocoModelFile", default_value="scene.xml"),
     ]
 
     use_mujoco_sim = LaunchConfiguration("use_mujoco_sim")
