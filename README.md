@@ -2,8 +2,9 @@
 
 ROS 2 controller package for fixed-base inverse/forward dynamics MPC using OCS2 and Pinocchio CppAD.
 
-- The inverse dynamics MPC formulation uses [`pinocchio::rnea()`](./src/inverse_dynamics_mpc/constraint/inverse_dynamics_rnea_constraint_cppad.cpp#L50) as state-input equality constraint.
+- The inverse dynamics MPC formulation uses [`pinocchio::rnea()`](./src/inverse_dynamics_mpc/constraint/inverse_dynamics_rnea_with_ee_wrench_constraint_cppad.cpp#L59) as state-input equality constraint.
 - The forward dynamics MPC formulation uses [`pinocchio::aba()`](./src/forward_dynamics_mpc/dynamics/forward_dynamics_aba_dynamics_ad.cpp#L41) as system dynamics model.
+
 
 ## UR5 MuJoCo Example
 
@@ -21,7 +22,7 @@ ros2 launch dynamics_mpc_controller dual_ur5.launch.py \
   mujoco_headless:=true
 ```
 
-Usefull launch args:
+Useful launch args:
 ```bash
 mpcControllerName:=inverse_dynamics_mpc_controller | forward_dynamics_mpc_controller
 mujoco_headless:=true | false
@@ -30,22 +31,22 @@ mpcFreq:=50 # (should be integer)
 mrtFreq:=1000 # (should be integer)
 ```
 
-Publish a joint target:
 
+## Joint Target Publisher
+
+Single `ur5` sample code:
 ```bash
 cd <workspace_dir>/src/dynamics_mpc_controller/launch && \
 python3 joint_tracking_target.py
 ```
 
-For dual UR5:
-
+Dual `ur5` sample code:
 ```bash
 cd <workspace_dir>/src/dynamics_mpc_controller/launch && \
 python3 dual_arm_joint_tracking_target.py
 ```
 
 Useful topics:
-
 ```bash
 ros2 topic echo /mpc_observation
 ros2 topic echo /mpc_policy
