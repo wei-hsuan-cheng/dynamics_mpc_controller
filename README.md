@@ -1,6 +1,6 @@
 # Dynamics MPC Controller
 
-ROS 2 controller package for fixed-base inverse/forward dynamics MPC using OCS2 and Pinocchio CppAD.
+ROS 2 controller package for fixed-base inverse/forward dynamics MPC using [OCS2](https://github.com/wei-hsuan-cheng/ocs2_ros2.git) and [Pinocchio](https://github.com/stack-of-tasks/pinocchio.git).
 
 - The inverse dynamics MPC formulation uses [`pinocchio::rnea()`](./src/inverse_dynamics_mpc/constraint/inverse_dynamics_rnea_with_ee_wrench_constraint_cppad.cpp#L59) as state-input equality constraint.
 - The forward dynamics MPC formulation uses [`pinocchio::aba()`](./src/forward_dynamics_mpc/dynamics/forward_dynamics_aba_dynamics_ad.cpp#L41) as system dynamics model.
@@ -8,12 +8,18 @@ ROS 2 controller package for fixed-base inverse/forward dynamics MPC using OCS2 
 ## Build and Install
 Clone this repo and all sub-repo with vcs;
 ```bash
+# clone
 cd <workspace_dir>/src
 git clone https://github.com/wei-hsuan-cheng/dynamics_mpc_controller.git -b main
 vcs import < dynamics_mpc_controller.repos # clone in the same directory as dynamics_mpc_controller
+
+# resdep install
+cd <workspace_dir>
+rosdep update
+rosdep install --from-paths src --ignore-src -r -y
 ```
 
-First download `mujoco` pre-built library (details in [`mujoco_ros2_controler`](https://github.com/wei-hsuan-cheng/mujoco_ros2_control)):
+First download `mujoco` pre-built library (details in [`mujoco_ros2_controler`](https://github.com/wei-hsuan-cheng/mujoco_ros2_control.git)):
 ```bash
 cd <your_path>
 # Check x86_64 or aarch64
@@ -23,7 +29,7 @@ tar -xzf mujoco-3.3.7-linux-x86_64.tar.gz
 export MUJOCO_DIR=<your_path>/mujoco-3.x.x # e.g. mujoco-3.3.7 (depends on your own version)
 ```
 
-Then build all pkgs up-to `dynamics_mpc_controller`:
+Then build all pkgs up-to [`dynamics_mpc_controller`](https://github.com/wei-hsuan-cheng/dynamics_mpc_controller.git):
 ```bash
 cd <workspace_dir>
 export CMAKE_BUILD_PARALLEL_LEVEL=2 && \
