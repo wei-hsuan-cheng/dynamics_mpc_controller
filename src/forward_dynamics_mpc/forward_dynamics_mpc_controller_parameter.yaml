@@ -593,29 +593,37 @@ forward_dynamics_mpc_controller:
           description: "Enable joint-space tracking"
         }
 
-        scaling: {
-          type: double,
-          default_value: 2.0,
-          description: "Joint-position tracking scale",
-          validation: {
-            gt_eq: [0.0]
+        position:
+          scaling: {
+            type: double,
+            default_value: 20.0,
+            description: "Default joint-position tracking scale",
+            validation: {
+              gt_eq: [0.0]
+            }
           }
-        }
 
-        diagonal: {
-          type: double_array,
-          default_value: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
-          description: "Joint-position tracking diagonal"
-        }
-
-        velocityScaling: {
-          type: double,
-          default_value: 2.0,
-          description: "Joint-velocity tracking scale applied to the jointTracking diagonal",
-          validation: {
-            gt_eq: [0.0]
+          diagonal: {
+            type: double_array,
+            default_value: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+            description: "Default joint-position tracking diagonal"
           }
-        }
+
+        velocity:
+          scaling: {
+            type: double,
+            default_value: 2.0,
+            description: "Default joint-velocity tracking scale",
+            validation: {
+              gt_eq: [0.0]
+            }
+          }
+
+          diagonal: {
+            type: double_array,
+            default_value: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+            description: "Default joint-velocity tracking diagonal"
+          }
 
   paths:
     libFolder: {

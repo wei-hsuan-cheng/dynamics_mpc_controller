@@ -48,23 +48,25 @@ generate_parameter_library(forward_dynamics_mpc_controller_parameters
 add_library(${PROJECT_NAME} SHARED
   src/common/controller_utils.cpp
   src/common/pinocchio_utils.cpp
+  src/diagnostics/mpc_policy_publisher.cpp
+  src/estimation/momentum_observer_wrench_estimator.cpp
+  src/visualization/optimized_state_trajectory_visualization.cpp
+
   src/inverse_dynamics_mpc/constraint/inverse_dynamics_ee_wrench_tracking_constraint.cpp
   src/inverse_dynamics_mpc/constraint/inverse_dynamics_rnea_constraint_cppad.cpp
   src/inverse_dynamics_mpc/constraint/inverse_dynamics_rnea_with_ee_wrench_constraint_cppad.cpp
   src/inverse_dynamics_mpc/cost/inverse_dynamics_state_input_cost.cpp
-  src/diagnostics/mpc_policy_publisher.cpp
   src/inverse_dynamics_mpc/dynamics/inverse_dynamics_kinematic_dynamics_ad.cpp
-  src/estimation/momentum_observer_wrench_estimator.cpp
   src/inverse_dynamics_mpc/initialization/inverse_dynamics_initializer.cpp
-  src/inverse_dynamics_mpc/reference/joint_tracking_target.cpp
-  src/visualization/optimized_state_trajectory_visualization.cpp
+  src/inverse_dynamics_mpc/target/joint_tracking_target.cpp
   src/inverse_dynamics_mpc/inverse_dynamics_mpc_controller.cpp
   src/inverse_dynamics_mpc/inverse_dynamics_mpc_interface.cpp
   src/inverse_dynamics_mpc/inverse_dynamics_mpc_model.cpp
+
   src/forward_dynamics_mpc/cost/forward_dynamics_state_input_cost.cpp
   src/forward_dynamics_mpc/dynamics/forward_dynamics_aba_dynamics_ad.cpp
   src/forward_dynamics_mpc/initialization/forward_dynamics_initializer.cpp
-  src/forward_dynamics_mpc/reference/joint_tracking_target.cpp
+  src/forward_dynamics_mpc/target/joint_tracking_target.cpp
   src/forward_dynamics_mpc/forward_dynamics_mpc_controller.cpp
   src/forward_dynamics_mpc/forward_dynamics_mpc_interface.cpp
   src/forward_dynamics_mpc/forward_dynamics_mpc_model.cpp
@@ -129,11 +131,6 @@ install(DIRECTORY auto_generated/
 )
 install(FILES dynamics_mpc_controller_plugin.xml
   DESTINATION share/${PROJECT_NAME}
-)
-install(PROGRAMS
-  launch/joint_tracking_target.py
-  launch/dual_arm_joint_tracking_target.py
-  DESTINATION lib/${PROJECT_NAME}
 )
 
 install(TARGETS

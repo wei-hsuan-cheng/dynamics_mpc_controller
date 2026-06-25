@@ -13,7 +13,6 @@
 #include <pinocchio/algorithm/rnea.hpp>
 
 #include <ocs2_core/constraint/LinearStateInputConstraint.h>
-#include <ocs2_core/cost/QuadraticStateInputCost.h>
 #include <ocs2_core/integration/Integrator.h>
 #include <ocs2_core/integration/SensitivityIntegrator.h>
 #include <ocs2_oc/rollout/TimeTriggeredRollout.h>
@@ -338,21 +337,21 @@ void InverseDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
 
   reference_manager_ptr_ = std::make_shared<ocs2::ReferenceManager>();
 
-  ocs2::matrix_t Q = ocs2::matrix_t::Zero(2 * n, 2 * n);
+  ocs2::vector_t default_position_weights =
+    ocs2::vector_t::Zero(static_cast<Eigen::Index>(n));
+  ocs2::vector_t default_velocity_weights =
+    ocs2::vector_t::Zero(static_cast<Eigen::Index>(n));
   if (parameters.ocs2.task.jointTracking.activate) {
-    const ocs2::vector_t q_weights =
+    default_position_weights =
       (vectorFromArray(
-        parameters.ocs2.task.jointTracking.diagonal,
+        parameters.ocs2.task.jointTracking.position.diagonal,
         n,
-        1.0) * parameters.ocs2.task.jointTracking.scaling).eval();
-    const ocs2::vector_t v_weights =
+        1.0) * parameters.ocs2.task.jointTracking.position.scaling).eval();
+    default_velocity_weights =
       (vectorFromArray(
-        parameters.ocs2.task.jointTracking.diagonal,
+        parameters.ocs2.task.jointTracking.velocity.diagonal,
         n,
-        1.0) * parameters.ocs2.task.jointTracking.velocityScaling).eval();
-    Q.topLeftCorner(static_cast<Eigen::Index>(n), static_cast<Eigen::Index>(n)) = q_weights.asDiagonal();
-    Q.bottomRightCorner(static_cast<Eigen::Index>(n), static_cast<Eigen::Index>(n)) =
-      v_weights.asDiagonal();
+        1.0) * parameters.ocs2.task.jointTracking.velocity.scaling).eval();
   }
 
   ocs2::matrix_t R = ocs2::matrix_t::Zero(
@@ -395,14 +394,15 @@ void InverseDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
   std::cerr << "\n #### =============================================================================";
   std::cerr << "\n #### jointTracking.activate: "
             << (parameters.ocs2.task.jointTracking.activate ? "true" : "false");
-  std::cerr << "\n #### Q diagonal: " << Q.diagonal().transpose();
+  std::cerr << "\n #### default position weights: " << default_position_weights.transpose();
+  std::cerr << "\n #### default velocity weights: " << default_velocity_weights.transpose();
   std::cerr << "\n #### R diagonal: " << R.diagonal().transpose();
   std::cerr << "\n #### =============================================================================\n";
 
   problem_.costPtr->add(
     "stateInputTracking",
     std::make_unique<InverseDynamicsStateInputCost>(
-      Q, R, n, inverse_dynamics_model_.inputDim()));
+      R, default_position_weights, default_velocity_weights, n, inverse_dynamics_model_.inputDim()));
 
   problem_.dynamicsPtr = std::make_unique<InverseDynamicsKinematicDynamicsAD>(
     n,

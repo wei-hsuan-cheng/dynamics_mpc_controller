@@ -107,9 +107,12 @@ inverse_dynamics_mpc_controller:
 
         jointTracking:
           activate: true
-          scaling: 20.0
-          diagonal: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-          velocityScaling: 2.0
+          position:
+            scaling: 20.0
+            diagonal: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+          velocity:
+            scaling: 2.0
+            diagonal: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
         inputCost:
           R:
@@ -310,9 +313,12 @@ forward_dynamics_mpc_controller:
 
         jointTracking:
           activate: true
-          scaling: 20.0
-          diagonal: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-          velocityScaling: 2.0
+          position:
+            scaling: 20.0
+            diagonal: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+          velocity:
+            scaling: 2.0
+            diagonal: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
         inputCost:
           R:

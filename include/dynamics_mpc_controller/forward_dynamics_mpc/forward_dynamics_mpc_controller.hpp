@@ -19,9 +19,9 @@
 #include <ocs2_mpc/MPC_BASE.h>
 #include <ocs2_mpc/MPC_MRT_Interface.h>
 #include <ocs2_mpc/SystemObservation.h>
+#include <ocs2_msgs/msg/dynamics_mpc_targets.hpp>
 #include <ocs2_msgs/msg/mpc_flattened_controller.hpp>
 #include <ocs2_msgs/msg/mpc_observation.hpp>
-#include <ocs2_msgs/msg/mpc_targets.hpp>
 #include <ocs2_oc/oc_data/PerformanceIndex.h>
 #include <ocs2_sqp/SqpMpc.h>
 #include <rclcpp/rclcpp.hpp>
@@ -46,7 +46,7 @@ namespace diagnostics
 class MpcPolicyPublisher;
 }
 
-namespace reference
+namespace target
 {
 class ForwardJointTrackingTarget;
 }
@@ -56,7 +56,7 @@ class ForwardDynamicsMpcController : public controller_interface::ChainableContr
 public:
   using Params = forward_dynamics_mpc_controller::Params;
   using ParamListener = forward_dynamics_mpc_controller::ParamListener;
-  using TargetMsg = ocs2_msgs::msg::MpcTargets;
+  using TargetMsg = ocs2_msgs::msg::DynamicsMpcTargets;
 
   ForwardDynamicsMpcController() = default;
   ~ForwardDynamicsMpcController() override;
@@ -116,7 +116,7 @@ private:
   std::unique_ptr<ocs2::MPC_BASE> mpc_solver_;
   std::unique_ptr<ocs2::MPC_MRT_Interface> mrt_interface_;
   std::unique_ptr<estimation::MomentumObserverWrenchEstimator> wrench_estimator_;
-  std::unique_ptr<reference::ForwardJointTrackingTarget> joint_tracking_target_;
+  std::unique_ptr<target::ForwardJointTrackingTarget> joint_tracking_target_;
   std::shared_ptr<diagnostics::MpcPolicyPublisher> mpc_policy_observer_;
 
   double virtual_time_{0.0};

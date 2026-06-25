@@ -7,8 +7,8 @@ from typing import List
 import rclpy
 from rclpy.node import Node
 
-from ocs2_msgs.msg import MpcTargets
-from ocs2_msgs.msg import MpcObservation, MpcState, MpcTargetTrajectories
+from ocs2_msgs.msg import DynamicsMpcTargets
+from ocs2_msgs.msg import MpcObservation, MpcState
 from std_msgs.msg import Float64MultiArray
 
 DEFAULT_TARGET_TOPIC = "/mpc_targets"
@@ -25,11 +25,12 @@ DEFAULT_JOINT_NAMES = [
 
 # DEFAULT_CENTER = [0.0, -1.5708, 1.5708, 3.1416, -1.5708, 0.0]
 # DEFAULT_AMPLITUDE = [0.4, 0.4, 0.4, 0.4, 0.4, 0.4]
-DEFAULT_CENTER = [1.0, -1.0, 1.0, 3.1416, -1.5708, 0.0]
+DEFAULT_CENTER = [1.0, -0.0, 1.0, 3.1416, -1.5708, 0.0]
 DEFAULT_AMPLITUDE = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
 DEFAULT_PHASE = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5]
-DEFAULT_WEIGHTS = [20.0, 20.0, 20.0, 20.0, 20.0, 20.0]
+DEFAULT_POSITION_WEIGHTS = [20.0, 20.0, 20.0, 20.0, 20.0, 20.0]
+DEFAULT_VELOCITY_WEIGHTS = [2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
 
 
 def _as_list(value, fallback: List):
@@ -61,7 +62,8 @@ class JointTrackingTargetPublisher(Node):
         self.declare_parameter("center", DEFAULT_CENTER)
         self.declare_parameter("amplitude", DEFAULT_AMPLITUDE)
         self.declare_parameter("phase", DEFAULT_PHASE)
-        self.declare_parameter("weights", DEFAULT_WEIGHTS)
+        self.declare_parameter("position_weights", DEFAULT_POSITION_WEIGHTS)
+        self.declare_parameter("velocity_weights", DEFAULT_VELOCITY_WEIGHTS)
 
         self.topic = self.get_parameter("topic").value
         self.observation_topic = self.get_parameter("observation_topic").value
@@ -77,7 +79,16 @@ class JointTrackingTargetPublisher(Node):
         self.center = _resize(_as_list(self.get_parameter("center").value, DEFAULT_CENTER), joint_count, 0.0)
         self.amplitude = _resize(_as_list(self.get_parameter("amplitude").value, DEFAULT_AMPLITUDE), joint_count, 0.0)
         self.phase = _resize(_as_list(self.get_parameter("phase").value, DEFAULT_PHASE), joint_count, 0.0)
-        self.weights = _resize(_as_list(self.get_parameter("weights").value, DEFAULT_WEIGHTS), joint_count, 1.0)
+        self.position_weights = _resize(
+            _as_list(self.get_parameter("position_weights").value, DEFAULT_POSITION_WEIGHTS),
+            joint_count,
+            20.0,
+        )
+        self.velocity_weights = _resize(
+            _as_list(self.get_parameter("velocity_weights").value, DEFAULT_VELOCITY_WEIGHTS),
+            joint_count,
+            2.0,
+        )
 
         self.trajectory_duration = max(1e-6, self.trajectory_duration)
         self.trajectory_dt = max(1e-6, self.trajectory_dt)
@@ -87,7 +98,7 @@ class JointTrackingTargetPublisher(Node):
         self.latest_observation_time = None
         self.last_wait_log_time = 0.0
 
-        self.publisher = self.create_publisher(MpcTargets, self.topic, 1)
+        self.publisher = self.create_publisher(DynamicsMpcTargets, self.topic, 1)
         self.observation_subscription = self.create_subscription(
             MpcObservation,
             self.observation_topic,
@@ -97,7 +108,7 @@ class JointTrackingTargetPublisher(Node):
         self.timer = self.create_timer(1.0 / self.publish_rate, self.publish)
 
         self.get_logger().info(
-            f"Publishing joint MpcTargets to {self.topic} with {joint_count} joints, "
+            f"Publishing joint DynamicsMpcTargets to {self.topic} with {joint_count} joints, "
             f"{self.trajectory_samples} ZOH trajectory samples over {self.trajectory_duration:.3f} s "
             f"with dt {self.trajectory_dt:.3f} s, using OCS2 time from "
             f"{self.observation_topic}"
@@ -131,8 +142,7 @@ class JointTrackingTargetPublisher(Node):
             for i in range(len(self.joint_names))
         ]
 
-    def build_trajectory(self, t0: float) -> MpcTargetTrajectories:
-        trajectory = MpcTargetTrajectories()
+    def fill_trajectory(self, msg: DynamicsMpcTargets, t0: float):
         zoh_target = self.joint_target(t0)
 
         for sample_index in range(self.trajectory_samples):
@@ -140,22 +150,23 @@ class JointTrackingTargetPublisher(Node):
             state = MpcState()
             state.value = [float(q) for q in zoh_target]
 
-            trajectory.time_trajectory.append(float(t))
-            trajectory.state_trajectory.append(state)
-        return trajectory
+            msg.time_trajectory.append(float(t))
+            msg.state_trajectory.append(state)
 
     def publish(self):
         t0 = self.current_target_time()
         if t0 is None:
             return
 
-        msg = MpcTargets()
+        msg = DynamicsMpcTargets()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.command_type = "joint"
         msg.joint_names = list(self.joint_names)
-        msg.joint_tracking_weights = Float64MultiArray()
-        msg.joint_tracking_weights.data = [float(w) for w in self.weights]
-        msg.target_trajectories = [self.build_trajectory(t0)]
+        msg.joint_position_tracking_weights = Float64MultiArray()
+        msg.joint_position_tracking_weights.data = [float(w) for w in self.position_weights]
+        msg.joint_velocity_tracking_weights = Float64MultiArray()
+        msg.joint_velocity_tracking_weights.data = [float(w) for w in self.velocity_weights]
+        self.fill_trajectory(msg, t0)
 
         self.publisher.publish(msg)
 

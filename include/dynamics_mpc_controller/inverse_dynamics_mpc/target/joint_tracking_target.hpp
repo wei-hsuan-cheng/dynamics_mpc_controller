@@ -1,22 +1,22 @@
-#ifndef DYNAMICS_MPC_CONTROLLER__INVERSE_DYNAMICS_MPC__REFERENCE__JOINT_TRACKING_TARGET_HPP_
-#define DYNAMICS_MPC_CONTROLLER__INVERSE_DYNAMICS_MPC__REFERENCE__JOINT_TRACKING_TARGET_HPP_
+#ifndef DYNAMICS_MPC_CONTROLLER__INVERSE_DYNAMICS_MPC__TARGET__JOINT_TRACKING_TARGET_HPP_
+#define DYNAMICS_MPC_CONTROLLER__INVERSE_DYNAMICS_MPC__TARGET__JOINT_TRACKING_TARGET_HPP_
 
 #include <ocs2_core/reference/TargetTrajectories.h>
 #include <ocs2_mpc/SystemObservation.h>
-#include <ocs2_msgs/msg/mpc_targets.hpp>
+#include <ocs2_msgs/msg/dynamics_mpc_targets.hpp>
 
 namespace dynamics_mpc_controller
 {
 
 class InverseDynamicsMpcInterface;
 
-namespace reference
+namespace target
 {
 
 class JointTrackingTarget
 {
 public:
-  using TargetMsg = ocs2_msgs::msg::MpcTargets;
+  using TargetMsg = ocs2_msgs::msg::DynamicsMpcTargets;
   using TargetTrajectories = ocs2::TargetTrajectories;
 
   explicit JointTrackingTarget(const InverseDynamicsMpcInterface& interface);
@@ -29,7 +29,7 @@ private:
   const InverseDynamicsMpcInterface& interface_;
 };
 
-}  // namespace reference
+}  // namespace target
 }  // namespace dynamics_mpc_controller
 
-#endif  // DYNAMICS_MPC_CONTROLLER__INVERSE_DYNAMICS_MPC__REFERENCE__JOINT_TRACKING_TARGET_HPP_
+#endif  // DYNAMICS_MPC_CONTROLLER__INVERSE_DYNAMICS_MPC__TARGET__JOINT_TRACKING_TARGET_HPP_

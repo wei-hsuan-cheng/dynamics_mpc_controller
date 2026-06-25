@@ -16,7 +16,7 @@
 #include "dynamics_mpc_controller/common/controller_utils.hpp"
 #include "dynamics_mpc_controller/diagnostics/mpc_policy_publisher.hpp"
 #include "dynamics_mpc_controller/estimation/momentum_observer_wrench_estimator.hpp"
-#include "dynamics_mpc_controller/forward_dynamics_mpc/reference/joint_tracking_target.hpp"
+#include "dynamics_mpc_controller/forward_dynamics_mpc/target/joint_tracking_target.hpp"
 
 namespace dynamics_mpc_controller
 {
@@ -180,7 +180,7 @@ bool ForwardDynamicsMpcController::configure_mpc_ocs2()
   }
 
   const auto& model = interface_->getForwardDynamicsMpcModel();
-  joint_tracking_target_ = std::make_unique<reference::ForwardJointTrackingTarget>(*interface_);
+  joint_tracking_target_ = std::make_unique<target::ForwardJointTrackingTarget>(*interface_);
   last_input_ = vector_t::Zero(static_cast<Eigen::Index>(model.inputDim()));
   last_tau_command_ = vector_t::Zero(static_cast<Eigen::Index>(model.jointDim()));
   low_level_pd_kp_ = vector_t::Zero(static_cast<Eigen::Index>(model.jointDim()));
