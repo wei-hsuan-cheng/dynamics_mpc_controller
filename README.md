@@ -19,7 +19,7 @@ rosdep update
 rosdep install --from-paths src --ignore-src -r -y
 ```
 
-First download `mujoco` pre-built library (details in [`mujoco_ros2_controler`](https://github.com/wei-hsuan-cheng/mujoco_ros2_control.git)):
+First download `mujoco` pre-built library (details in [`mujoco_ros2_control`](https://github.com/wei-hsuan-cheng/mujoco_ros2_control.git)):
 ```bash
 cd <your_path>
 # Check x86_64 or aarch64
