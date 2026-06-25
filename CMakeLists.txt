@@ -88,19 +88,19 @@ pluginlib_export_plugin_description_file(
   dynamics_mpc_controller_plugin.xml
 )
 
-add_executable(optimized_state_trajectory_visualization_node
-  src/visualization/optimized_state_trajectory_visualization_node.cpp
+add_executable(policy_visualization_node
+  src/visualization/policy_visualization_node.cpp
 )
-target_compile_features(optimized_state_trajectory_visualization_node PUBLIC cxx_std_17)
-target_include_directories(optimized_state_trajectory_visualization_node
+target_compile_features(policy_visualization_node PUBLIC cxx_std_17)
+target_include_directories(policy_visualization_node
   PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
-target_link_libraries(optimized_state_trajectory_visualization_node
+target_link_libraries(policy_visualization_node
   ${PROJECT_NAME}
 )
-ament_target_dependencies(optimized_state_trajectory_visualization_node
+ament_target_dependencies(policy_visualization_node
   rclcpp
   geometry_msgs
   ocs2_msgs
@@ -144,7 +144,7 @@ install(TARGETS
   RUNTIME DESTINATION bin
 )
 
-install(TARGETS optimized_state_trajectory_visualization_node
+install(TARGETS policy_visualization_node
   DESTINATION lib/${PROJECT_NAME}
 )
 

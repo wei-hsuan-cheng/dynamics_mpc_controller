@@ -509,15 +509,16 @@ forward_dynamics_mpc_controller:
         command_interfaces: [effort]
         state_interfaces: [position, velocity, effort]
 
-optimized_state_trajectory_visualization:
+policy_visualization:
   ros__parameters:
-    activate: true
     urdfFile: "$(var urdfFile)"
     removeJoints: [""]
     endEffectorFrame: "ur_arm1_tool0"
     mpcPolicyTopic: "$(var mpcPolicyTopic)"
-    markerTopic: "/visualization/optimizedStateTrajectory"
     frameId: "world"
-    publishRate: 10.0
-    lineWidth: 0.01
-    pointScale: 0.025
+
+    optimized_state_trajectory:
+      activate: true
+      markerTopic: "/policy_visualization/optimizedStateTrajectory"
+      lineWidth: 0.01
+      pointScale: 0.025

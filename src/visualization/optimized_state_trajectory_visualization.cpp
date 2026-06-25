@@ -73,14 +73,11 @@ OptimizedStateTrajectoryVisualization::OptimizedStateTrajectoryVisualization(
   if (settings_.frame_id.empty()) {
     throw std::invalid_argument("Optimized state trajectory frame ID must not be empty.");
   }
-  if (!std::isfinite(settings_.publish_rate_hz) || settings_.publish_rate_hz <= 0.0 ||
-      !std::isfinite(settings_.line_width) || settings_.line_width <= 0.0 ||
+  if (!std::isfinite(settings_.line_width) || settings_.line_width <= 0.0 ||
       !std::isfinite(settings_.point_scale) || settings_.point_scale <= 0.0) {
-    throw std::invalid_argument("Optimized state trajectory rates and marker sizes must be finite and positive.");
+    throw std::invalid_argument("Optimized state trajectory marker sizes must be finite and positive.");
   }
 
-  publish_period_ = std::chrono::duration_cast<SteadyClock::duration>(
-    std::chrono::duration<double>(1.0 / settings_.publish_rate_hz));
   marker_publisher_ = node_.create_publisher<Message>(
     settings_.marker_topic,
     rclcpp::QoS(1).reliable().transient_local());
@@ -89,11 +86,6 @@ OptimizedStateTrajectoryVisualization::OptimizedStateTrajectoryVisualization(
 void OptimizedStateTrajectoryVisualization::publish(
   const ocs2_msgs::msg::MpcFlattenedController& policy)
 {
-  const auto now = SteadyClock::now();
-  if (!first_publish_ && now - last_publish_time_ < publish_period_) {
-    return;
-  }
-
   const auto& model = pinocchio_interface_.getModel();
   const Eigen::Index joint_dim = model.nq;
   if (joint_dim <= 0 || policy.state_trajectory.empty()) {
@@ -119,8 +111,6 @@ void OptimizedStateTrajectoryVisualization::publish(
   }
 
   marker_publisher_->publish(createMessage(joint_positions));
-  first_publish_ = false;
-  last_publish_time_ = now;
 }
 
 OptimizedStateTrajectoryVisualization::Message OptimizedStateTrajectoryVisualization::createMessage(

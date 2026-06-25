@@ -47,7 +47,7 @@ def generate_launch_description():
         DeclareLaunchArgument("estimatedEeWrenchTopic", default_value="/estimated_ee_wrench"),
         DeclareLaunchArgument("mpcObservationTopic", default_value="/mpc_observation"),
         DeclareLaunchArgument("mpcPolicyTopic", default_value="/mpc_policy"),
-        DeclareLaunchArgument("optimizedStateTrajectoryVisualization", default_value="true"),
+        DeclareLaunchArgument("policyVisualization", default_value="true"),
         DeclareLaunchArgument("initialPoseFile", default_value=initial_pose_default),
         DeclareLaunchArgument("mujocoModelFile", default_value="scene_open_door.xml"),
     ]
@@ -154,16 +154,16 @@ def generate_launch_description():
         condition=IfCondition(use_mujoco_sim),
     )
 
-    optimized_state_trajectory_visualization = Node(
+    policy_visualization = Node(
         package="dynamics_mpc_controller",
-        executable="optimized_state_trajectory_visualization_node",
-        name="optimized_state_trajectory_visualization",
+        executable="policy_visualization_node",
+        name="policy_visualization",
         output="screen",
         parameters=[
             ParameterFile(LaunchConfiguration("controllersFile"), allow_substs=True),
             {"use_sim_time": use_sim_time},
         ],
-        condition=IfCondition(LaunchConfiguration("optimizedStateTrajectoryVisualization")),
+        condition=IfCondition(LaunchConfiguration("policyVisualization")),
     )
 
     visualize_launch = IncludeLaunchDescription(
@@ -185,7 +185,7 @@ def generate_launch_description():
             mujoco_ros2_control_node,
             controller_sequence,
             controller_sequence_mujoco,
-            optimized_state_trajectory_visualization,
+            policy_visualization,
             visualize_launch,
         ]
     )

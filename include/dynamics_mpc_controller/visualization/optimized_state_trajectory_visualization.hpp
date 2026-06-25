@@ -1,7 +1,6 @@
 #ifndef DYNAMICS_MPC_CONTROLLER__VISUALIZATION__OPTIMIZED_STATE_TRAJECTORY_VISUALIZATION_HPP_
 #define DYNAMICS_MPC_CONTROLLER__VISUALIZATION__OPTIMIZED_STATE_TRAJECTORY_VISUALIZATION_HPP_
 
-#include <chrono>
 #include <cstddef>
 #include <string>
 
@@ -21,9 +20,8 @@ class OptimizedStateTrajectoryVisualization
 public:
   struct Settings
   {
-    std::string marker_topic{"/visualization/optimizedStateTrajectory"};
+    std::string marker_topic{"/policy_visualization/optimizedStateTrajectory"};
     std::string frame_id{"world"};
-    double publish_rate_hz{10.0};
     double line_width{0.01};
     double point_scale{0.025};
   };
@@ -38,7 +36,6 @@ public:
 
 private:
   using Message = visualization_msgs::msg::MarkerArray;
-  using SteadyClock = std::chrono::steady_clock;
 
   Message createMessage(const ocs2::vector_array_t& jointPositionTrajectory);
 
@@ -47,9 +44,6 @@ private:
   rclcpp::Node& node_;
   Settings settings_;
   rclcpp::Publisher<Message>::SharedPtr marker_publisher_;
-  SteadyClock::duration publish_period_{};
-  SteadyClock::time_point last_publish_time_{};
-  bool first_publish_{true};
 };
 
 }  // namespace dynamics_mpc_controller::visualization
