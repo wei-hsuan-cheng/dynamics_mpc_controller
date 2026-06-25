@@ -44,8 +44,8 @@ inverse_dynamics_mpc_controller:
 
           ##### trackZeroWrench ##### 
           # Only valid when wrenchInRNEA is true.
-          # true: desired wrench is always zero.
-          # false: desired wrench is read from the incoming target input trajectory when provided.
+          # true: hard equality enforces eeWrench=0.
+          # false: hard equality enforces eeWrench from the incoming target input trajectory when provided, otherwise zero.
           trackZeroWrench: false
 
         ddp:

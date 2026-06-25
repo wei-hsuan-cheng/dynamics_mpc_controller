@@ -18,6 +18,7 @@
 #include <ocs2_core/integration/SensitivityIntegrator.h>
 #include <ocs2_oc/rollout/TimeTriggeredRollout.h>
 
+#include "dynamics_mpc_controller/inverse_dynamics_mpc/constraint/inverse_dynamics_ee_wrench_tracking_constraint.hpp"
 #include "dynamics_mpc_controller/inverse_dynamics_mpc/constraint/inverse_dynamics_rnea_constraint_cppad.hpp"
 #include "dynamics_mpc_controller/inverse_dynamics_mpc/constraint/inverse_dynamics_rnea_with_ee_wrench_constraint_cppad.hpp"
 #include "dynamics_mpc_controller/inverse_dynamics_mpc/cost/inverse_dynamics_state_input_cost.hpp"
@@ -423,6 +424,14 @@ void InverseDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
         parameters.paths.libFolder,
         recompile_libraries,
         true));
+    problem_.equalityConstraintPtr->add(
+      "eeWrenchTracking",
+      std::make_unique<InverseDynamicsEeWrenchTrackingConstraint>(
+        inverse_dynamics_model_.stateDim(),
+        inverse_dynamics_model_.inputDim(),
+        inverse_dynamics_model_.wrenchOffset(),
+        *reference_manager_ptr_,
+        inverse_dynamics_model_.trackZeroWrench()));
   } else {
     problem_.equalityConstraintPtr->add(
       "inverseDynamicsRnea",
