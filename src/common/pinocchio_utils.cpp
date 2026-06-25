@@ -1,4 +1,4 @@
-#include "dynamics_mpc_controller/pinocchio_utils.hpp"
+#include "dynamics_mpc_controller/common/pinocchio_utils.hpp"
 
 #include <algorithm>
 #include <memory>

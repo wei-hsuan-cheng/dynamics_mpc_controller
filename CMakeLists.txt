@@ -46,7 +46,8 @@ generate_parameter_library(forward_dynamics_mpc_controller_parameters
 )
 
 add_library(${PROJECT_NAME} SHARED
-  src/pinocchio_utils.cpp
+  src/common/controller_utils.cpp
+  src/common/pinocchio_utils.cpp
   src/inverse_dynamics_mpc/constraint/inverse_dynamics_constraint_cppad.cpp
   src/inverse_dynamics_mpc/constraint/inverse_dynamics_with_ee_wrench_constraint_cppad.cpp
   src/inverse_dynamics_mpc/cost/inverse_dynamics_state_input_cost.cpp

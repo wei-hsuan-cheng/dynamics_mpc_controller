@@ -19,7 +19,7 @@
 #include "dynamics_mpc_controller/forward_dynamics_mpc/cost/forward_dynamics_state_input_cost.hpp"
 #include "dynamics_mpc_controller/forward_dynamics_mpc/dynamics/forward_dynamics_aba_dynamics_ad.hpp"
 #include "dynamics_mpc_controller/forward_dynamics_mpc/initialization/forward_dynamics_initializer.hpp"
-#include "dynamics_mpc_controller/pinocchio_utils.hpp"
+#include "dynamics_mpc_controller/common/pinocchio_utils.hpp"
 
 namespace dynamics_mpc_controller
 {

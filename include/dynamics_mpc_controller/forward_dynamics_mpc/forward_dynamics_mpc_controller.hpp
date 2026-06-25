@@ -31,7 +31,7 @@
 
 #include "dynamics_mpc_controller/forward_dynamics_mpc/forward_dynamics_mpc_interface.hpp"
 #include "dynamics_mpc_controller/forward_dynamics_mpc_controller_parameters.hpp"
-#include "dynamics_mpc_controller/mpc_data.hpp"
+#include "dynamics_mpc_controller/common/mpc_data.hpp"
 
 namespace dynamics_mpc_controller
 {
@@ -105,7 +105,6 @@ private:
   vector_t current_position_vector() const;
   vector_t current_velocity_vector() const;
   vector_t current_effort_vector() const;
-  std::pair<std::string, std::string> resolve_name(const std::string& name, bool has_prefix) const;
 
   std::shared_ptr<ParamListener> param_listener_;
   Params parameters_;

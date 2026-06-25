@@ -849,7 +849,7 @@ inverse_dynamics_mpc_controller:
     statusLogPeriod: {
       type: double,
       default_value: 2.0,
-      description: "Period in seconds for throttled MPC_ACTIVE and HOLD status logs",
+      description: "Period in seconds for throttled controller status logs",
       validation: {
         gt: [0.0]
       }

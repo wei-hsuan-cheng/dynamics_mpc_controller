@@ -23,7 +23,7 @@
 #include "dynamics_mpc_controller/inverse_dynamics_mpc/cost/inverse_dynamics_state_input_cost.hpp"
 #include "dynamics_mpc_controller/inverse_dynamics_mpc/dynamics/inverse_dynamics_kinematic_dynamics_ad.hpp"
 #include "dynamics_mpc_controller/inverse_dynamics_mpc/initialization/inverse_dynamics_initializer.hpp"
-#include "dynamics_mpc_controller/pinocchio_utils.hpp"
+#include "dynamics_mpc_controller/common/pinocchio_utils.hpp"
 
 namespace dynamics_mpc_controller
 {

@@ -6,15 +6,14 @@
 #include <filesystem>
 #include <functional>
 #include <limits>
-#include <sstream>
 #include <stdexcept>
 #include <utility>
 
 #include <hardware_interface/types/hardware_interface_type_values.hpp>
 #include <ocs2_core/thread_support/ExecuteAndSleep.h>
-#include <ocs2_ros_interfaces/common/RosMsgConversions.h>
 #include <pluginlib/class_list_macros.hpp>
 
+#include "dynamics_mpc_controller/common/controller_utils.hpp"
 #include "dynamics_mpc_controller/diagnostics/mpc_policy_publisher.hpp"
 #include "dynamics_mpc_controller/estimation/momentum_observer_wrench_estimator.hpp"
 #include "dynamics_mpc_controller/forward_dynamics_mpc/reference/joint_tracking_target.hpp"
@@ -248,7 +247,7 @@ controller_interface::CallbackReturn ForwardDynamicsMpcController::configure_har
   robot_hardware_interfaces_.clear();
 
   for (const auto& [body_joint_name, body_joint_params] : parameters_.robot.body_joint_names_map) {
-    const auto [body_name, joint_name] = resolve_name(body_joint_name, false);
+    const auto [body_name, joint_name] = controller_utils::resolveJointName(body_joint_name, false);
     HWInterfaces joint_hw;
 
     for (const auto& interface_name : body_joint_params.state_interfaces) {
@@ -800,11 +799,10 @@ void ForwardDynamicsMpcController::check_initializer(const SystemObservation& ob
 
   double bound_violation = 0.0;
   if (interface_->inputLimitsActive()) {
-    bound_violation = std::max(
-      0.0,
-      std::max(
-        (interface_->inputLowerBounds() - input).maxCoeff(),
-        (input - interface_->inputUpperBounds()).maxCoeff()));
+    bound_violation = controller_utils::maxBoundViolation(
+      input,
+      interface_->inputLowerBounds(),
+      interface_->inputUpperBounds());
   }
 
   RCLCPP_INFO(
@@ -894,15 +892,10 @@ void ForwardDynamicsMpcController::apply_torque_command(const vector_t& command_
 
 void ForwardDynamicsMpcController::write_torque_command(const vector_t& torque)
 {
-  const auto& dof_names = interface_->getForwardDynamicsMpcModel().dofNames();
-  for (std::size_t i = 0; i < dof_names.size(); ++i) {
-    const auto [body_name, joint_name] = resolve_name(dof_names[i], true);
-    robot_hardware_interfaces_.at(body_name)
-      .at(joint_name)
-      .command.at(hardware_interface::HW_IF_EFFORT)
-      .get()
-      .set_value(torque(static_cast<Eigen::Index>(i)));
-  }
+  controller_utils::writeTorqueCommand(
+    interface_->getForwardDynamicsMpcModel().dofNames(),
+    robot_hardware_interfaces_,
+    torque);
 }
 
 bool ForwardDynamicsMpcController::policy_input_is_acceptable(
@@ -919,11 +912,10 @@ bool ForwardDynamicsMpcController::policy_input_is_acceptable(
 
   input_bound_violation = 0.0;
   if (interface_->inputLimitsActive()) {
-    const vector_t lower_violation = interface_->inputLowerBounds() - command_input;
-    const vector_t upper_violation = command_input - interface_->inputUpperBounds();
-    input_bound_violation = std::max(
-      0.0,
-      std::max(lower_violation.maxCoeff(), upper_violation.maxCoeff()));
+    input_bound_violation = controller_utils::maxBoundViolation(
+      command_input,
+      interface_->inputLowerBounds(),
+      interface_->inputUpperBounds());
   }
 
   const auto& validation = parameters_.numeric.policyValidation;
@@ -986,19 +978,7 @@ void ForwardDynamicsMpcController::update_wrench_estimate(double period_sec)
 
 void ForwardDynamicsMpcController::publish_mpc_observation(const SystemObservation& observation)
 {
-  if (!realtime_mpc_observation_publisher_) {
-    return;
-  }
-
-  const auto msg = ocs2::ros_msg_conversions::createObservationMsg(observation);
-#if REALTIME_TOOLS_NEW_API
-  realtime_mpc_observation_publisher_->try_publish(msg);
-#else
-  if (realtime_mpc_observation_publisher_->trylock()) {
-    realtime_mpc_observation_publisher_->msg_ = msg;
-    realtime_mpc_observation_publisher_->unlockAndPublish();
-  }
-#endif
+  controller_utils::publishMpcObservation(observation, realtime_mpc_observation_publisher_);
 }
 
 void ForwardDynamicsMpcController::publish_wrench_estimate(const rclcpp::Time& stamp)
@@ -1007,104 +987,35 @@ void ForwardDynamicsMpcController::publish_wrench_estimate(const rclcpp::Time& s
     return;
   }
 
-  geometry_msgs::msg::WrenchStamped msg;
-  msg.header.stamp = stamp;
-  msg.header.frame_id = parameters_.ocs2.task.model_information.endEffectorFrame;
-  msg.wrench.force.x = estimated_ee_wrench_(0);
-  msg.wrench.force.y = estimated_ee_wrench_(1);
-  msg.wrench.force.z = estimated_ee_wrench_(2);
-  msg.wrench.torque.x = estimated_ee_wrench_(3);
-  msg.wrench.torque.y = estimated_ee_wrench_(4);
-  msg.wrench.torque.z = estimated_ee_wrench_(5);
-#if REALTIME_TOOLS_NEW_API
-  realtime_wrench_estimate_publisher_->try_publish(msg);
-#else
-  if (realtime_wrench_estimate_publisher_->trylock()) {
-    realtime_wrench_estimate_publisher_->msg_ = msg;
-    realtime_wrench_estimate_publisher_->unlockAndPublish();
-  }
-#endif
+  controller_utils::publishWrenchEstimate(
+    stamp,
+    parameters_.ocs2.task.model_information.endEffectorFrame,
+    estimated_ee_wrench_,
+    realtime_wrench_estimate_publisher_);
 }
 
 ForwardDynamicsMpcController::vector_t ForwardDynamicsMpcController::current_position_vector() const
 {
-  const auto& dof_names = interface_->getForwardDynamicsMpcModel().dofNames();
-  vector_t q(static_cast<Eigen::Index>(dof_names.size()));
-  for (std::size_t i = 0; i < dof_names.size(); ++i) {
-    const auto [body_name, joint_name] = resolve_name(dof_names[i], true);
-    q(static_cast<Eigen::Index>(i)) =
-      robot_hardware_interfaces_.at(body_name)
-        .at(joint_name)
-        .state.at(hardware_interface::HW_IF_POSITION)
-        .get()
-        .get_value();
-  }
-  return q;
+  return controller_utils::readStateVector(
+    interface_->getForwardDynamicsMpcModel().dofNames(),
+    robot_hardware_interfaces_,
+    hardware_interface::HW_IF_POSITION);
 }
 
 ForwardDynamicsMpcController::vector_t ForwardDynamicsMpcController::current_velocity_vector() const
 {
-  const auto& dof_names = interface_->getForwardDynamicsMpcModel().dofNames();
-  vector_t v(static_cast<Eigen::Index>(dof_names.size()));
-  for (std::size_t i = 0; i < dof_names.size(); ++i) {
-    const auto [body_name, joint_name] = resolve_name(dof_names[i], true);
-    v(static_cast<Eigen::Index>(i)) =
-      robot_hardware_interfaces_.at(body_name)
-        .at(joint_name)
-        .state.at(hardware_interface::HW_IF_VELOCITY)
-        .get()
-        .get_value();
-  }
-  return v;
+  return controller_utils::readStateVector(
+    interface_->getForwardDynamicsMpcModel().dofNames(),
+    robot_hardware_interfaces_,
+    hardware_interface::HW_IF_VELOCITY);
 }
 
 ForwardDynamicsMpcController::vector_t ForwardDynamicsMpcController::current_effort_vector() const
 {
-  const auto& dof_names = interface_->getForwardDynamicsMpcModel().dofNames();
-  vector_t effort(static_cast<Eigen::Index>(dof_names.size()));
-  for (std::size_t i = 0; i < dof_names.size(); ++i) {
-    const auto [body_name, joint_name] = resolve_name(dof_names[i], true);
-    effort(static_cast<Eigen::Index>(i)) =
-      robot_hardware_interfaces_.at(body_name)
-        .at(joint_name)
-        .state.at(hardware_interface::HW_IF_EFFORT)
-        .get()
-        .get_value();
-  }
-  return effort;
-}
-
-std::pair<std::string, std::string> ForwardDynamicsMpcController::resolve_name(
-  const std::string& name,
-  bool has_prefix) const
-{
-  std::stringstream ss(name);
-  std::string item;
-  std::vector<std::string> parts;
-  while (std::getline(ss, item, '_')) {
-    parts.push_back(item);
-  }
-
-  std::string body_name;
-  std::string joint_name;
-  if (has_prefix) {
-    if (parts.size() >= 3) {
-      body_name = parts[1];
-      joint_name = parts[2];
-      for (std::size_t i = 3; i < parts.size(); ++i) {
-        joint_name += "_" + parts[i];
-      }
-    }
-  } else {
-    if (parts.size() >= 2) {
-      body_name = parts[0];
-      joint_name = parts[1];
-      for (std::size_t i = 2; i < parts.size(); ++i) {
-        joint_name += "_" + parts[i];
-      }
-    }
-  }
-  return {body_name, joint_name};
+  return controller_utils::readStateVector(
+    interface_->getForwardDynamicsMpcModel().dofNames(),
+    robot_hardware_interfaces_,
+    hardware_interface::HW_IF_EFFORT);
 }
 
 }  // namespace dynamics_mpc_controller

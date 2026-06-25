@@ -9,8 +9,8 @@
 #include <pinocchio/multibody/model.hpp>
 #include <rclcpp/rclcpp.hpp>
 
+#include "dynamics_mpc_controller/common/pinocchio_utils.hpp"
 #include "dynamics_mpc_controller/visualization/optimized_state_trajectory_visualization.hpp"
-#include "dynamics_mpc_controller/pinocchio_utils.hpp"
 
 namespace dynamics_mpc_controller
 {

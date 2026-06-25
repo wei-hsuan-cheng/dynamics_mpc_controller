@@ -1,5 +1,5 @@
-#ifndef DYNAMICS_MPC_CONTROLLER__MPC_DATA_HPP_
-#define DYNAMICS_MPC_CONTROLLER__MPC_DATA_HPP_
+#ifndef DYNAMICS_MPC_CONTROLLER__COMMON__MPC_DATA_HPP_
+#define DYNAMICS_MPC_CONTROLLER__COMMON__MPC_DATA_HPP_
 
 #include <functional>
 #include <string>
@@ -35,4 +35,4 @@ struct MPCData
 
 }  // namespace dynamics_mpc_controller
 
-#endif  // DYNAMICS_MPC_CONTROLLER__MPC_DATA_HPP_
+#endif  // DYNAMICS_MPC_CONTROLLER__COMMON__MPC_DATA_HPP_
