@@ -958,31 +958,13 @@ InverseDynamicsMpcController::vector_t InverseDynamicsMpcController::compute_pol
     const vector_t q_nominal = model.getQ(policy_state);
     const vector_t v_nominal = model.getV(policy_state);
 
-    vector_t acceleration_command =
-      model.getA(policy_input) +
+    const vector_t tau_feedback =
       low_level_pd_kp_.cwiseProduct(q_nominal - q) +
       low_level_pd_kd_.cwiseProduct(v_nominal - v);
 
-    // Acceleration is a virtual inverse-dynamics input. Keep the feedback
-    // correction intact and enforce the physical torque bounds below.
-    command_input.segment(
-      static_cast<Eigen::Index>(model.aOffset()),
-      static_cast<Eigen::Index>(n)) = acceleration_command;
-
-    const vector_t tau_command = model.hasEeWrenchInput() ?
-      interface_->computeInverseDynamicsTorqueWithEeWrench(
-        q,
-        v,
-        acceleration_command,
-        model.getWrench(command_input)) :
-      interface_->computeInverseDynamicsTorque(
-        q,
-        v,
-        acceleration_command);
-
     command_input.segment(
       static_cast<Eigen::Index>(model.tauOffset()),
-      static_cast<Eigen::Index>(n)) = tau_command;
+      static_cast<Eigen::Index>(n)) += tau_feedback;
   }
 
   vector_t tau = command_input.segment(
@@ -1045,19 +1027,23 @@ bool InverseDynamicsMpcController::policy_input_is_acceptable(
 
   const vector_t commanded_tau = model.getTau(command_input);
 
-  const vector_t expected_tau = model.hasEeWrenchInput() ?
-    interface_->computeInverseDynamicsTorqueWithEeWrench(
-      model.getQ(observation.state),
-      model.getV(observation.state),
-      model.getA(command_input),
-      model.getWrench(command_input)) :
-    interface_->computeInverseDynamicsTorque(
-      model.getQ(observation.state),
-      model.getV(observation.state),
-      model.getA(command_input));
-  rnea_residual = (expected_tau - commanded_tau).lpNorm<Eigen::Infinity>();
-  if (!std::isfinite(rnea_residual)) {
-    return false;
+  if (low_level_pd_feedback_active_) {
+    rnea_residual = 0.0;
+  } else {
+    const vector_t expected_tau = model.hasEeWrenchInput() ?
+      interface_->computeInverseDynamicsTorqueWithEeWrench(
+        model.getQ(observation.state),
+        model.getV(observation.state),
+        model.getA(command_input),
+        model.getWrench(command_input)) :
+      interface_->computeInverseDynamicsTorque(
+        model.getQ(observation.state),
+        model.getV(observation.state),
+        model.getA(command_input));
+    rnea_residual = (expected_tau - commanded_tau).lpNorm<Eigen::Infinity>();
+    if (!std::isfinite(rnea_residual)) {
+      return false;
+    }
   }
 
   input_bound_violation = 0.0;

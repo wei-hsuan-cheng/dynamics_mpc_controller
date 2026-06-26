@@ -801,19 +801,19 @@ inverse_dynamics_mpc_controller:
     activate: {
       type: bool,
       default_value: false,
-      description: "Recompute torque from measured state and MPC acceleration with optional joint-space PD acceleration feedback"
+      description: "Add optional joint-space PD torque feedback tau_cmd = tau_mpc + Kp(q_mpc - q) + Kd(v_mpc - v)"
     }
 
     jointKp: {
       type: double_array,
       default_value: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-      description: "Joint-position gains for acceleration correction a_cmd = a_mpc + Kp(q_mpc - q) + Kd(v_mpc - v)"
+      description: "Joint-position torque gains in Nm/rad"
     }
 
     jointKd: {
       type: double_array,
       default_value: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-      description: "Joint-velocity gains for acceleration correction a_cmd = a_mpc + Kp(q_mpc - q) + Kd(v_mpc - v)"
+      description: "Joint-velocity torque gains in Nm/(rad/s)"
     }
 
   wrenchEstimation:

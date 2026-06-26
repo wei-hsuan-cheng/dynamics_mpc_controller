@@ -926,15 +926,15 @@ ForwardDynamicsMpcController::vector_t ForwardDynamicsMpcController::compute_pol
       low_level_pd_kd_.cwiseProduct(v_nominal - v);
   }
 
+  if (last_tau_command_.size() == command_input.size()) {
+    const double alpha = mpc_data_.command_smoothing_alpha_;
+    command_input = alpha * command_input + (1.0 - alpha) * last_tau_command_;
+  }
+
   // Clamp within input bounds
   if (interface_->inputLimitsActive()) {
     command_input = command_input.cwiseMax(interface_->inputLowerBounds());
     command_input = command_input.cwiseMin(interface_->inputUpperBounds());
-  }
-
-  if (last_tau_command_.size() == command_input.size()) {
-    const double alpha = mpc_data_.command_smoothing_alpha_;
-    command_input = alpha * command_input + (1.0 - alpha) * last_tau_command_;
   }
 
   return command_input;
