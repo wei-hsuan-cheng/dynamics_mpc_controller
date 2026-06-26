@@ -963,18 +963,8 @@ InverseDynamicsMpcController::vector_t InverseDynamicsMpcController::compute_pol
       low_level_pd_kp_.cwiseProduct(q_nominal - q) +
       low_level_pd_kd_.cwiseProduct(v_nominal - v);
 
-    // Clamp within input bounds
-    if (interface_->inputLimitsActive()) {
-      acceleration_command = acceleration_command.cwiseMax(
-        interface_->inputLowerBounds().segment(
-          static_cast<Eigen::Index>(model.aOffset()),
-          static_cast<Eigen::Index>(n)));
-      acceleration_command = acceleration_command.cwiseMin(
-        interface_->inputUpperBounds().segment(
-          static_cast<Eigen::Index>(model.aOffset()),
-          static_cast<Eigen::Index>(n)));
-    }
-
+    // Acceleration is a virtual inverse-dynamics input. Keep the feedback
+    // correction intact and enforce the physical torque bounds below.
     command_input.segment(
       static_cast<Eigen::Index>(model.aOffset()),
       static_cast<Eigen::Index>(n)) = acceleration_command;
@@ -1001,10 +991,16 @@ InverseDynamicsMpcController::vector_t InverseDynamicsMpcController::compute_pol
   if (last_tau_command_.size() == tau.size()) {
     const double alpha = mpc_data_.command_smoothing_alpha_;
     tau = alpha * tau + (1.0 - alpha) * last_tau_command_;
-    command_input.segment(
-      static_cast<Eigen::Index>(model.tauOffset()),
-      static_cast<Eigen::Index>(n)) = tau;
   }
+  if (interface_->inputLimitsActive()) {
+    const auto tau_offset = static_cast<Eigen::Index>(model.tauOffset());
+    const auto tau_dim = static_cast<Eigen::Index>(n);
+    tau = tau.cwiseMax(interface_->inputLowerBounds().segment(tau_offset, tau_dim));
+    tau = tau.cwiseMin(interface_->inputUpperBounds().segment(tau_offset, tau_dim));
+  }
+  command_input.segment(
+    static_cast<Eigen::Index>(model.tauOffset()),
+    static_cast<Eigen::Index>(n)) = tau;
 
   return command_input;
 }
@@ -1066,10 +1062,12 @@ bool InverseDynamicsMpcController::policy_input_is_acceptable(
 
   input_bound_violation = 0.0;
   if (interface_->inputLimitsActive()) {
+    const auto tau_offset = static_cast<Eigen::Index>(model.tauOffset());
+    const auto tau_dim = static_cast<Eigen::Index>(model.jointDim());
     input_bound_violation = controller_utils::maxBoundViolation(
-      command_input,
-      interface_->inputLowerBounds(),
-      interface_->inputUpperBounds());
+      commanded_tau,
+      interface_->inputLowerBounds().segment(tau_offset, tau_dim),
+      interface_->inputUpperBounds().segment(tau_offset, tau_dim));
   }
 
   const auto& validation = parameters_.numeric.policyValidation;
