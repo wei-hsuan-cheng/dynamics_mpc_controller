@@ -370,6 +370,8 @@ void ForwardDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
   std::cerr << "\n #### default velocity weights: " << default_velocity_weights.transpose();
   std::cerr << "\n #### eeMotionTracking.activate: "
             << (parameters.ocs2.task.eeMotionTracking.activate ? "true" : "false");
+  std::cerr << "\n #### eeMotionTracking.terminalScaling: "
+            << parameters.ocs2.task.eeMotionTracking.terminalScaling;
   std::cerr << "\n #### default EE pose weights: " << ee_motion_pose_weights.transpose();
   std::cerr << "\n #### default EE twist weights: " << ee_motion_twist_weights.transpose();
   std::cerr << "\n #### R diagonal: " << R.diagonal().transpose();
@@ -390,6 +392,17 @@ void ForwardDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
         ee_motion_pose_weights,
         ee_motion_twist_weights,
         n));
+    if (parameters.ocs2.task.eeMotionTracking.terminalScaling > 0.0) {
+      problem_.finalCostPtr->add(
+        "ee_motion_terminal_tracking_cost",
+        std::make_unique<cost::EeMotionTrackingTerminalCost>(
+          *pinocchio_interface_ptr_,
+          forward_dynamics_model_.endEffectorFrameId(),
+          ee_motion_pose_weights,
+          ee_motion_twist_weights,
+          n,
+          parameters.ocs2.task.eeMotionTracking.terminalScaling));
+    }
   }
   problem_.costPtr->add(
     "inputTracking",

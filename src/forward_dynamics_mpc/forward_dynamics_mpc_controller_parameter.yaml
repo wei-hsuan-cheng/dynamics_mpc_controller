@@ -632,6 +632,15 @@ forward_dynamics_mpc_controller:
           description: "Enable end-effector motion tracking for ee_motion target commands"
         }
 
+        terminalScaling: {
+          type: double,
+          default_value: 0.0,
+          description: "Additional terminal multiplier for end-effector motion tracking. Set to 0.0 to disable terminal EE tracking.",
+          validation: {
+            gt_eq: [0.0]
+          }
+        }
+
         pose:
           scaling: {
             type: double,

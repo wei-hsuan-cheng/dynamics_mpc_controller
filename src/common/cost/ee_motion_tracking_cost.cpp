@@ -59,15 +59,20 @@ EeMotionTrackingCost::EeMotionTrackingCost(
   pinocchio::FrameIndex endEffectorFrameId,
   ocs2::vector_t defaultPoseWeights,
   ocs2::vector_t defaultTwistWeights,
-  std::size_t jointDim)
+  std::size_t jointDim,
+  ocs2::scalar_t weightScale)
 : pinocchio_interface_(std::move(pinocchioInterface)),
   end_effector_frame_id_(endEffectorFrameId),
   default_pose_weights_(std::move(defaultPoseWeights)),
   default_twist_weights_(std::move(defaultTwistWeights)),
-  joint_dim_(jointDim)
+  joint_dim_(jointDim),
+  weight_scale_(weightScale)
 {
   validateWeights(default_pose_weights_, "defaultPoseWeights");
   validateWeights(default_twist_weights_, "defaultTwistWeights");
+  if (!std::isfinite(weight_scale_) || weight_scale_ < 0.0) {
+    throw std::runtime_error("[EeMotionTrackingCost] weightScale must be finite and non-negative.");
+  }
 }
 
 EeMotionTrackingCost::Target EeMotionTrackingCost::getTargetResidual(
@@ -152,6 +157,7 @@ EeMotionTrackingCost::Target EeMotionTrackingCost::getTargetResidual(
   if ((target.weights.array() < 0.0).any()) {
     throw std::runtime_error("[EeMotionTrackingCost] target weights must be non-negative.");
   }
+  target.weights *= weight_scale_;
 
   return target;
 }
@@ -163,8 +169,7 @@ ocs2::scalar_t EeMotionTrackingCost::getValue(
   const ocs2::TargetTrajectories& targetTrajectories,
   const ocs2::PreComputation&) const
 {
-  const auto target = getTargetResidual(time, state, targetTrajectories);
-  return 0.5 * target.residual.dot(target.weights.cwiseProduct(target.residual));
+  return getStateValue(time, state, targetTrajectories);
 }
 
 ocs2::ScalarFunctionQuadraticApproximation EeMotionTrackingCost::getQuadraticApproximation(
@@ -174,10 +179,34 @@ ocs2::ScalarFunctionQuadraticApproximation EeMotionTrackingCost::getQuadraticApp
   const ocs2::TargetTrajectories& targetTrajectories,
   const ocs2::PreComputation&) const
 {
-  const auto target = getTargetResidual(time, state, targetTrajectories);
+  const auto state_cost = getStateQuadraticApproximation(time, state, targetTrajectories);
 
   ocs2::ScalarFunctionQuadraticApproximation cost;
   cost.setZero(state.size(), input.size());
+  cost.f = state_cost.f;
+  cost.dfdx = state_cost.dfdx;
+  cost.dfdxx = state_cost.dfdxx;
+  return cost;
+}
+
+ocs2::scalar_t EeMotionTrackingCost::getStateValue(
+  ocs2::scalar_t time,
+  const ocs2::vector_t& state,
+  const ocs2::TargetTrajectories& targetTrajectories) const
+{
+  const auto target = getTargetResidual(time, state, targetTrajectories);
+  return 0.5 * target.residual.dot(target.weights.cwiseProduct(target.residual));
+}
+
+ocs2::ScalarFunctionQuadraticApproximation EeMotionTrackingCost::getStateQuadraticApproximation(
+  ocs2::scalar_t time,
+  const ocs2::vector_t& state,
+  const ocs2::TargetTrajectories& targetTrajectories) const
+{
+  const auto target = getTargetResidual(time, state, targetTrajectories);
+
+  ocs2::ScalarFunctionQuadraticApproximation cost;
+  cost.setZero(state.size());
   if (target.weights.cwiseAbs().maxCoeff() < 1.0e-12) {
     return cost;
   }
@@ -201,6 +230,41 @@ ocs2::ScalarFunctionQuadraticApproximation EeMotionTrackingCost::getQuadraticApp
   cost.dfdx = residual_jacobian.transpose() * weight * target.residual;
   cost.dfdxx = residual_jacobian.transpose() * weight * residual_jacobian;
   return cost;
+}
+
+EeMotionTrackingTerminalCost::EeMotionTrackingTerminalCost(
+  ocs2::PinocchioInterface pinocchioInterface,
+  pinocchio::FrameIndex endEffectorFrameId,
+  ocs2::vector_t defaultPoseWeights,
+  ocs2::vector_t defaultTwistWeights,
+  std::size_t jointDim,
+  ocs2::scalar_t weightScale)
+: tracking_cost_(
+    std::move(pinocchioInterface),
+    endEffectorFrameId,
+    std::move(defaultPoseWeights),
+    std::move(defaultTwistWeights),
+    jointDim,
+    weightScale)
+{
+}
+
+ocs2::scalar_t EeMotionTrackingTerminalCost::getValue(
+  ocs2::scalar_t time,
+  const ocs2::vector_t& state,
+  const ocs2::TargetTrajectories& targetTrajectories,
+  const ocs2::PreComputation&) const
+{
+  return tracking_cost_.getStateValue(time, state, targetTrajectories);
+}
+
+ocs2::ScalarFunctionQuadraticApproximation EeMotionTrackingTerminalCost::getQuadraticApproximation(
+  ocs2::scalar_t time,
+  const ocs2::vector_t& state,
+  const ocs2::TargetTrajectories& targetTrajectories,
+  const ocs2::PreComputation&) const
+{
+  return tracking_cost_.getStateQuadraticApproximation(time, state, targetTrajectories);
 }
 
 }  // namespace cost

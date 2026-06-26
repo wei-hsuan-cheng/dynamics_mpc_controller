@@ -3,6 +3,7 @@
 
 #include <cstddef>
 
+#include <ocs2_core/cost/StateCost.h>
 #include <ocs2_core/cost/StateInputCost.h>
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
 #include <pinocchio/multibody/fwd.hpp>
@@ -20,10 +21,22 @@ public:
     pinocchio::FrameIndex endEffectorFrameId,
     ocs2::vector_t defaultPoseWeights,
     ocs2::vector_t defaultTwistWeights,
-    std::size_t jointDim);
+    std::size_t jointDim,
+    ocs2::scalar_t weightScale = 1.0);
 
   ~EeMotionTrackingCost() override = default;
+  EeMotionTrackingCost(const EeMotionTrackingCost& rhs) = default;
   EeMotionTrackingCost* clone() const override { return new EeMotionTrackingCost(*this); }
+
+  ocs2::scalar_t getStateValue(
+    ocs2::scalar_t time,
+    const ocs2::vector_t& state,
+    const ocs2::TargetTrajectories& targetTrajectories) const;
+
+  ocs2::ScalarFunctionQuadraticApproximation getStateQuadraticApproximation(
+    ocs2::scalar_t time,
+    const ocs2::vector_t& state,
+    const ocs2::TargetTrajectories& targetTrajectories) const;
 
 private:
   struct Target
@@ -31,8 +44,6 @@ private:
     ocs2::vector_t residual;
     ocs2::vector_t weights;
   };
-
-  EeMotionTrackingCost(const EeMotionTrackingCost& rhs) = default;
 
   ocs2::scalar_t getValue(
     ocs2::scalar_t time,
@@ -58,6 +69,39 @@ private:
   ocs2::vector_t default_pose_weights_;
   ocs2::vector_t default_twist_weights_;
   std::size_t joint_dim_{0};
+  ocs2::scalar_t weight_scale_{1.0};
+};
+
+class EeMotionTrackingTerminalCost final : public ocs2::StateCost
+{
+public:
+  EeMotionTrackingTerminalCost(
+    ocs2::PinocchioInterface pinocchioInterface,
+    pinocchio::FrameIndex endEffectorFrameId,
+    ocs2::vector_t defaultPoseWeights,
+    ocs2::vector_t defaultTwistWeights,
+    std::size_t jointDim,
+    ocs2::scalar_t weightScale);
+
+  ~EeMotionTrackingTerminalCost() override = default;
+  EeMotionTrackingTerminalCost* clone() const override { return new EeMotionTrackingTerminalCost(*this); }
+
+private:
+  EeMotionTrackingTerminalCost(const EeMotionTrackingTerminalCost& rhs) = default;
+
+  ocs2::scalar_t getValue(
+    ocs2::scalar_t time,
+    const ocs2::vector_t& state,
+    const ocs2::TargetTrajectories& targetTrajectories,
+    const ocs2::PreComputation& preComp) const override;
+
+  ocs2::ScalarFunctionQuadraticApproximation getQuadraticApproximation(
+    ocs2::scalar_t time,
+    const ocs2::vector_t& state,
+    const ocs2::TargetTrajectories& targetTrajectories,
+    const ocs2::PreComputation& preComp) const override;
+
+  EeMotionTrackingCost tracking_cost_;
 };
 
 }  // namespace cost
