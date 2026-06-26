@@ -20,7 +20,7 @@ DEFAULT_COMMAND_TYPE = "ee_motion_pose"  # "ee_motion_pose" | "ee_motion_twist" 
 DEFAULT_TWIST_FRAME = "ee"  # "base" | "ee"
 
 DEFAULT_TRANSLATION_CENTER = np.array([0.573, 0.11, 0.51])
-DEFAULT_TRANSLATION_AMPLITUDE = np.array([0.0, 0.00, 0.0])
+DEFAULT_TRANSLATION_AMPLITUDE = np.array([0.0, 0.0, 0.0])
 DEFAULT_TRANSLATION_PHASE = np.array([0.0, 0.0, 0.0])
 
 DEFAULT_ORIENTATION_RPY_CENTER = np.array([-np.pi / 2.0, np.pi / 4.0, -np.pi / 2.0])
