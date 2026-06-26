@@ -119,11 +119,11 @@ inverse_dynamics_mpc_controller:
           terminalScaling: 0.0
           twistFrame: "ee" # "base" | "ee"
           pose:
-            scaling: 100.0
-            diagonal: [20.0, 20.0, 20.0, 5.0, 5.0, 5.0]
+            scaling: 1.0e3
+            diagonal: [2.0, 2.0, 2.0, 0.5, 0.5, 0.5]
           twist:
-            scaling: 100.0
-            diagonal: [20.0, 20.0, 20.0, 5.0, 5.0, 5.0]
+            scaling: 1.0e3
+            diagonal: [2.0, 2.0, 2.0, 0.5, 0.5, 0.5]
 
         inputCost:
           R:
@@ -337,11 +337,11 @@ forward_dynamics_mpc_controller:
           terminalScaling: 0.0
           twistFrame: "ee" # "base" | "ee"
           pose:
-            scaling: 100.0
-            diagonal: [20.0, 20.0, 20.0, 5.0, 5.0, 5.0]
+            scaling: 1.0e3
+            diagonal: [2.0, 2.0, 2.0, 0.5, 0.5, 0.5]
           twist:
-            scaling: 100.0
-            diagonal: [20.0, 20.0, 20.0, 5.0, 5.0, 5.0]
+            scaling: 1.0e3
+            diagonal: [2.0, 2.0, 2.0, 0.5, 0.5, 0.5]
 
         inputCost:
           R:

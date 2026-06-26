@@ -16,27 +16,27 @@ from tf2_ros import TransformBroadcaster
 
 DEFAULT_TARGET_TOPIC = "/mpc_targets"
 DEFAULT_OBSERVATION_TOPIC = "/mpc_observation"
-DEFAULT_COMMAND_TYPE = "ee_motion_twist"  # "ee_motion_pose" | "ee_motion_twist" | "ee_motion"
+DEFAULT_COMMAND_TYPE = "ee_motion_pose"  # "ee_motion_pose" | "ee_motion_twist" | "ee_motion"
 DEFAULT_TWIST_FRAME = "ee"  # "base" | "ee"
 
-DEFAULT_TRANSLATION_CENTER = np.array([0.473, 0.11, 0.51])
-DEFAULT_TRANSLATION_AMPLITUDE = np.array([0.01, 0.00, 0.01])
+DEFAULT_TRANSLATION_CENTER = np.array([0.573, 0.11, 0.51])
+DEFAULT_TRANSLATION_AMPLITUDE = np.array([0.0, 0.00, 0.0])
 DEFAULT_TRANSLATION_PHASE = np.array([0.0, 0.0, 0.0])
 
-DEFAULT_ORIENTATION_RPY_CENTER = np.array([-np.pi / 2.0, 0.3, -np.pi / 2.0])
+DEFAULT_ORIENTATION_RPY_CENTER = np.array([-np.pi / 2.0, np.pi / 4.0, -np.pi / 2.0])
 DEFAULT_ORIENTATION_RPY_AMPLITUDE = np.array([0.0, 0.0, 0.0])
 DEFAULT_ORIENTATION_RPY_PHASE = np.array([0.0, 0.0, 0.0])
 
-DEFAULT_TWIST_LINEAR_CENTER = np.array([0.0, 0.0, 0.02])
+DEFAULT_TWIST_LINEAR_CENTER = np.array([0.0, 0.0, 0.0])
 DEFAULT_TWIST_LINEAR_AMPLITUDE = np.array([0.0, 0.0, 0.0])
 DEFAULT_TWIST_LINEAR_PHASE = np.array([0.0, 0.0, 0.0])
 
-DEFAULT_TWIST_ANGULAR_CENTER = np.array([0.0, 0.0, 0.2])
+DEFAULT_TWIST_ANGULAR_CENTER = np.array([0.0, 0.0, 0.0])
 DEFAULT_TWIST_ANGULAR_AMPLITUDE = np.array([0.0, 0.0, 0.0])
 DEFAULT_TWIST_ANGULAR_PHASE = np.array([0.0, 0.0, 0.0])
 
-DEFAULT_POSE_WEIGHTS = np.array([20.0, 20.0, 20.0, 5.0, 5.0, 5.0]) * 100.0
-DEFAULT_TWIST_WEIGHTS = np.array([20.0, 20.0, 20.0, 5.0, 5.0, 5.0]) * 100.0
+DEFAULT_POSE_WEIGHTS = np.array([2.0, 2.0, 2.0, 0.5, 0.5, 0.5]) * 100.0
+DEFAULT_TWIST_WEIGHTS = np.array([2.0, 2.0, 2.0, 0.5, 0.5, 0.5]) * 1000.0
 
 
 def _as_array(value, fallback: Sequence[float]) -> np.ndarray:
