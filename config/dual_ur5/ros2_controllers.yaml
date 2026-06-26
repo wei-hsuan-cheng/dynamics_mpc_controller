@@ -64,7 +64,7 @@ inverse_dynamics_mpc_controller:
           AbsTolODE: 1e-5
           RelTolODE: 1e-3
           maxNumStepsPerSecond: 10000
-          timeStep: 0.01
+          timeStep: 0.02
           backwardPassIntegratorType: ODE45
           constraintPenaltyInitialValue: 20.0
           constraintPenaltyIncreaseRate: 2.0
@@ -79,7 +79,7 @@ inverse_dynamics_mpc_controller:
 
         sqp:
           nThreads: 1
-          dt: 0.01
+          dt: 0.02
           sqpIteration: 3
           deltaTol: 1e-4
           costTol: 1e-4
@@ -101,7 +101,7 @@ inverse_dynamics_mpc_controller:
         rollout:
           AbsTolODE: 1e-5
           RelTolODE: 1e-3
-          timeStep: 0.01
+          timeStep: 0.02
           integratorType: ODE45
           maxNumStepsPerSecond: 10000
           checkNumericalStability: false
@@ -223,6 +223,7 @@ inverse_dynamics_mpc_controller:
         - arm1_wrist_1_joint
         - arm1_wrist_2_joint
         - arm1_wrist_3_joint
+
         - arm2_shoulder_pan_joint
         - arm2_shoulder_lift_joint
         - arm2_elbow_joint
@@ -319,7 +320,7 @@ forward_dynamics_mpc_controller:
           AbsTolODE: 1e-5
           RelTolODE: 1e-3
           maxNumStepsPerSecond: 10000
-          timeStep: 0.01
+          timeStep: 0.02
           backwardPassIntegratorType: ODE45
           constraintPenaltyInitialValue: 20.0
           constraintPenaltyIncreaseRate: 2.0
@@ -334,7 +335,7 @@ forward_dynamics_mpc_controller:
 
         sqp:
           nThreads: 1
-          dt: 0.01
+          dt: 0.02
           sqpIteration: 3
           deltaTol: 1e-4
           costTol: 1e-4
@@ -356,7 +357,7 @@ forward_dynamics_mpc_controller:
         rollout:
           AbsTolODE: 1e-5
           RelTolODE: 1e-3
-          timeStep: 0.01
+          timeStep: 0.02
           integratorType: ODE45
           maxNumStepsPerSecond: 10000
           checkNumericalStability: false
@@ -465,6 +466,7 @@ forward_dynamics_mpc_controller:
         - arm1_wrist_1_joint
         - arm1_wrist_2_joint
         - arm1_wrist_3_joint
+
         - arm2_shoulder_pan_joint
         - arm2_shoulder_lift_joint
         - arm2_elbow_joint
