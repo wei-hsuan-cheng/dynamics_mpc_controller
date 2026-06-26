@@ -122,7 +122,7 @@ inverse_dynamics_mpc_controller:
             scaling: 100.0
             diagonal: [20.0, 20.0, 20.0, 5.0, 5.0, 5.0]
           twist:
-            scaling: 1.0
+            scaling: 100.0
             diagonal: [20.0, 20.0, 20.0, 5.0, 5.0, 5.0]
 
         inputCost:
@@ -340,7 +340,7 @@ forward_dynamics_mpc_controller:
             scaling: 100.0
             diagonal: [20.0, 20.0, 20.0, 5.0, 5.0, 5.0]
           twist:
-            scaling: 1.0
+            scaling: 100.0
             diagonal: [20.0, 20.0, 20.0, 5.0, 5.0, 5.0]
 
         inputCost:
