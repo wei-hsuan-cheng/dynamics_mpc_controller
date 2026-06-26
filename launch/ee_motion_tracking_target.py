@@ -8,9 +8,11 @@ from typing import Sequence
 import rclpy
 from rclpy.node import Node
 
+from geometry_msgs.msg import TransformStamped
 from ocs2_msgs.msg import DynamicsMpcTargets
 from ocs2_msgs.msg import MpcObservation, MpcState
 from std_msgs.msg import Float64MultiArray
+from tf2_ros import TransformBroadcaster
 
 DEFAULT_TARGET_TOPIC = "/mpc_targets"
 DEFAULT_OBSERVATION_TOPIC = "/mpc_observation"
@@ -20,7 +22,7 @@ DEFAULT_TRANSLATION_CENTER = np.array([0.40, 0.00, 0.35])
 DEFAULT_TRANSLATION_AMPLITUDE = np.array([0.00, 0.00, 0.00])
 DEFAULT_TRANSLATION_PHASE = np.array([0.0, 0.5, 1.0])
 
-DEFAULT_ORIENTATION_RPY_CENTER = np.array([0.0, 3.1416, 0.0])
+DEFAULT_ORIENTATION_RPY_CENTER = np.array([0.0, np.pi / 2.0, 0.0])
 DEFAULT_ORIENTATION_RPY_AMPLITUDE = np.array([0.0, 0.0, 0.0])
 DEFAULT_ORIENTATION_RPY_PHASE = np.array([0.0, 0.5, 1.0])
 
@@ -85,6 +87,8 @@ class EeMotionTrackingTargetPublisher(Node):
         self.declare_parameter("trajectory_dt", 0.02)
         self.declare_parameter("sine_frequency", 0.5)
         self.declare_parameter("time_offset", 0.0)
+        self.declare_parameter("tf_parent_frame", "world")
+        self.declare_parameter("tf_child_frame", "ee_motion_command")
 
         self.declare_parameter("translation_center", DEFAULT_TRANSLATION_CENTER.tolist())
         self.declare_parameter("translation_amplitude", DEFAULT_TRANSLATION_AMPLITUDE.tolist())
@@ -115,6 +119,8 @@ class EeMotionTrackingTargetPublisher(Node):
         self.trajectory_dt = max(1e-6, float(self.get_parameter("trajectory_dt").value))
         self.sine_frequency = float(self.get_parameter("sine_frequency").value)
         self.time_offset = float(self.get_parameter("time_offset").value)
+        self.tf_parent_frame = self.get_parameter("tf_parent_frame").value
+        self.tf_child_frame = self.get_parameter("tf_child_frame").value
 
         self.translation_center = _resize(
             _as_array(self.get_parameter("translation_center").value, DEFAULT_TRANSLATION_CENTER), 3, 0.0)
@@ -152,6 +158,7 @@ class EeMotionTrackingTargetPublisher(Node):
         self.last_wait_log_time = 0.0
 
         self.publisher = self.create_publisher(DynamicsMpcTargets, self.topic, 1)
+        self.tf_broadcaster = TransformBroadcaster(self)
         self.observation_subscription = self.create_subscription(
             MpcObservation,
             self.observation_topic,
@@ -204,6 +211,20 @@ class EeMotionTrackingTargetPublisher(Node):
         )
         return translation + _quaternion_from_rpy(rpy[0], rpy[1], rpy[2])
 
+    def publish_command_tf(self, pose):
+        transform = TransformStamped()
+        transform.header.stamp = self.get_clock().now().to_msg()
+        transform.header.frame_id = self.tf_parent_frame
+        transform.child_frame_id = self.tf_child_frame
+        transform.transform.translation.x = float(pose[0])
+        transform.transform.translation.y = float(pose[1])
+        transform.transform.translation.z = float(pose[2])
+        transform.transform.rotation.x = float(pose[3])
+        transform.transform.rotation.y = float(pose[4])
+        transform.transform.rotation.z = float(pose[5])
+        transform.transform.rotation.w = float(pose[6])
+        self.tf_broadcaster.sendTransform(transform)
+
     def twist_target(self, t: float):
         linear_twist = _sample_wave(
             self.twist_linear_center,
@@ -255,6 +276,8 @@ class EeMotionTrackingTargetPublisher(Node):
         self.fill_trajectory(msg, t0)
 
         self.publisher.publish(msg)
+        if self.command_type in ("ee_motion_pose", "ee_motion"):
+            self.publish_command_tf(self.pose_target(t0))
 
 
 def main(args=None):
