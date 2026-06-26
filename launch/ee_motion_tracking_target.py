@@ -21,6 +21,8 @@ DEFAULT_TWIST_FRAME = "ee"  # "base" | "ee"
 
 DEFAULT_TRANSLATION_CENTER = np.array([0.573, 0.11, 0.51])
 DEFAULT_TRANSLATION_AMPLITUDE = np.array([0.0, 0.0, 0.0])
+# DEFAULT_TRANSLATION_CENTER = np.array([0.573, 0.11, 0.1])
+# DEFAULT_TRANSLATION_AMPLITUDE = np.array([0.0, 0.0, 0.1])
 DEFAULT_TRANSLATION_PHASE = np.array([0.0, 0.0, 0.0])
 
 DEFAULT_ORIENTATION_RPY_CENTER = np.array([-np.pi / 2.0, np.pi / 4.0, -np.pi / 2.0])
@@ -87,7 +89,7 @@ class EeMotionTrackingTargetPublisher(Node):
         self.declare_parameter("publish_rate", 50.0)
         self.declare_parameter("trajectory_duration", 2.0)
         self.declare_parameter("trajectory_dt", 0.02)
-        self.declare_parameter("sine_frequency", 0.5)
+        self.declare_parameter("sine_frequency", 0.05)
         self.declare_parameter("time_offset", 0.0)
         self.declare_parameter("tf_parent_frame", "world")
         self.declare_parameter("tf_child_frame", "ee_motion_command")
