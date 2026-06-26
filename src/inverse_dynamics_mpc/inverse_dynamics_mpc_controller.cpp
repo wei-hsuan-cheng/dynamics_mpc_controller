@@ -83,6 +83,7 @@ controller_interface::CallbackReturn InverseDynamicsMpcController::on_configure(
       received_target_msg_.writeFromNonRT(msg);
       latest_target_receive_time_sec_.writeFromNonRT(get_node()->get_clock()->now().seconds());
       target_received_ = true;
+      target_timeout_hold_active_ = false;
     });
   mpc_observation_publisher_ = get_node()->create_publisher<ocs2_msgs::msg::MpcObservation>(
     mpc_data_.mpc_observation_topic_,
@@ -353,6 +354,7 @@ controller_interface::CallbackReturn InverseDynamicsMpcController::on_activate(
   policy_performance_acceptable_ = false;
   reset_mpc_warm_start_requested_ = false;
   target_received_ = false;
+  target_timeout_hold_active_ = false;
   received_target_msg_.writeFromNonRT(std::shared_ptr<TargetMsg>{});
   latest_target_receive_time_sec_.writeFromNonRT(0.0);
   virtual_time_ = 0.0;
@@ -472,6 +474,7 @@ controller_interface::CallbackReturn InverseDynamicsMpcController::on_deactivate
   execute_mpc_ = false;
   reset_mpc_warm_start_requested_ = false;
   target_received_ = false;
+  target_timeout_hold_active_ = false;
   received_target_msg_.writeFromNonRT(std::shared_ptr<TargetMsg>{});
   latest_target_receive_time_sec_.writeFromNonRT(0.0);
   if (mpc_thread_.joinable()) {
@@ -560,7 +563,7 @@ void InverseDynamicsMpcController::mpc_loop()
               get_node()->get_logger(),
               *get_node()->get_clock(),
               status_log_period_ms_,
-              "[InverseDynamicsMpcController] reset MPC warm start after rejected policy; next solve will use the inverse-dynamics initializer.");
+              "[InverseDynamicsMpcController] reset MPC warm start; next solve will use the current target and inverse-dynamics initializer.");
           }
 
           mrt_interface_->advanceMpc();
@@ -696,6 +699,8 @@ controller_interface::return_type InverseDynamicsMpcController::update_and_write
     return controller_interface::return_type::OK;
   }
 
+  mrt_interface_->setCurrentObservation(observation);
+
   // Check for stale target
   const double* latest_target_time_sec_ptr = latest_target_receive_time_sec_.readFromRT();
   const double latest_target_time_sec =
@@ -706,8 +711,10 @@ controller_interface::return_type InverseDynamicsMpcController::update_and_write
       latest_target_time_sec,
       parameters_.numeric.targetTimeout)) {
     reference_manager_->setTargetTrajectories(joint_tracking_target_->fromObservation(observation));
-    policy_performance_acceptable_ = false;
-    reset_mpc_warm_start_requested_ = true;
+    if (!target_timeout_hold_active_.exchange(true)) {
+      policy_performance_acceptable_ = false;
+      reset_mpc_warm_start_requested_ = true;
+    }
     // Hold robot
     apply_hold_command();
     RCLCPP_WARN_THROTTLE(
@@ -721,7 +728,7 @@ controller_interface::return_type InverseDynamicsMpcController::update_and_write
     return controller_interface::return_type::OK;
   }
 
-  mrt_interface_->setCurrentObservation(observation);
+  target_timeout_hold_active_ = false;
 
   const bool policy_updated = mrt_interface_->updatePolicy();
   if (policy_updated) {

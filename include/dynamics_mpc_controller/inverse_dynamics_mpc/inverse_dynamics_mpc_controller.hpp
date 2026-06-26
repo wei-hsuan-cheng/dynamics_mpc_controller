@@ -144,6 +144,7 @@ private:
   std::atomic_bool policy_performance_acceptable_{false};
   std::atomic_bool reset_mpc_warm_start_requested_{false};
   std::atomic_bool target_received_{false};
+  std::atomic_bool target_timeout_hold_active_{false};
 
   realtime_tools::RealtimeBuffer<std::shared_ptr<TargetMsg>> received_target_msg_;
   realtime_tools::RealtimeBuffer<double> latest_target_receive_time_sec_;
