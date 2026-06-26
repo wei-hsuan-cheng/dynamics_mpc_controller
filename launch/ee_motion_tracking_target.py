@@ -27,16 +27,16 @@ DEFAULT_ORIENTATION_RPY_CENTER = np.array([-np.pi / 2.0, 0.3, -np.pi / 2.0])
 DEFAULT_ORIENTATION_RPY_AMPLITUDE = np.array([0.0, 0.0, 0.0])
 DEFAULT_ORIENTATION_RPY_PHASE = np.array([0.0, 0.0, 0.0])
 
-DEFAULT_TWIST_LINEAR_CENTER = np.array([0.0, 0.0, -0.05])
+DEFAULT_TWIST_LINEAR_CENTER = np.array([0.0, 0.0, 0.02])
 DEFAULT_TWIST_LINEAR_AMPLITUDE = np.array([0.0, 0.0, 0.0])
 DEFAULT_TWIST_LINEAR_PHASE = np.array([0.0, 0.0, 0.0])
 
-DEFAULT_TWIST_ANGULAR_CENTER = np.array([0.0, 0.0, 0.0])
+DEFAULT_TWIST_ANGULAR_CENTER = np.array([0.0, 0.0, 0.2])
 DEFAULT_TWIST_ANGULAR_AMPLITUDE = np.array([0.0, 0.0, 0.0])
 DEFAULT_TWIST_ANGULAR_PHASE = np.array([0.0, 0.0, 0.0])
 
 DEFAULT_POSE_WEIGHTS = np.array([20.0, 20.0, 20.0, 5.0, 5.0, 5.0]) * 100.0
-DEFAULT_TWIST_WEIGHTS = np.array([20.0, 20.0, 20.0, 5.0, 5.0, 5.0])
+DEFAULT_TWIST_WEIGHTS = np.array([20.0, 20.0, 20.0, 5.0, 5.0, 5.0]) * 100.0
 
 
 def _as_array(value, fallback: Sequence[float]) -> np.ndarray:
