@@ -211,7 +211,7 @@ inverse_dynamics_mpc_controller:
       publishRate: 50.0
 
     numeric:
-      statusLogPeriod: 0.5
+      statusLogPeriod: 2.0
       targetTimeout: 0.2
       commandSmoothingAlpha: 1.0
       gravityCompensationOnly: false
@@ -463,7 +463,7 @@ forward_dynamics_mpc_controller:
       publishRate: 50.0
 
     numeric:
-      statusLogPeriod: 0.5
+      statusLogPeriod: 2.0
       targetTimeout: 0.2
       commandSmoothingAlpha: 1.0
       gravityCompensationOnly: false
