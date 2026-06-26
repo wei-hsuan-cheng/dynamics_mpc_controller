@@ -16,6 +16,7 @@
 #include "dynamics_mpc_controller/common/controller_utils.hpp"
 #include "dynamics_mpc_controller/diagnostics/mpc_policy_publisher.hpp"
 #include "dynamics_mpc_controller/estimation/momentum_observer_wrench_estimator.hpp"
+#include "dynamics_mpc_controller/inverse_dynamics_mpc/target/ee_motion_tracking_target.hpp"
 #include "dynamics_mpc_controller/inverse_dynamics_mpc/target/joint_tracking_target.hpp"
 
 namespace dynamics_mpc_controller
@@ -181,6 +182,7 @@ bool InverseDynamicsMpcController::configure_mpc_ocs2()
 
   const auto& model = interface_->getInverseDynamicsMpcModel();
   joint_tracking_target_ = std::make_unique<target::JointTrackingTarget>(*interface_);
+  ee_motion_tracking_target_ = std::make_unique<target::EeMotionTrackingTarget>(*interface_);
   last_input_ = vector_t::Zero(static_cast<Eigen::Index>(model.inputDim()));
   last_tau_command_ = vector_t::Zero(static_cast<Eigen::Index>(model.jointDim()));
   low_level_pd_kp_ = vector_t::Zero(static_cast<Eigen::Index>(model.jointDim()));
@@ -625,18 +627,22 @@ controller_interface::return_type InverseDynamicsMpcController::update_reference
   }
 
   const auto& msg = *(*target_msg_ptr_ptr);
-  if (!joint_tracking_target_->supports(msg)) {
+  if (!joint_tracking_target_->supports(msg) && !ee_motion_tracking_target_->supports(msg)) {
     RCLCPP_WARN_THROTTLE(
       get_node()->get_logger(),
       *get_node()->get_clock(),
       status_log_period_ms_,
-      "[InverseDynamicsMpcController] supported command_type values are 'joint_position', 'joint_velocity', and 'joint', got '%s'.",
+      "[InverseDynamicsMpcController] supported command_type values are 'joint_position', 'joint_velocity', 'joint', 'ee_motion_pose', 'ee_motion_twist', and 'ee_motion', got '%s'.",
       msg.command_type.c_str());
     return controller_interface::return_type::OK;
   }
 
   try {
-    reference_manager_->setTargetTrajectories(joint_tracking_target_->fromMessage(msg));
+    if (joint_tracking_target_->supports(msg)) {
+      reference_manager_->setTargetTrajectories(joint_tracking_target_->fromMessage(msg));
+    } else {
+      reference_manager_->setTargetTrajectories(ee_motion_tracking_target_->fromMessage(msg));
+    }
   } catch (const std::exception& e) {
     RCLCPP_ERROR(
       get_node()->get_logger(),

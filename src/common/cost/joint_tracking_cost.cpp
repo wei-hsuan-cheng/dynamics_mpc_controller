@@ -61,7 +61,7 @@ JointTrackingCost::Target JointTrackingCost::getTarget(
     target.state.head(n) = raw_state;
     target.weights.tail(n).setZero();
   } else {
-    throw std::runtime_error("[JointTrackingCost] target state size must be n, 2n, 3n, or 4n.");
+    target.weights.setZero();
   }
 
   if ((target.weights.array() < 0.0).any()) {

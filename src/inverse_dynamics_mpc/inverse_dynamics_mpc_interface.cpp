@@ -17,6 +17,7 @@
 #include <ocs2_core/integration/SensitivityIntegrator.h>
 #include <ocs2_oc/rollout/TimeTriggeredRollout.h>
 
+#include "dynamics_mpc_controller/common/cost/ee_motion_tracking_cost.hpp"
 #include "dynamics_mpc_controller/common/cost/input_tracking_cost.hpp"
 #include "dynamics_mpc_controller/common/cost/joint_tracking_cost.hpp"
 #include "dynamics_mpc_controller/common/pinocchio_utils.hpp"
@@ -354,6 +355,20 @@ void InverseDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
         n,
         1.0) * parameters.ocs2.task.jointTracking.velocity.scaling).eval();
   }
+  ocs2::vector_t ee_motion_pose_weights = ocs2::vector_t::Zero(6);
+  ocs2::vector_t ee_motion_twist_weights = ocs2::vector_t::Zero(6);
+  if (parameters.ocs2.task.eeMotionTracking.activate) {
+    ee_motion_pose_weights =
+      (vectorFromArray(
+        parameters.ocs2.task.eeMotionTracking.pose.diagonal,
+        6,
+        1.0) * parameters.ocs2.task.eeMotionTracking.pose.scaling).eval();
+    ee_motion_twist_weights =
+      (vectorFromArray(
+        parameters.ocs2.task.eeMotionTracking.twist.diagonal,
+        6,
+        1.0) * parameters.ocs2.task.eeMotionTracking.twist.scaling).eval();
+  }
 
   ocs2::matrix_t R = ocs2::matrix_t::Zero(
     static_cast<Eigen::Index>(inverse_dynamics_model_.inputDim()),
@@ -397,6 +412,10 @@ void InverseDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
             << (parameters.ocs2.task.jointTracking.activate ? "true" : "false");
   std::cerr << "\n #### default position weights: " << default_position_weights.transpose();
   std::cerr << "\n #### default velocity weights: " << default_velocity_weights.transpose();
+  std::cerr << "\n #### eeMotionTracking.activate: "
+            << (parameters.ocs2.task.eeMotionTracking.activate ? "true" : "false");
+  std::cerr << "\n #### default EE pose weights: " << ee_motion_pose_weights.transpose();
+  std::cerr << "\n #### default EE twist weights: " << ee_motion_twist_weights.transpose();
   std::cerr << "\n #### R diagonal: " << R.diagonal().transpose();
   std::cerr << "\n #### =============================================================================\n";
 
@@ -405,6 +424,16 @@ void InverseDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
       "jointTracking",
       std::make_unique<cost::JointTrackingCost>(
         default_position_weights, default_velocity_weights, n));
+  }
+  if (parameters.ocs2.task.eeMotionTracking.activate) {
+    problem_.costPtr->add(
+      "ee_motion_tracking_cost",
+      std::make_unique<cost::EeMotionTrackingCost>(
+        *pinocchio_interface_ptr_,
+        inverse_dynamics_model_.endEffectorFrameId(),
+        ee_motion_pose_weights,
+        ee_motion_twist_weights,
+        n));
   }
   problem_.costPtr->add(
     "inputTracking",

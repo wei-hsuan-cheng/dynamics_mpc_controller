@@ -4,9 +4,7 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
-        - /Global Options1
         - /TF1/Frames1
-        - /Optimized State Trajectory1
       Splitter Ratio: 0.5
     Tree Height: 657
   - Class: rviz_common/Selection
@@ -166,19 +164,56 @@ Visualization Manager:
         Value: /mobile_manipulator/visualization/optimizedStateGhosts
       Value: false
     - Class: rviz_default_plugins/TF
-      Enabled: false
+      Enabled: true
       Frame Timeout: 15
       Frames:
         All Enabled: false
-      Marker Scale: 0.5
+        ur_arm_base:
+          Value: false
+        ur_arm_base_link:
+          Value: true
+        ur_arm_base_link_inertia:
+          Value: false
+        ur_arm_flange:
+          Value: false
+        ur_arm_forearm_link:
+          Value: false
+        ur_arm_shoulder_link:
+          Value: false
+        ur_arm_tool0:
+          Value: true
+        ur_arm_upper_arm_link:
+          Value: false
+        ur_arm_wrist_1_link:
+          Value: false
+        ur_arm_wrist_2_link:
+          Value: false
+        ur_arm_wrist_3_link:
+          Value: false
+        world:
+          Value: true
+      Marker Scale: 0.20000000298023224
       Name: TF
       Show Arrows: true
       Show Axes: true
       Show Names: false
       Tree:
-        {}
+        world:
+          ur_arm_base_link:
+            ur_arm_base:
+              {}
+            ur_arm_base_link_inertia:
+              ur_arm_shoulder_link:
+                ur_arm_upper_arm_link:
+                  ur_arm_forearm_link:
+                    ur_arm_wrist_1_link:
+                      ur_arm_wrist_2_link:
+                        ur_arm_wrist_3_link:
+                          ur_arm_flange:
+                            ur_arm_tool0:
+                              {}
       Update Interval: 0
-      Value: false
+      Value: true
     - Class: rviz_default_plugins/InteractiveMarkers
       Enable Transparency: true
       Enabled: true

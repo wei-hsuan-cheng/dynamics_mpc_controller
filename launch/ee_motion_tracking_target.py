@@ -1,0 +1,270 @@
+#!/usr/bin/env python3
+
+import math
+import time as wall_time
+from typing import List
+
+import rclpy
+from rclpy.node import Node
+
+from ocs2_msgs.msg import DynamicsMpcTargets
+from ocs2_msgs.msg import MpcObservation, MpcState
+from std_msgs.msg import Float64MultiArray
+
+DEFAULT_TARGET_TOPIC = "/mpc_targets"
+DEFAULT_OBSERVATION_TOPIC = "/mpc_observation"
+DEFAULT_COMMAND_TYPE = "ee_motion_pose"  # "ee_motion_pose" | "ee_motion_twist" | "ee_motion"
+
+DEFAULT_TRANSLATION_CENTER = [0.40, 0.00, 0.35]
+DEFAULT_TRANSLATION_AMPLITUDE = [0.00, 0.00, 0.00]
+DEFAULT_TRANSLATION_PHASE = [0.0, 0.5, 1.0]
+
+DEFAULT_ORIENTATION_RPY_CENTER = [0.0, 3.1416, 0.0]
+DEFAULT_ORIENTATION_RPY_AMPLITUDE = [0.0, 0.0, 0.0]
+DEFAULT_ORIENTATION_RPY_PHASE = [0.0, 0.5, 1.0]
+
+DEFAULT_TWIST_LINEAR_CENTER = [0.0, 0.0, 0.0]
+DEFAULT_TWIST_LINEAR_AMPLITUDE = [0.0, 0.0, 0.0]
+DEFAULT_TWIST_LINEAR_PHASE = [0.0, 0.5, 1.0]
+
+DEFAULT_TWIST_ANGULAR_CENTER = [0.0, 0.0, 0.0]
+DEFAULT_TWIST_ANGULAR_AMPLITUDE = [0.0, 0.0, 0.0]
+DEFAULT_TWIST_ANGULAR_PHASE = [0.0, 0.5, 1.0]
+
+DEFAULT_POSE_WEIGHTS = [20.0, 20.0, 20.0, 5.0, 5.0, 5.0]
+DEFAULT_TWIST_WEIGHTS = [20.0, 20.0, 20.0, 5.0, 5.0, 5.0]
+
+
+def _as_list(value, fallback: List):
+    if value is None:
+        return list(fallback)
+    return list(value)
+
+
+def _resize(values: List[float], size: int, fill: float) -> List[float]:
+    values = list(values)
+    if len(values) >= size:
+        return values[:size]
+    return values + [fill] * (size - len(values))
+
+
+def _sample_wave(center: List[float], amplitude: List[float], phase: List[float], frequency: float, t: float):
+    omega = 2.0 * math.pi * frequency
+    return [
+        center[i] + amplitude[i] * math.sin(omega * t + phase[i])
+        for i in range(len(center))
+    ]
+
+
+def _quaternion_from_rpy(roll: float, pitch: float, yaw: float):
+    cr = math.cos(0.5 * roll)
+    sr = math.sin(0.5 * roll)
+    cp = math.cos(0.5 * pitch)
+    sp = math.sin(0.5 * pitch)
+    cy = math.cos(0.5 * yaw)
+    sy = math.sin(0.5 * yaw)
+
+    qw = cr * cp * cy + sr * sp * sy
+    qx = sr * cp * cy - cr * sp * sy
+    qy = cr * sp * cy + sr * cp * sy
+    qz = cr * cp * sy - sr * sp * cy
+    return [qx, qy, qz, qw]
+
+
+class EeMotionTrackingTargetPublisher(Node):
+    def __init__(self):
+        super().__init__("ee_motion_tracking_target_publisher")
+
+        self.declare_parameter("topic", DEFAULT_TARGET_TOPIC)
+        self.declare_parameter("observation_topic", DEFAULT_OBSERVATION_TOPIC)
+        self.declare_parameter("command_type", DEFAULT_COMMAND_TYPE)
+        self.declare_parameter("wait_for_observation", True)
+        self.declare_parameter("publish_rate", 50.0)
+        self.declare_parameter("trajectory_duration", 2.0)
+        self.declare_parameter("trajectory_dt", 0.02)
+        self.declare_parameter("sine_frequency", 0.5)
+        self.declare_parameter("time_offset", 0.0)
+
+        self.declare_parameter("translation_center", DEFAULT_TRANSLATION_CENTER)
+        self.declare_parameter("translation_amplitude", DEFAULT_TRANSLATION_AMPLITUDE)
+        self.declare_parameter("translation_phase", DEFAULT_TRANSLATION_PHASE)
+        self.declare_parameter("orientation_rpy_center", DEFAULT_ORIENTATION_RPY_CENTER)
+        self.declare_parameter("orientation_rpy_amplitude", DEFAULT_ORIENTATION_RPY_AMPLITUDE)
+        self.declare_parameter("orientation_rpy_phase", DEFAULT_ORIENTATION_RPY_PHASE)
+
+        self.declare_parameter("twist_linear_center", DEFAULT_TWIST_LINEAR_CENTER)
+        self.declare_parameter("twist_linear_amplitude", DEFAULT_TWIST_LINEAR_AMPLITUDE)
+        self.declare_parameter("twist_linear_phase", DEFAULT_TWIST_LINEAR_PHASE)
+        self.declare_parameter("twist_angular_center", DEFAULT_TWIST_ANGULAR_CENTER)
+        self.declare_parameter("twist_angular_amplitude", DEFAULT_TWIST_ANGULAR_AMPLITUDE)
+        self.declare_parameter("twist_angular_phase", DEFAULT_TWIST_ANGULAR_PHASE)
+        self.declare_parameter("pose_weights", DEFAULT_POSE_WEIGHTS)
+        self.declare_parameter("twist_weights", DEFAULT_TWIST_WEIGHTS)
+
+        self.topic = self.get_parameter("topic").value
+        self.observation_topic = self.get_parameter("observation_topic").value
+        self.command_type = str(self.get_parameter("command_type").value)
+        if self.command_type not in ("ee_motion_pose", "ee_motion_twist", "ee_motion"):
+            raise RuntimeError(
+                "command_type must be 'ee_motion_pose', 'ee_motion_twist', or 'ee_motion'"
+            )
+        self.wait_for_observation = bool(self.get_parameter("wait_for_observation").value)
+        self.publish_rate = max(1e-6, float(self.get_parameter("publish_rate").value))
+        self.trajectory_duration = max(1e-6, float(self.get_parameter("trajectory_duration").value))
+        self.trajectory_dt = max(1e-6, float(self.get_parameter("trajectory_dt").value))
+        self.sine_frequency = float(self.get_parameter("sine_frequency").value)
+        self.time_offset = float(self.get_parameter("time_offset").value)
+
+        self.translation_center = _resize(
+            _as_list(self.get_parameter("translation_center").value, DEFAULT_TRANSLATION_CENTER), 3, 0.0)
+        self.translation_amplitude = _resize(
+            _as_list(self.get_parameter("translation_amplitude").value, DEFAULT_TRANSLATION_AMPLITUDE), 3, 0.0)
+        self.translation_phase = _resize(
+            _as_list(self.get_parameter("translation_phase").value, DEFAULT_TRANSLATION_PHASE), 3, 0.0)
+        self.orientation_rpy_center = _resize(
+            _as_list(self.get_parameter("orientation_rpy_center").value, DEFAULT_ORIENTATION_RPY_CENTER), 3, 0.0)
+        self.orientation_rpy_amplitude = _resize(
+            _as_list(self.get_parameter("orientation_rpy_amplitude").value, DEFAULT_ORIENTATION_RPY_AMPLITUDE), 3, 0.0)
+        self.orientation_rpy_phase = _resize(
+            _as_list(self.get_parameter("orientation_rpy_phase").value, DEFAULT_ORIENTATION_RPY_PHASE), 3, 0.0)
+
+        self.twist_linear_center = _resize(
+            _as_list(self.get_parameter("twist_linear_center").value, DEFAULT_TWIST_LINEAR_CENTER), 3, 0.0)
+        self.twist_linear_amplitude = _resize(
+            _as_list(self.get_parameter("twist_linear_amplitude").value, DEFAULT_TWIST_LINEAR_AMPLITUDE), 3, 0.0)
+        self.twist_linear_phase = _resize(
+            _as_list(self.get_parameter("twist_linear_phase").value, DEFAULT_TWIST_LINEAR_PHASE), 3, 0.0)
+        self.twist_angular_center = _resize(
+            _as_list(self.get_parameter("twist_angular_center").value, DEFAULT_TWIST_ANGULAR_CENTER), 3, 0.0)
+        self.twist_angular_amplitude = _resize(
+            _as_list(self.get_parameter("twist_angular_amplitude").value, DEFAULT_TWIST_ANGULAR_AMPLITUDE), 3, 0.0)
+        self.twist_angular_phase = _resize(
+            _as_list(self.get_parameter("twist_angular_phase").value, DEFAULT_TWIST_ANGULAR_PHASE), 3, 0.0)
+        self.pose_weights = _resize(
+            _as_list(self.get_parameter("pose_weights").value, DEFAULT_POSE_WEIGHTS), 6, 20.0)
+        self.twist_weights = _resize(
+            _as_list(self.get_parameter("twist_weights").value, DEFAULT_TWIST_WEIGHTS), 6, 2.0)
+
+        self.trajectory_samples = int(math.floor(self.trajectory_duration / self.trajectory_dt)) + 1
+        self.start_time = self.get_clock().now()
+        self.latest_observation_time = None
+        self.last_wait_log_time = 0.0
+
+        self.publisher = self.create_publisher(DynamicsMpcTargets, self.topic, 1)
+        self.observation_subscription = self.create_subscription(
+            MpcObservation,
+            self.observation_topic,
+            self.observation_callback,
+            10,
+        )
+        self.timer = self.create_timer(1.0 / self.publish_rate, self.publish)
+
+        self.get_logger().info(
+            f"Publishing {self.command_type} DynamicsMpcTargets to {self.topic}, "
+            f"{self.trajectory_samples} ZOH trajectory samples over {self.trajectory_duration:.3f} s "
+            f"with dt {self.trajectory_dt:.3f} s, using OCS2 time from {self.observation_topic}"
+        )
+
+    def elapsed_time(self) -> float:
+        now = self.get_clock().now()
+        return (now - self.start_time).nanoseconds * 1e-9
+
+    def observation_callback(self, msg: MpcObservation):
+        self.latest_observation_time = float(msg.time)
+
+    def current_target_time(self):
+        if self.latest_observation_time is not None:
+            return self.latest_observation_time + self.time_offset
+        if not self.wait_for_observation:
+            return self.elapsed_time() + self.time_offset
+
+        now = wall_time.monotonic()
+        if now - self.last_wait_log_time > 2.0:
+            self.get_logger().warn(
+                f"Waiting for OCS2 observation on {self.observation_topic} before publishing targets."
+            )
+            self.last_wait_log_time = now
+        return None
+
+    def pose_target(self, t: float):
+        translation = _sample_wave(
+            self.translation_center,
+            self.translation_amplitude,
+            self.translation_phase,
+            self.sine_frequency,
+            t,
+        )
+        rpy = _sample_wave(
+            self.orientation_rpy_center,
+            self.orientation_rpy_amplitude,
+            self.orientation_rpy_phase,
+            self.sine_frequency,
+            t,
+        )
+        return translation + _quaternion_from_rpy(rpy[0], rpy[1], rpy[2])
+
+    def twist_target(self, t: float):
+        linear_twist = _sample_wave(
+            self.twist_linear_center,
+            self.twist_linear_amplitude,
+            self.twist_linear_phase,
+            self.sine_frequency,
+            t,
+        )
+        angular_twist = _sample_wave(
+            self.twist_angular_center,
+            self.twist_angular_amplitude,
+            self.twist_angular_phase,
+            self.sine_frequency,
+            t,
+        )
+        return linear_twist + angular_twist
+
+    def fill_trajectory(self, msg: DynamicsMpcTargets, t0: float):
+        zoh_pose = self.pose_target(t0)
+        zoh_twist = self.twist_target(t0)
+
+        for sample_index in range(self.trajectory_samples):
+            t = t0 + sample_index * self.trajectory_dt
+            state = MpcState()
+            if self.command_type == "ee_motion_pose":
+                state.value = [float(x) for x in zoh_pose]
+            elif self.command_type == "ee_motion_twist":
+                state.value = [float(x) for x in zoh_twist]
+            else:
+                state.value = [float(x) for x in zoh_pose + zoh_twist]
+
+            msg.time_trajectory.append(float(t))
+            msg.state_trajectory.append(state)
+
+    def publish(self):
+        t0 = self.current_target_time()
+        if t0 is None:
+            return
+
+        msg = DynamicsMpcTargets()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.command_type = self.command_type
+        if self.command_type in ("ee_motion_pose", "ee_motion"):
+            msg.ee_motion_pose_tracking_weights = Float64MultiArray()
+            msg.ee_motion_pose_tracking_weights.data = [float(w) for w in self.pose_weights]
+        if self.command_type in ("ee_motion_twist", "ee_motion"):
+            msg.ee_motion_twist_tracking_weights = Float64MultiArray()
+            msg.ee_motion_twist_tracking_weights.data = [float(w) for w in self.twist_weights]
+        self.fill_trajectory(msg, t0)
+
+        self.publisher.publish(msg)
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = EeMotionTrackingTargetPublisher()
+    try:
+        rclpy.spin(node)
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+
+if __name__ == "__main__":
+    main()

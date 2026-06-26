@@ -695,6 +695,45 @@ inverse_dynamics_mpc_controller:
             description: "Default joint-velocity tracking diagonal"
           }
 
+      eeMotionTracking:
+        activate: {
+          type: bool,
+          default_value: true,
+          description: "Enable end-effector motion tracking for ee_motion target commands"
+        }
+
+        pose:
+          scaling: {
+            type: double,
+            default_value: 20.0,
+            description: "Default EE pose tracking scale",
+            validation: {
+              gt_eq: [0.0]
+            }
+          }
+
+          diagonal: {
+            type: double_array,
+            default_value: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+            description: "Default EE pose tracking diagonal [xyz, orientation]"
+          }
+
+        twist:
+          scaling: {
+            type: double,
+            default_value: 2.0,
+            description: "Default EE twist tracking scale",
+            validation: {
+              gt_eq: [0.0]
+            }
+          }
+
+          diagonal: {
+            type: double_array,
+            default_value: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+            description: "Default EE twist tracking diagonal [linear, angular]"
+          }
+
   paths:
     libFolder: {
       type: string,

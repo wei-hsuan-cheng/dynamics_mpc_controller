@@ -47,6 +47,7 @@ generate_parameter_library(forward_dynamics_mpc_controller_parameters
 
 add_library(${PROJECT_NAME} SHARED
   src/common/controller_utils.cpp
+  src/common/cost/ee_motion_tracking_cost.cpp
   src/common/cost/input_tracking_cost.cpp
   src/common/cost/joint_tracking_cost.cpp
   src/common/pinocchio_utils.cpp
@@ -59,6 +60,7 @@ add_library(${PROJECT_NAME} SHARED
   src/inverse_dynamics_mpc/constraint/inverse_dynamics_rnea_with_ee_wrench_constraint_cppad.cpp
   src/inverse_dynamics_mpc/dynamics/inverse_dynamics_kinematic_dynamics_ad.cpp
   src/inverse_dynamics_mpc/initialization/inverse_dynamics_initializer.cpp
+  src/inverse_dynamics_mpc/target/ee_motion_tracking_target.cpp
   src/inverse_dynamics_mpc/target/joint_tracking_target.cpp
   src/inverse_dynamics_mpc/inverse_dynamics_mpc_controller.cpp
   src/inverse_dynamics_mpc/inverse_dynamics_mpc_interface.cpp
@@ -66,6 +68,7 @@ add_library(${PROJECT_NAME} SHARED
 
   src/forward_dynamics_mpc/dynamics/forward_dynamics_aba_dynamics_ad.cpp
   src/forward_dynamics_mpc/initialization/forward_dynamics_initializer.cpp
+  src/forward_dynamics_mpc/target/ee_motion_tracking_target.cpp
   src/forward_dynamics_mpc/target/joint_tracking_target.cpp
   src/forward_dynamics_mpc/forward_dynamics_mpc_controller.cpp
   src/forward_dynamics_mpc/forward_dynamics_mpc_interface.cpp

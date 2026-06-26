@@ -78,7 +78,7 @@ enum class JointCommandMode
   PositionVelocity,
 };
 
-bool supportsJointCommandType(const std::string& commandType)
+bool supportsCommandType(const std::string& commandType)
 {
   return commandType == "joint_position" ||
          commandType == "joint_velocity" ||
@@ -97,7 +97,7 @@ JointCommandMode jointCommandModeFromMessage(const std::string& commandType)
     return JointCommandMode::PositionVelocity;
   }
   throw std::invalid_argument(
-    "joint tracking target requires command_type='joint_position', 'joint_velocity', or 'joint', got '" +
+    "unsupported dynamics MPC command_type: '" +
     commandType + "'");
 }
 
@@ -143,7 +143,7 @@ ForwardJointTrackingTarget::ForwardJointTrackingTarget(const ForwardDynamicsMpcI
 
 bool ForwardJointTrackingTarget::supports(const TargetMsg& msg) const noexcept
 {
-  return supportsJointCommandType(msg.command_type);
+  return supportsCommandType(msg.command_type);
 }
 
 ForwardJointTrackingTarget::TargetTrajectories ForwardJointTrackingTarget::fromObservation(
@@ -168,17 +168,17 @@ ForwardJointTrackingTarget::TargetTrajectories ForwardJointTrackingTarget::fromM
 {
   if (!supports(msg)) {
     throw std::invalid_argument(
-      "joint tracking target requires command_type='joint_position', 'joint_velocity', or 'joint', got '" +
+      "unsupported dynamics MPC command_type: '" +
       msg.command_type + "'");
   }
   const auto& model = interface_.getForwardDynamicsMpcModel();
   const JointCommandMode command_mode = jointCommandModeFromMessage(msg.command_type);
   const std::size_t n = model.jointDim();
   if (msg.time_trajectory.empty() || msg.state_trajectory.empty()) {
-    throw std::runtime_error("joint target trajectory is empty");
+    throw std::runtime_error("dynamics MPC target trajectory is empty");
   }
   if (msg.time_trajectory.size() != msg.state_trajectory.size()) {
-    throw std::runtime_error("joint target time and state trajectory sizes do not match");
+    throw std::runtime_error("dynamics MPC target time and state trajectory sizes do not match");
   }
   validateTrajectorySize(
     msg.joint_acceleration_trajectory, msg.time_trajectory.size(),

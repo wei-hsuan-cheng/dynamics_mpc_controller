@@ -117,6 +117,15 @@ inverse_dynamics_mpc_controller:
             diagonal: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
                        1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
+        eeMotionTracking:
+          activate: true
+          pose:
+            scaling: 1.0
+            diagonal: [20.0, 20.0, 20.0, 5.0, 5.0, 5.0]
+          twist:
+            scaling: 1.0
+            diagonal: [20.0, 20.0, 20.0, 5.0, 5.0, 5.0]
+
         inputCost:
           R:
             jointAcceleration:
@@ -372,6 +381,15 @@ forward_dynamics_mpc_controller:
             scaling: 2.0
             diagonal: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
                        1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+
+        eeMotionTracking:
+          activate: true
+          pose:
+            scaling: 1.0
+            diagonal: [20.0, 20.0, 20.0, 5.0, 5.0, 5.0]
+          twist:
+            scaling: 1.0
+            diagonal: [20.0, 20.0, 20.0, 5.0, 5.0, 5.0]
 
         inputCost:
           R:

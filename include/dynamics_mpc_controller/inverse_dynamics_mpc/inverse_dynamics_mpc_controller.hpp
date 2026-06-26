@@ -48,6 +48,7 @@ class MpcPolicyPublisher;
 
 namespace target
 {
+class EeMotionTrackingTarget;
 class JointTrackingTarget;
 }
 
@@ -119,6 +120,7 @@ private:
   std::unique_ptr<ocs2::MPC_MRT_Interface> mrt_interface_;
   std::unique_ptr<estimation::MomentumObserverWrenchEstimator> wrench_estimator_;
   std::unique_ptr<target::JointTrackingTarget> joint_tracking_target_;
+  std::unique_ptr<target::EeMotionTrackingTarget> ee_motion_tracking_target_;
   std::shared_ptr<diagnostics::MpcPolicyPublisher> mpc_policy_observer_;
 
   double virtual_time_{0.0};
