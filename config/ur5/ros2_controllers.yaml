@@ -128,7 +128,7 @@ inverse_dynamics_mpc_controller:
         inputCost:
           R:
             jointAcceleration:
-              scaling: 1.0e-2
+              scaling: 1.0e-1
               diagonal: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
             jointTorque:
               scaling: 1.0e-4

@@ -135,7 +135,7 @@ inverse_dynamics_mpc_controller:
               diagonal: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
                          1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
             jointTorque:
-              scaling: 1.0e-3
+              scaling: 1.0e-4
               diagonal: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
                          1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
             eeWrench:
