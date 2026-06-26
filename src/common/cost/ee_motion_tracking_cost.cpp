@@ -26,6 +26,9 @@ constexpr Eigen::Index kResidualDim = 12;
 constexpr Eigen::Index kVector6Dim = 6;
 constexpr Eigen::Index kEeMotionPoseWeightsOffset = target_encoding::kEeMotionTargetDim;
 constexpr Eigen::Index kEeMotionTwistWeightsOffset = kEeMotionPoseWeightsOffset + kVector6Dim;
+constexpr Eigen::Index kEeMotionFullTwistFrameOffset = target_encoding::kEeMotionTargetDim;
+constexpr Eigen::Index kEeMotionWeightedTwistFrameOffset =
+  target_encoding::kEeMotionWeightedTargetDim;
 
 void validateWeights(const ocs2::vector_t& weights, const char* name)
 {
@@ -50,6 +53,22 @@ Eigen::Quaternion<ocs2::scalar_t> quaternionFromTarget(const ocs2::vector_t& tar
     orientation.normalize();
   }
   return orientation;
+}
+
+bool targetUsesEeFrameTwist(const ocs2::vector_t& target)
+{
+  if (target.size() == target_encoding::kEeMotionTwistOnlyTargetDim) {
+    return std::abs(target(0) - target_encoding::kEeMotionTwistFrameEe) < 0.5;
+  }
+  if (target.size() == target_encoding::kEeMotionTargetWithTwistFrameDim) {
+    return std::abs(target(kEeMotionFullTwistFrameOffset) -
+      target_encoding::kEeMotionTwistFrameEe) < 0.5;
+  }
+  if (target.size() == target_encoding::kEeMotionWeightedTargetWithTwistFrameDim) {
+    return std::abs(target(kEeMotionWeightedTwistFrameOffset) -
+      target_encoding::kEeMotionTwistFrameEe) < 0.5;
+  }
+  return false;
 }
 
 }  // namespace
@@ -113,21 +132,28 @@ EeMotionTrackingCost::Target EeMotionTrackingCost::getTargetResidual(
 
   Eigen::Matrix<ocs2::scalar_t, 6, Eigen::Dynamic> frame_jacobian(6, model.nv);
   frame_jacobian.setZero();
+  const auto twist_reference_frame = targetUsesEeFrameTwist(raw_target) ?
+    pinocchio::ReferenceFrame::LOCAL :
+    pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED;
   pinocchio::getFrameJacobian(
     model,
     data,
     end_effector_frame_id_,
-    pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED,
+    twist_reference_frame,
     frame_jacobian);
   const ocs2::vector_t twist = frame_jacobian.leftCols(n) * v;
 
-  const bool has_message_weights = raw_target.size() == target_encoding::kEeMotionWeightedTargetDim;
+  const bool has_message_weights =
+    raw_target.size() == target_encoding::kEeMotionWeightedTargetDim ||
+    raw_target.size() == target_encoding::kEeMotionWeightedTargetWithTwistFrameDim;
   const bool track_pose = raw_target.size() == target_encoding::kEeMotionPoseTargetDim ||
                           raw_target.size() == target_encoding::kEeMotionTargetDim ||
+                          raw_target.size() == target_encoding::kEeMotionTargetWithTwistFrameDim ||
                           (has_message_weights &&
                            raw_target.segment(kEeMotionPoseWeightsOffset, kVector6Dim).cwiseAbs().maxCoeff() > 0.0);
   const bool track_twist = raw_target.size() == target_encoding::kEeMotionTwistOnlyTargetDim ||
                            raw_target.size() == target_encoding::kEeMotionTargetDim ||
+                           raw_target.size() == target_encoding::kEeMotionTargetWithTwistFrameDim ||
                            (has_message_weights &&
                             raw_target.segment(kEeMotionTwistWeightsOffset, kVector6Dim).cwiseAbs().maxCoeff() > 0.0);
 

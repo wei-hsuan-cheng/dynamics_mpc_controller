@@ -16,7 +16,8 @@ from tf2_ros import TransformBroadcaster
 
 DEFAULT_TARGET_TOPIC = "/mpc_targets"
 DEFAULT_OBSERVATION_TOPIC = "/mpc_observation"
-DEFAULT_COMMAND_TYPE = "ee_motion_pose"  # "ee_motion_pose" | "ee_motion_twist" | "ee_motion"
+DEFAULT_COMMAND_TYPE = "ee_motion_twist"  # "ee_motion_pose" | "ee_motion_twist" | "ee_motion"
+DEFAULT_TWIST_FRAME = "ee"  # "base" | "ee"
 
 DEFAULT_TRANSLATION_CENTER = np.array([0.473, 0.11, 0.51])
 DEFAULT_TRANSLATION_AMPLITUDE = np.array([0.01, 0.00, 0.01])
@@ -26,7 +27,7 @@ DEFAULT_ORIENTATION_RPY_CENTER = np.array([-np.pi / 2.0, 0.3, -np.pi / 2.0])
 DEFAULT_ORIENTATION_RPY_AMPLITUDE = np.array([0.0, 0.0, 0.0])
 DEFAULT_ORIENTATION_RPY_PHASE = np.array([0.0, 0.0, 0.0])
 
-DEFAULT_TWIST_LINEAR_CENTER = np.array([0.0, 0.0, 0.0])
+DEFAULT_TWIST_LINEAR_CENTER = np.array([0.0, 0.0, -0.05])
 DEFAULT_TWIST_LINEAR_AMPLITUDE = np.array([0.0, 0.0, 0.0])
 DEFAULT_TWIST_LINEAR_PHASE = np.array([0.0, 0.0, 0.0])
 
@@ -81,6 +82,7 @@ class EeMotionTrackingTargetPublisher(Node):
         self.declare_parameter("topic", DEFAULT_TARGET_TOPIC)
         self.declare_parameter("observation_topic", DEFAULT_OBSERVATION_TOPIC)
         self.declare_parameter("command_type", DEFAULT_COMMAND_TYPE)
+        self.declare_parameter("twist_frame", DEFAULT_TWIST_FRAME)
         self.declare_parameter("wait_for_observation", True)
         self.declare_parameter("publish_rate", 50.0)
         self.declare_parameter("trajectory_duration", 2.0)
@@ -113,6 +115,9 @@ class EeMotionTrackingTargetPublisher(Node):
             raise RuntimeError(
                 "command_type must be 'ee_motion_pose', 'ee_motion_twist', or 'ee_motion'"
             )
+        self.twist_frame = str(self.get_parameter("twist_frame").value).lower()
+        if self.twist_frame not in ("", "base", "ee"):
+            raise RuntimeError("twist_frame must be empty, 'base', or 'ee'")
         self.wait_for_observation = bool(self.get_parameter("wait_for_observation").value)
         self.publish_rate = max(1e-6, float(self.get_parameter("publish_rate").value))
         self.trajectory_duration = max(1e-6, float(self.get_parameter("trajectory_duration").value))
@@ -169,6 +174,7 @@ class EeMotionTrackingTargetPublisher(Node):
 
         self.get_logger().info(
             f"Publishing {self.command_type} DynamicsMpcTargets to {self.topic}, "
+            f"twist_frame={self.twist_frame}, "
             f"{self.trajectory_samples} ZOH trajectory samples over {self.trajectory_duration:.3f} s "
             f"with dt {self.trajectory_dt:.3f} s, using OCS2 time from {self.observation_topic}"
         )
@@ -267,6 +273,7 @@ class EeMotionTrackingTargetPublisher(Node):
         msg = DynamicsMpcTargets()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.command_type = self.command_type
+        msg.ee_motion_twist_frame = self.twist_frame
         if self.command_type in ("ee_motion_pose", "ee_motion"):
             msg.ee_motion_pose_tracking_weights = Float64MultiArray()
             msg.ee_motion_pose_tracking_weights.data = [float(w) for w in self.pose_weights]

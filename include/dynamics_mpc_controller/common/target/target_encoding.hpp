@@ -11,14 +11,21 @@ namespace target_encoding
 inline constexpr Eigen::Index kEeMotionPoseTargetDim = 7;
 inline constexpr Eigen::Index kEeMotionTwistOnlyTargetDim = 8;
 inline constexpr Eigen::Index kEeMotionTargetDim = 13;
+inline constexpr Eigen::Index kEeMotionTargetWithTwistFrameDim = 14;
 inline constexpr Eigen::Index kEeMotionWeightedTargetDim = 25;
+inline constexpr Eigen::Index kEeMotionWeightedTargetWithTwistFrameDim = 26;
+
+inline constexpr double kEeMotionTwistFrameBase = 0.0;
+inline constexpr double kEeMotionTwistFrameEe = 1.0;
 
 inline bool isEeMotionTargetStateSize(Eigen::Index size)
 {
   return size == kEeMotionPoseTargetDim ||
          size == kEeMotionTwistOnlyTargetDim ||
          size == kEeMotionTargetDim ||
-         size == kEeMotionWeightedTargetDim;
+         size == kEeMotionTargetWithTwistFrameDim ||
+         size == kEeMotionWeightedTargetDim ||
+         size == kEeMotionWeightedTargetWithTwistFrameDim;
 }
 
 }  // namespace target_encoding

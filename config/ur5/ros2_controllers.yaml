@@ -117,6 +117,7 @@ inverse_dynamics_mpc_controller:
         eeMotionTracking:
           activate: true
           terminalScaling: 0.0
+          twistFrame: "ee" # "base" | "ee"
           pose:
             scaling: 100.0
             diagonal: [20.0, 20.0, 20.0, 5.0, 5.0, 5.0]
@@ -334,6 +335,7 @@ forward_dynamics_mpc_controller:
         eeMotionTracking:
           activate: true
           terminalScaling: 0.0
+          twistFrame: "ee" # "base" | "ee"
           pose:
             scaling: 100.0
             diagonal: [20.0, 20.0, 20.0, 5.0, 5.0, 5.0]

@@ -99,9 +99,24 @@ EeMotionCommandMode commandModeFromMessage(const std::string& commandType)
     commandType + "'");
 }
 
+double twistFrameFromMessage(const std::string& frame, const std::string& defaultFrame)
+{
+  const std::string& selected_frame = frame.empty() ? defaultFrame : frame;
+  if (selected_frame == "base" || selected_frame == "global" || selected_frame == "world") {
+    return target_encoding::kEeMotionTwistFrameBase;
+  }
+  if (selected_frame == "ee" || selected_frame == "end_effector" ||
+      selected_frame == "end_effector_frame") {
+    return target_encoding::kEeMotionTwistFrameEe;
+  }
+  throw std::invalid_argument(
+    "ee_motion_twist_frame must be empty, 'base', or 'ee', got '" + selected_frame + "'");
+}
+
 ocs2::vector_t makeEeMotionTargetState(
   const ocs2::vector_t& rawState,
   EeMotionCommandMode mode,
+  double twistFrame,
   const ocs2::vector_t* poseWeights,
   const ocs2::vector_t* twistWeights)
 {
@@ -126,13 +141,15 @@ ocs2::vector_t makeEeMotionTargetState(
     }
     if (twistWeights != nullptr) {
       ocs2::vector_t target =
-        ocs2::vector_t::Zero(target_encoding::kEeMotionWeightedTargetDim);
+        ocs2::vector_t::Zero(target_encoding::kEeMotionWeightedTargetWithTwistFrameDim);
+      target(target_encoding::kEeMotionWeightedTargetDim) = twistFrame;
       target.segment(target_encoding::kEeMotionPoseTargetDim, 6) = rawState;
       target.segment(target_encoding::kEeMotionTargetDim + 6, 6) = *twistWeights;
       return target;
     }
     ocs2::vector_t target =
       ocs2::vector_t::Zero(target_encoding::kEeMotionTwistOnlyTargetDim);
+    target(0) = twistFrame;
     target.segment(1, 6) = rawState;
     return target;
   }
@@ -142,7 +159,8 @@ ocs2::vector_t makeEeMotionTargetState(
   }
   if (poseWeights != nullptr || twistWeights != nullptr) {
     ocs2::vector_t target =
-      ocs2::vector_t::Zero(target_encoding::kEeMotionWeightedTargetDim);
+      ocs2::vector_t::Zero(target_encoding::kEeMotionWeightedTargetWithTwistFrameDim);
+    target(target_encoding::kEeMotionWeightedTargetDim) = twistFrame;
     target.head(target_encoding::kEeMotionTargetDim) = rawState;
     if (poseWeights != nullptr) {
       target.segment(target_encoding::kEeMotionTargetDim, 6) = *poseWeights;
@@ -152,7 +170,11 @@ ocs2::vector_t makeEeMotionTargetState(
     }
     return target;
   }
-  return rawState;
+  ocs2::vector_t target =
+    ocs2::vector_t::Zero(target_encoding::kEeMotionTargetWithTwistFrameDim);
+  target.head(target_encoding::kEeMotionTargetDim) = rawState;
+  target(target_encoding::kEeMotionTargetDim) = twistFrame;
+  return target;
 }
 
 std::vector<std::size_t> makeReorderIndices(
@@ -206,6 +228,8 @@ ForwardEeMotionTrackingTarget::TargetTrajectories ForwardEeMotionTrackingTarget:
 
   const auto& model = interface_.getForwardDynamicsMpcModel();
   const EeMotionCommandMode command_mode = commandModeFromMessage(msg.command_type);
+  const double twist_frame = twistFrameFromMessage(
+    msg.ee_motion_twist_frame, interface_.defaultEeMotionTwistFrame());
   const std::size_t n = model.jointDim();
   if (msg.time_trajectory.empty() || msg.state_trajectory.empty()) {
     throw std::runtime_error("dynamics MPC target trajectory is empty");
@@ -262,6 +286,7 @@ ForwardEeMotionTrackingTarget::TargetTrajectories ForwardEeMotionTrackingTarget:
       makeEeMotionTargetState(
         vectorFromMessage(msg.state_trajectory[sample]),
         command_mode,
+        twist_frame,
         (has_pose_weights &&
          command_mode != EeMotionCommandMode::Twist) ? &pose_weights : nullptr,
         (has_twist_weights &&

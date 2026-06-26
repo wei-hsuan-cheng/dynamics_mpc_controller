@@ -45,6 +45,7 @@ public:
   const ocs2::RolloutBase& getRollout() const { return *rollout_ptr_; }
   const ocs2::PinocchioInterface& getPinocchioInterface() const { return *pinocchio_interface_ptr_; }
   const InverseDynamicsMpcModel& getInverseDynamicsMpcModel() const { return inverse_dynamics_model_; }
+  const std::string& defaultEeMotionTwistFrame() const { return default_ee_motion_twist_frame_; }
   bool inputLimitsActive() const { return input_limits_active_; }
   const ocs2::vector_t& inputLowerBounds() const { return input_lower_bounds_; }
   const ocs2::vector_t& inputUpperBounds() const { return input_upper_bounds_; }
@@ -90,6 +91,7 @@ private:
   std::unique_ptr<ocs2::PinocchioInterface> pinocchio_interface_ptr_;
 
   InverseDynamicsMpcModel inverse_dynamics_model_;
+  std::string default_ee_motion_twist_frame_{"ee"};
   bool input_limits_active_{false};
   bool state_limits_active_{false};
   ocs2::vector_t input_lower_bounds_;

@@ -340,6 +340,10 @@ void ForwardDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
   ocs2::vector_t ee_motion_pose_weights = ocs2::vector_t::Zero(6);
   ocs2::vector_t ee_motion_twist_weights = ocs2::vector_t::Zero(6);
   if (parameters.ocs2.task.eeMotionTracking.activate) {
+    default_ee_motion_twist_frame_ = parameters.ocs2.task.eeMotionTracking.twistFrame;
+    if (default_ee_motion_twist_frame_ != "base" && default_ee_motion_twist_frame_ != "ee") {
+      throw std::runtime_error("[ForwardDynamicsMpcInterface] eeMotionTracking.twistFrame must be 'base' or 'ee'.");
+    }
     ee_motion_pose_weights =
       (vectorFromArray(
         parameters.ocs2.task.eeMotionTracking.pose.diagonal,
@@ -372,6 +376,8 @@ void ForwardDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
             << (parameters.ocs2.task.eeMotionTracking.activate ? "true" : "false");
   std::cerr << "\n #### eeMotionTracking.terminalScaling: "
             << parameters.ocs2.task.eeMotionTracking.terminalScaling;
+  std::cerr << "\n #### eeMotionTracking.twistFrame: "
+            << default_ee_motion_twist_frame_;
   std::cerr << "\n #### default EE pose weights: " << ee_motion_pose_weights.transpose();
   std::cerr << "\n #### default EE twist weights: " << ee_motion_twist_weights.transpose();
   std::cerr << "\n #### R diagonal: " << R.diagonal().transpose();

@@ -711,6 +711,15 @@ inverse_dynamics_mpc_controller:
           }
         }
 
+        twistFrame: {
+          type: string,
+          default_value: "ee",
+          description: "Default frame for EE twist targets when the target message leaves ee_motion_twist_frame empty",
+          validation: {
+            one_of<>: [["base", "ee"]]
+          }
+        }
+
         pose:
           scaling: {
             type: double,
