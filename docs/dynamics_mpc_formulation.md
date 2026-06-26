@@ -299,7 +299,7 @@ $$
 
 ## Solvers
 
-The controller selects the OCS2 MPC solver from the YAML field
+The controller selects the OCS2 MPC default solvers (DDP and SQP)
 
 $$
 \texttt{solverType} \in \{\texttt{sqp}, \texttt{ddp}\}.
@@ -316,5 +316,3 @@ For DDP:
 $$
 \text{solver} = \operatorname{GaussNewtonDDP\_MPC}.
 $$
-
-The current UR5 and dual-UR5 example configurations use SQP.
