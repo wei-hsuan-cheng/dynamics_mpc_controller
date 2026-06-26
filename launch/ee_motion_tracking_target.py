@@ -35,7 +35,7 @@ DEFAULT_TWIST_ANGULAR_CENTER = np.array([0.0, 0.0, 0.0])
 DEFAULT_TWIST_ANGULAR_AMPLITUDE = np.array([0.0, 0.0, 0.0])
 DEFAULT_TWIST_ANGULAR_PHASE = np.array([0.0, 0.0, 0.0])
 
-DEFAULT_POSE_WEIGHTS = np.array([2.0, 2.0, 2.0, 0.5, 0.5, 0.5]) * 100.0
+DEFAULT_POSE_WEIGHTS = np.array([2.0, 2.0, 2.0, 0.5, 0.5, 0.5]) * 1000.0
 DEFAULT_TWIST_WEIGHTS = np.array([2.0, 2.0, 2.0, 0.5, 0.5, 0.5]) * 1000.0
 
 
