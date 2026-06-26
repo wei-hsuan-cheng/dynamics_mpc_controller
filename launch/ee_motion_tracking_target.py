@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
 import math
+import numpy as np
 import time as wall_time
-from typing import List
+from typing import Sequence
 
 import rclpy
 from rclpy.node import Node
@@ -15,40 +16,40 @@ DEFAULT_TARGET_TOPIC = "/mpc_targets"
 DEFAULT_OBSERVATION_TOPIC = "/mpc_observation"
 DEFAULT_COMMAND_TYPE = "ee_motion_pose"  # "ee_motion_pose" | "ee_motion_twist" | "ee_motion"
 
-DEFAULT_TRANSLATION_CENTER = [0.40, 0.00, 0.35]
-DEFAULT_TRANSLATION_AMPLITUDE = [0.00, 0.00, 0.00]
-DEFAULT_TRANSLATION_PHASE = [0.0, 0.5, 1.0]
+DEFAULT_TRANSLATION_CENTER = np.array([0.40, 0.00, 0.35])
+DEFAULT_TRANSLATION_AMPLITUDE = np.array([0.00, 0.00, 0.00])
+DEFAULT_TRANSLATION_PHASE = np.array([0.0, 0.5, 1.0])
 
-DEFAULT_ORIENTATION_RPY_CENTER = [0.0, 3.1416, 0.0]
-DEFAULT_ORIENTATION_RPY_AMPLITUDE = [0.0, 0.0, 0.0]
-DEFAULT_ORIENTATION_RPY_PHASE = [0.0, 0.5, 1.0]
+DEFAULT_ORIENTATION_RPY_CENTER = np.array([0.0, 3.1416, 0.0])
+DEFAULT_ORIENTATION_RPY_AMPLITUDE = np.array([0.0, 0.0, 0.0])
+DEFAULT_ORIENTATION_RPY_PHASE = np.array([0.0, 0.5, 1.0])
 
-DEFAULT_TWIST_LINEAR_CENTER = [0.0, 0.0, 0.0]
-DEFAULT_TWIST_LINEAR_AMPLITUDE = [0.0, 0.0, 0.0]
-DEFAULT_TWIST_LINEAR_PHASE = [0.0, 0.5, 1.0]
+DEFAULT_TWIST_LINEAR_CENTER = np.array([0.0, 0.0, 0.0])
+DEFAULT_TWIST_LINEAR_AMPLITUDE = np.array([0.0, 0.0, 0.0])
+DEFAULT_TWIST_LINEAR_PHASE = np.array([0.0, 0.5, 1.0])
 
-DEFAULT_TWIST_ANGULAR_CENTER = [0.0, 0.0, 0.0]
-DEFAULT_TWIST_ANGULAR_AMPLITUDE = [0.0, 0.0, 0.0]
-DEFAULT_TWIST_ANGULAR_PHASE = [0.0, 0.5, 1.0]
+DEFAULT_TWIST_ANGULAR_CENTER = np.array([0.0, 0.0, 0.0])
+DEFAULT_TWIST_ANGULAR_AMPLITUDE = np.array([0.0, 0.0, 0.0])
+DEFAULT_TWIST_ANGULAR_PHASE = np.array([0.0, 0.5, 1.0])
 
-DEFAULT_POSE_WEIGHTS = [20.0, 20.0, 20.0, 5.0, 5.0, 5.0]
-DEFAULT_TWIST_WEIGHTS = [20.0, 20.0, 20.0, 5.0, 5.0, 5.0]
+DEFAULT_POSE_WEIGHTS = np.array([20.0, 20.0, 20.0, 5.0, 5.0, 5.0])
+DEFAULT_TWIST_WEIGHTS = np.array([20.0, 20.0, 20.0, 5.0, 5.0, 5.0])
 
 
-def _as_list(value, fallback: List):
+def _as_array(value, fallback: Sequence[float]) -> np.ndarray:
     if value is None:
-        return list(fallback)
-    return list(value)
+        return np.asarray(fallback, dtype=float).copy()
+    return np.asarray(value, dtype=float).reshape(-1)
 
 
-def _resize(values: List[float], size: int, fill: float) -> List[float]:
-    values = list(values)
-    if len(values) >= size:
-        return values[:size]
-    return values + [fill] * (size - len(values))
+def _resize(values: Sequence[float], size: int, fill: float) -> np.ndarray:
+    values = np.asarray(values, dtype=float).reshape(-1)
+    if values.size >= size:
+        return values[:size].copy()
+    return np.concatenate((values, np.full(size - values.size, fill, dtype=float)))
 
 
-def _sample_wave(center: List[float], amplitude: List[float], phase: List[float], frequency: float, t: float):
+def _sample_wave(center: np.ndarray, amplitude: np.ndarray, phase: np.ndarray, frequency: float, t: float):
     omega = 2.0 * math.pi * frequency
     return [
         center[i] + amplitude[i] * math.sin(omega * t + phase[i])
@@ -85,21 +86,21 @@ class EeMotionTrackingTargetPublisher(Node):
         self.declare_parameter("sine_frequency", 0.5)
         self.declare_parameter("time_offset", 0.0)
 
-        self.declare_parameter("translation_center", DEFAULT_TRANSLATION_CENTER)
-        self.declare_parameter("translation_amplitude", DEFAULT_TRANSLATION_AMPLITUDE)
-        self.declare_parameter("translation_phase", DEFAULT_TRANSLATION_PHASE)
-        self.declare_parameter("orientation_rpy_center", DEFAULT_ORIENTATION_RPY_CENTER)
-        self.declare_parameter("orientation_rpy_amplitude", DEFAULT_ORIENTATION_RPY_AMPLITUDE)
-        self.declare_parameter("orientation_rpy_phase", DEFAULT_ORIENTATION_RPY_PHASE)
+        self.declare_parameter("translation_center", DEFAULT_TRANSLATION_CENTER.tolist())
+        self.declare_parameter("translation_amplitude", DEFAULT_TRANSLATION_AMPLITUDE.tolist())
+        self.declare_parameter("translation_phase", DEFAULT_TRANSLATION_PHASE.tolist())
+        self.declare_parameter("orientation_rpy_center", DEFAULT_ORIENTATION_RPY_CENTER.tolist())
+        self.declare_parameter("orientation_rpy_amplitude", DEFAULT_ORIENTATION_RPY_AMPLITUDE.tolist())
+        self.declare_parameter("orientation_rpy_phase", DEFAULT_ORIENTATION_RPY_PHASE.tolist())
 
-        self.declare_parameter("twist_linear_center", DEFAULT_TWIST_LINEAR_CENTER)
-        self.declare_parameter("twist_linear_amplitude", DEFAULT_TWIST_LINEAR_AMPLITUDE)
-        self.declare_parameter("twist_linear_phase", DEFAULT_TWIST_LINEAR_PHASE)
-        self.declare_parameter("twist_angular_center", DEFAULT_TWIST_ANGULAR_CENTER)
-        self.declare_parameter("twist_angular_amplitude", DEFAULT_TWIST_ANGULAR_AMPLITUDE)
-        self.declare_parameter("twist_angular_phase", DEFAULT_TWIST_ANGULAR_PHASE)
-        self.declare_parameter("pose_weights", DEFAULT_POSE_WEIGHTS)
-        self.declare_parameter("twist_weights", DEFAULT_TWIST_WEIGHTS)
+        self.declare_parameter("twist_linear_center", DEFAULT_TWIST_LINEAR_CENTER.tolist())
+        self.declare_parameter("twist_linear_amplitude", DEFAULT_TWIST_LINEAR_AMPLITUDE.tolist())
+        self.declare_parameter("twist_linear_phase", DEFAULT_TWIST_LINEAR_PHASE.tolist())
+        self.declare_parameter("twist_angular_center", DEFAULT_TWIST_ANGULAR_CENTER.tolist())
+        self.declare_parameter("twist_angular_amplitude", DEFAULT_TWIST_ANGULAR_AMPLITUDE.tolist())
+        self.declare_parameter("twist_angular_phase", DEFAULT_TWIST_ANGULAR_PHASE.tolist())
+        self.declare_parameter("pose_weights", DEFAULT_POSE_WEIGHTS.tolist())
+        self.declare_parameter("twist_weights", DEFAULT_TWIST_WEIGHTS.tolist())
 
         self.topic = self.get_parameter("topic").value
         self.observation_topic = self.get_parameter("observation_topic").value
@@ -116,34 +117,34 @@ class EeMotionTrackingTargetPublisher(Node):
         self.time_offset = float(self.get_parameter("time_offset").value)
 
         self.translation_center = _resize(
-            _as_list(self.get_parameter("translation_center").value, DEFAULT_TRANSLATION_CENTER), 3, 0.0)
+            _as_array(self.get_parameter("translation_center").value, DEFAULT_TRANSLATION_CENTER), 3, 0.0)
         self.translation_amplitude = _resize(
-            _as_list(self.get_parameter("translation_amplitude").value, DEFAULT_TRANSLATION_AMPLITUDE), 3, 0.0)
+            _as_array(self.get_parameter("translation_amplitude").value, DEFAULT_TRANSLATION_AMPLITUDE), 3, 0.0)
         self.translation_phase = _resize(
-            _as_list(self.get_parameter("translation_phase").value, DEFAULT_TRANSLATION_PHASE), 3, 0.0)
+            _as_array(self.get_parameter("translation_phase").value, DEFAULT_TRANSLATION_PHASE), 3, 0.0)
         self.orientation_rpy_center = _resize(
-            _as_list(self.get_parameter("orientation_rpy_center").value, DEFAULT_ORIENTATION_RPY_CENTER), 3, 0.0)
+            _as_array(self.get_parameter("orientation_rpy_center").value, DEFAULT_ORIENTATION_RPY_CENTER), 3, 0.0)
         self.orientation_rpy_amplitude = _resize(
-            _as_list(self.get_parameter("orientation_rpy_amplitude").value, DEFAULT_ORIENTATION_RPY_AMPLITUDE), 3, 0.0)
+            _as_array(self.get_parameter("orientation_rpy_amplitude").value, DEFAULT_ORIENTATION_RPY_AMPLITUDE), 3, 0.0)
         self.orientation_rpy_phase = _resize(
-            _as_list(self.get_parameter("orientation_rpy_phase").value, DEFAULT_ORIENTATION_RPY_PHASE), 3, 0.0)
+            _as_array(self.get_parameter("orientation_rpy_phase").value, DEFAULT_ORIENTATION_RPY_PHASE), 3, 0.0)
 
         self.twist_linear_center = _resize(
-            _as_list(self.get_parameter("twist_linear_center").value, DEFAULT_TWIST_LINEAR_CENTER), 3, 0.0)
+            _as_array(self.get_parameter("twist_linear_center").value, DEFAULT_TWIST_LINEAR_CENTER), 3, 0.0)
         self.twist_linear_amplitude = _resize(
-            _as_list(self.get_parameter("twist_linear_amplitude").value, DEFAULT_TWIST_LINEAR_AMPLITUDE), 3, 0.0)
+            _as_array(self.get_parameter("twist_linear_amplitude").value, DEFAULT_TWIST_LINEAR_AMPLITUDE), 3, 0.0)
         self.twist_linear_phase = _resize(
-            _as_list(self.get_parameter("twist_linear_phase").value, DEFAULT_TWIST_LINEAR_PHASE), 3, 0.0)
+            _as_array(self.get_parameter("twist_linear_phase").value, DEFAULT_TWIST_LINEAR_PHASE), 3, 0.0)
         self.twist_angular_center = _resize(
-            _as_list(self.get_parameter("twist_angular_center").value, DEFAULT_TWIST_ANGULAR_CENTER), 3, 0.0)
+            _as_array(self.get_parameter("twist_angular_center").value, DEFAULT_TWIST_ANGULAR_CENTER), 3, 0.0)
         self.twist_angular_amplitude = _resize(
-            _as_list(self.get_parameter("twist_angular_amplitude").value, DEFAULT_TWIST_ANGULAR_AMPLITUDE), 3, 0.0)
+            _as_array(self.get_parameter("twist_angular_amplitude").value, DEFAULT_TWIST_ANGULAR_AMPLITUDE), 3, 0.0)
         self.twist_angular_phase = _resize(
-            _as_list(self.get_parameter("twist_angular_phase").value, DEFAULT_TWIST_ANGULAR_PHASE), 3, 0.0)
+            _as_array(self.get_parameter("twist_angular_phase").value, DEFAULT_TWIST_ANGULAR_PHASE), 3, 0.0)
         self.pose_weights = _resize(
-            _as_list(self.get_parameter("pose_weights").value, DEFAULT_POSE_WEIGHTS), 6, 20.0)
+            _as_array(self.get_parameter("pose_weights").value, DEFAULT_POSE_WEIGHTS), 6, 20.0)
         self.twist_weights = _resize(
-            _as_list(self.get_parameter("twist_weights").value, DEFAULT_TWIST_WEIGHTS), 6, 2.0)
+            _as_array(self.get_parameter("twist_weights").value, DEFAULT_TWIST_WEIGHTS), 6, 2.0)
 
         self.trajectory_samples = int(math.floor(self.trajectory_duration / self.trajectory_dt)) + 1
         self.start_time = self.get_clock().now()

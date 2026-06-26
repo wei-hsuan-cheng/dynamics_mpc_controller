@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
 import math
+import numpy as np
 import time as wall_time
-from typing import List
+from typing import Sequence
 
 import rclpy
 from rclpy.node import Node
@@ -24,31 +25,37 @@ DEFAULT_JOINT_NAMES = [
     "ur_arm_wrist_3_joint",
 ]
 
-DEFAULT_POSITION_CENTER = [0.0, -1.5708, 1.5708, 3.1416, -1.5708, 0.0]
-DEFAULT_POSITION_AMPLITUDE = [0.4, 0.4, 0.4, 0.4, 0.4, 0.4]
+DEFAULT_POSITION_CENTER = np.array([0.0, -1.5708, 1.5708, 3.1416, -1.5708, 0.0])
+DEFAULT_POSITION_AMPLITUDE = np.array([0.4, 0.4, 0.4, 0.4, 0.4, 0.4])
 # DEFAULT_POSITION_CENTER = [1.0, -0.0, 1.0, 3.1416, -1.5708, 0.0]
 # DEFAULT_POSITION_AMPLITUDE = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-DEFAULT_POSITION_PHASE = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5]
+DEFAULT_POSITION_PHASE = np.array([0.0, 0.5, 1.0, 1.5, 2.0, 2.5])
 
-DEFAULT_VELOCITY_CENTER = [0.5, 0.2, 0.0, 0.0, 0.0, 0.0]
-DEFAULT_VELOCITY_AMPLITUDE = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-DEFAULT_VELOCITY_PHASE = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5]
+DEFAULT_VELOCITY_CENTER = np.array([0.5, 0.2, 0.0, 0.0, 0.0, 0.0])
+DEFAULT_VELOCITY_AMPLITUDE = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+DEFAULT_VELOCITY_PHASE = np.array([0.0, 0.5, 1.0, 1.5, 2.0, 2.5])
 
-DEFAULT_POSITION_WEIGHTS = [20.0, 20.0, 20.0, 20.0, 20.0, 20.0]
-DEFAULT_VELOCITY_WEIGHTS = [20.0, 20.0, 20.0, 20.0, 20.0, 20.0]
+DEFAULT_POSITION_WEIGHTS = np.array([20.0, 20.0, 20.0, 20.0, 20.0, 20.0])
+DEFAULT_VELOCITY_WEIGHTS = np.array([20.0, 20.0, 20.0, 20.0, 20.0, 20.0])
 
 
-def _as_list(value, fallback: List):
+def _as_list(value, fallback):
     if value is None:
         return list(fallback)
     return list(value)
 
 
-def _resize(values: List[float], size: int, fill: float) -> List[float]:
-    values = list(values)
-    if len(values) >= size:
-        return values[:size]
-    return values + [fill] * (size - len(values))
+def _as_array(value, fallback: Sequence[float]) -> np.ndarray:
+    if value is None:
+        return np.asarray(fallback, dtype=float).copy()
+    return np.asarray(value, dtype=float).reshape(-1)
+
+
+def _resize(values: Sequence[float], size: int, fill: float) -> np.ndarray:
+    values = np.asarray(values, dtype=float).reshape(-1)
+    if values.size >= size:
+        return values[:size].copy()
+    return np.concatenate((values, np.full(size - values.size, fill, dtype=float)))
 
 
 class JointTrackingTargetPublisher(Node):
@@ -65,14 +72,14 @@ class JointTrackingTargetPublisher(Node):
         self.declare_parameter("sine_frequency", 0.5)
         self.declare_parameter("time_offset", 0.0)
         self.declare_parameter("joint_names", DEFAULT_JOINT_NAMES)
-        self.declare_parameter("position_center", DEFAULT_POSITION_CENTER)
-        self.declare_parameter("position_amplitude", DEFAULT_POSITION_AMPLITUDE)
-        self.declare_parameter("position_phase", DEFAULT_POSITION_PHASE)
-        self.declare_parameter("velocity_center", DEFAULT_VELOCITY_CENTER)
-        self.declare_parameter("velocity_amplitude", DEFAULT_VELOCITY_AMPLITUDE)
-        self.declare_parameter("velocity_phase", DEFAULT_VELOCITY_PHASE)
-        self.declare_parameter("position_weights", DEFAULT_POSITION_WEIGHTS)
-        self.declare_parameter("velocity_weights", DEFAULT_VELOCITY_WEIGHTS)
+        self.declare_parameter("position_center", DEFAULT_POSITION_CENTER.tolist())
+        self.declare_parameter("position_amplitude", DEFAULT_POSITION_AMPLITUDE.tolist())
+        self.declare_parameter("position_phase", DEFAULT_POSITION_PHASE.tolist())
+        self.declare_parameter("velocity_center", DEFAULT_VELOCITY_CENTER.tolist())
+        self.declare_parameter("velocity_amplitude", DEFAULT_VELOCITY_AMPLITUDE.tolist())
+        self.declare_parameter("velocity_phase", DEFAULT_VELOCITY_PHASE.tolist())
+        self.declare_parameter("position_weights", DEFAULT_POSITION_WEIGHTS.tolist())
+        self.declare_parameter("velocity_weights", DEFAULT_VELOCITY_WEIGHTS.tolist())
 
         self.topic = self.get_parameter("topic").value
         self.observation_topic = self.get_parameter("observation_topic").value
@@ -91,42 +98,42 @@ class JointTrackingTargetPublisher(Node):
 
         joint_count = len(self.joint_names)
         self.position_center = _resize(
-            _as_list(self.get_parameter("position_center").value, DEFAULT_POSITION_CENTER),
+            _as_array(self.get_parameter("position_center").value, DEFAULT_POSITION_CENTER),
             joint_count,
             0.0,
         )
         self.position_amplitude = _resize(
-            _as_list(self.get_parameter("position_amplitude").value, DEFAULT_POSITION_AMPLITUDE),
+            _as_array(self.get_parameter("position_amplitude").value, DEFAULT_POSITION_AMPLITUDE),
             joint_count,
             0.0,
         )
         self.position_phase = _resize(
-            _as_list(self.get_parameter("position_phase").value, DEFAULT_POSITION_PHASE),
+            _as_array(self.get_parameter("position_phase").value, DEFAULT_POSITION_PHASE),
             joint_count,
             0.0,
         )
         self.velocity_center = _resize(
-            _as_list(self.get_parameter("velocity_center").value, DEFAULT_VELOCITY_CENTER),
+            _as_array(self.get_parameter("velocity_center").value, DEFAULT_VELOCITY_CENTER),
             joint_count,
             0.0,
         )
         self.velocity_amplitude = _resize(
-            _as_list(self.get_parameter("velocity_amplitude").value, DEFAULT_VELOCITY_AMPLITUDE),
+            _as_array(self.get_parameter("velocity_amplitude").value, DEFAULT_VELOCITY_AMPLITUDE),
             joint_count,
             0.0,
         )
         self.velocity_phase = _resize(
-            _as_list(self.get_parameter("velocity_phase").value, DEFAULT_VELOCITY_PHASE),
+            _as_array(self.get_parameter("velocity_phase").value, DEFAULT_VELOCITY_PHASE),
             joint_count,
             0.0,
         )
         self.position_weights = _resize(
-            _as_list(self.get_parameter("position_weights").value, DEFAULT_POSITION_WEIGHTS),
+            _as_array(self.get_parameter("position_weights").value, DEFAULT_POSITION_WEIGHTS),
             joint_count,
             20.0,
         )
         self.velocity_weights = _resize(
-            _as_list(self.get_parameter("velocity_weights").value, DEFAULT_VELOCITY_WEIGHTS),
+            _as_array(self.get_parameter("velocity_weights").value, DEFAULT_VELOCITY_WEIGHTS),
             joint_count,
             2.0,
         )
