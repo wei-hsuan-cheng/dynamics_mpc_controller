@@ -5,6 +5,8 @@ ROS 2 controller package for fixed-base inverse/forward dynamics MPC using [OCS2
 - The inverse dynamics MPC formulation uses [`pinocchio::rnea()`](./src/inverse_dynamics_mpc/constraint/inverse_dynamics_rnea_with_ee_wrench_constraint_cppad.cpp#L59) as state-input equality constraint.
 - The forward dynamics MPC formulation uses [`pinocchio::aba()`](./src/forward_dynamics_mpc/dynamics/forward_dynamics_aba_dynamics_ad.cpp#L41) as system dynamics model.
 
+Full details about the dynamics mpc formulation (model/cost/constraint/solver/etc.) can be found in [`dynamics_mpc_formulation.md`](./docs/dynamics_mpc_formulation.md).
+
 ## Build and Install
 Clone this repo and all sub-repo with vcs;
 ```bash
