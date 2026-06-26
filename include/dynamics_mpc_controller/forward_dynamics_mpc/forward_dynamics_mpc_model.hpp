@@ -35,9 +35,9 @@ public:
   const std::string& endEffectorFrame() const { return end_effector_frame_; }
   pinocchio::FrameIndex endEffectorFrameId() const { return end_effector_frame_id_; }
 
-  ocs2::vector_t getQ(const ocs2::vector_t& state) const;
-  ocs2::vector_t getV(const ocs2::vector_t& state) const;
-  ocs2::vector_t getTau(const ocs2::vector_t& input) const;
+  ocs2::vector_t getJointPosition(const ocs2::vector_t& state) const;
+  ocs2::vector_t getJointVelocity(const ocs2::vector_t& state) const;
+  ocs2::vector_t getJointTorque(const ocs2::vector_t& input) const;
 
 private:
   std::size_t joint_dim_{0};

@@ -883,15 +883,15 @@ void InverseDynamicsMpcController::check_initializer(const SystemObservation& ob
 
   const vector_t numeric_expected_tau = model.hasEeWrenchInput() ?
     interface_->computeInverseDynamicsTorqueWithEeWrench(
-      model.getQ(observation.state),
-      model.getV(observation.state),
-      model.getA(input),
-      model.getWrench(input)) :
+      model.getJointPosition(observation.state),
+      model.getJointVelocity(observation.state),
+      model.getJointAcceleration(input),
+      model.getEeWrench(input)) :
     interface_->computeInverseDynamicsTorque(
-      model.getQ(observation.state),
-      model.getV(observation.state),
-      model.getA(input));
-  const vector_t numeric_residual = numeric_expected_tau - model.getTau(input);
+      model.getJointPosition(observation.state),
+      model.getJointVelocity(observation.state),
+      model.getJointAcceleration(input));
+  const vector_t numeric_residual = numeric_expected_tau - model.getJointTorque(input);
   const auto& problem = interface_->getOptimalControlProblem();
   const auto residual_terms = problem.equalityConstraintPtr->getValue(
     observation.time,
@@ -971,10 +971,10 @@ InverseDynamicsMpcController::vector_t InverseDynamicsMpcController::compute_pol
 
   // Additional low-level PD feedback gains for torque compensation
   if (low_level_pd_feedback_active_) {
-    const vector_t q = model.getQ(observation.state);
-    const vector_t v = model.getV(observation.state);
-    const vector_t q_nominal = model.getQ(policy_state);
-    const vector_t v_nominal = model.getV(policy_state);
+    const vector_t q = model.getJointPosition(observation.state);
+    const vector_t v = model.getJointVelocity(observation.state);
+    const vector_t q_nominal = model.getJointPosition(policy_state);
+    const vector_t v_nominal = model.getJointVelocity(policy_state);
 
     const vector_t tau_feedback =
       low_level_pd_kp_.cwiseProduct(q_nominal - q) +
@@ -1044,21 +1044,21 @@ bool InverseDynamicsMpcController::policy_input_is_acceptable(
     return false;
   }
 
-  const vector_t commanded_tau = model.getTau(command_input);
+  const vector_t commanded_tau = model.getJointTorque(command_input);
 
   if (low_level_pd_feedback_active_) {
     rnea_residual = 0.0;
   } else {
     const vector_t expected_tau = model.hasEeWrenchInput() ?
       interface_->computeInverseDynamicsTorqueWithEeWrench(
-        model.getQ(observation.state),
-        model.getV(observation.state),
-        model.getA(command_input),
-        model.getWrench(command_input)) :
+        model.getJointPosition(observation.state),
+        model.getJointVelocity(observation.state),
+        model.getJointAcceleration(command_input),
+        model.getEeWrench(command_input)) :
       interface_->computeInverseDynamicsTorque(
-        model.getQ(observation.state),
-        model.getV(observation.state),
-        model.getA(command_input));
+        model.getJointPosition(observation.state),
+        model.getJointVelocity(observation.state),
+        model.getJointAcceleration(command_input));
     rnea_residual = (expected_tau - commanded_tau).lpNorm<Eigen::Infinity>();
     if (!std::isfinite(rnea_residual)) {
       return false;

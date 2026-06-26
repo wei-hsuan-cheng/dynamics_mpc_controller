@@ -154,8 +154,8 @@ ForwardJointTrackingTarget::TargetTrajectories ForwardJointTrackingTarget::fromO
   desired_state.tail(static_cast<Eigen::Index>(model.jointDim())).setZero();
   const ocs2::vector_t desired_input =
     interface_.computeNonlinearEffects(
-      model.getQ(desired_state),
-      model.getV(desired_state));
+      model.getJointPosition(desired_state),
+      model.getJointVelocity(desired_state));
 
   return TargetTrajectories(
     {observation.time},
@@ -263,8 +263,8 @@ ForwardJointTrackingTarget::TargetTrajectories ForwardJointTrackingTarget::fromM
     }
 
     ocs2::vector_t input = interface_.computeNonlinearEffects(
-      model.getQ(state),
-      model.getV(state));
+      model.getJointPosition(state),
+      model.getJointVelocity(state));
 
     if (!msg.joint_torque_trajectory.empty()) {
       const ocs2::vector_t raw_torque =

@@ -878,8 +878,8 @@ void ForwardDynamicsMpcController::check_initializer(const SystemObservation& ob
     next_state);
 
   const vector_t acceleration = interface_->computeForwardDynamics(
-    model.getQ(observation.state),
-    model.getV(observation.state),
+    model.getJointPosition(observation.state),
+    model.getJointVelocity(observation.state),
     input);
 
   double bound_violation = 0.0;
@@ -938,10 +938,10 @@ ForwardDynamicsMpcController::vector_t ForwardDynamicsMpcController::compute_pol
 
   // Additional low-level PD feedback gains for torque compensation
   if (low_level_pd_feedback_active_) {
-    const vector_t q = model.getQ(observation.state);
-    const vector_t v = model.getV(observation.state);
-    const vector_t q_nominal = model.getQ(policy_state);
-    const vector_t v_nominal = model.getV(policy_state);
+    const vector_t q = model.getJointPosition(observation.state);
+    const vector_t v = model.getJointVelocity(observation.state);
+    const vector_t q_nominal = model.getJointPosition(policy_state);
+    const vector_t v_nominal = model.getJointVelocity(policy_state);
 
     command_input +=
       low_level_pd_kp_.cwiseProduct(q_nominal - q) +

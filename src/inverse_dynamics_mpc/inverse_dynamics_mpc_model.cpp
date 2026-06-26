@@ -21,27 +21,27 @@ InverseDynamicsMpcModel::InverseDynamicsMpcModel(
 {
 }
 
-ocs2::vector_t InverseDynamicsMpcModel::getQ(const ocs2::vector_t& state) const
+ocs2::vector_t InverseDynamicsMpcModel::getJointPosition(const ocs2::vector_t& state) const
 {
   return state.segment(static_cast<Eigen::Index>(qOffset()), static_cast<Eigen::Index>(joint_dim_));
 }
 
-ocs2::vector_t InverseDynamicsMpcModel::getV(const ocs2::vector_t& state) const
+ocs2::vector_t InverseDynamicsMpcModel::getJointVelocity(const ocs2::vector_t& state) const
 {
   return state.segment(static_cast<Eigen::Index>(vOffset()), static_cast<Eigen::Index>(joint_dim_));
 }
 
-ocs2::vector_t InverseDynamicsMpcModel::getA(const ocs2::vector_t& input) const
+ocs2::vector_t InverseDynamicsMpcModel::getJointAcceleration(const ocs2::vector_t& input) const
 {
   return input.segment(static_cast<Eigen::Index>(aOffset()), static_cast<Eigen::Index>(joint_dim_));
 }
 
-ocs2::vector_t InverseDynamicsMpcModel::getTau(const ocs2::vector_t& input) const
+ocs2::vector_t InverseDynamicsMpcModel::getJointTorque(const ocs2::vector_t& input) const
 {
   return input.segment(static_cast<Eigen::Index>(tauOffset()), static_cast<Eigen::Index>(joint_dim_));
 }
 
-ocs2::vector_t InverseDynamicsMpcModel::getWrench(const ocs2::vector_t& input) const
+ocs2::vector_t InverseDynamicsMpcModel::getEeWrench(const ocs2::vector_t& input) const
 {
   if (!wrench_in_rnea_) {
     throw std::logic_error("Cannot read an end-effector wrench from the no-wrench MPC input.");

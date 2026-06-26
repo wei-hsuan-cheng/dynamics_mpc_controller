@@ -30,8 +30,8 @@ void InverseDynamicsInitializer::compute(
 {
   const auto n = static_cast<Eigen::Index>(model_.jointDim());
   const ocs2::scalar_t dt = std::max<ocs2::scalar_t>(0.0, nextTime - time);
-  const ocs2::vector_t q = model_.getQ(state);
-  const ocs2::vector_t v = model_.getV(state);
+  const ocs2::vector_t q = model_.getJointPosition(state);
+  const ocs2::vector_t v = model_.getJointVelocity(state);
 
   const ocs2::vector_t acceleration = ocs2::vector_t::Zero(n);
 
