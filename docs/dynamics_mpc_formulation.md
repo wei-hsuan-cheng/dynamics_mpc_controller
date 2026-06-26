@@ -1,11 +1,11 @@
 # Dynamics MPC Formulations
 
-This package contains fixed-base joint-space dynamics MPC formulations using OCS2 and Pinocchio:
+This package contains fixed-base joint space dynamics MPC formulations using OCS2 and Pinocchio:
 
 - inverse dynamics MPC with Pinocchio RNEA (recursive Newton-Euler algorithm)
 - forward dynamics MPC with Pinocchio ABA (articulated-body algorithm)
 
-Let the manipulator have $n$ actuated joints. Both formulations use the joint-space state
+Let the manipulator have $n$ actuated joints. Both formulations use the joint space state
 
 $$
 x =
