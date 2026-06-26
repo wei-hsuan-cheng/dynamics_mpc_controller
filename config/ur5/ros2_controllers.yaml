@@ -335,7 +335,7 @@ forward_dynamics_mpc_controller:
           activate: true
           terminalScaling: 0.0
           pose:
-            scaling: 10.0
+            scaling: 100.0
             diagonal: [20.0, 20.0, 20.0, 5.0, 5.0, 5.0]
           twist:
             scaling: 1.0
