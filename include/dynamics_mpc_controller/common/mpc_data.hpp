@@ -27,8 +27,7 @@ struct MPCData
   std::string lib_folder_;
   std::string urdf_file_;
   double command_smoothing_alpha_{1.0};
-  bool gravity_compensation_only_{false};
-  std::vector<double> hold_velocity_damping_;
+  bool always_hold_current_joint_config_{false};
   std::string target_trajectories_topic_{"/target_trajectories"};
   std::string mpc_observation_topic_{"/mpc_observation"};
 };

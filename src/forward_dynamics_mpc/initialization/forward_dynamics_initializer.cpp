@@ -10,15 +10,9 @@ namespace dynamics_mpc_controller
 
 ForwardDynamicsInitializer::ForwardDynamicsInitializer(
   const ocs2::PinocchioInterface& pinocchioInterface,
-  ForwardDynamicsMpcModel model,
-  ocs2::vector_t accelerationLowerBound,
-  ocs2::vector_t accelerationUpperBound,
-  ocs2::vector_t velocityDamping)
+  ForwardDynamicsMpcModel model)
 : pinocchio_interface_(pinocchioInterface),
-  model_(std::move(model)),
-  acceleration_lower_bound_(std::move(accelerationLowerBound)),
-  acceleration_upper_bound_(std::move(accelerationUpperBound)),
-  velocity_damping_(std::move(velocityDamping))
+  model_(std::move(model))
 {
 }
 
@@ -39,8 +33,7 @@ void ForwardDynamicsInitializer::compute(
   const ocs2::vector_t q = model_.getQ(state);
   const ocs2::vector_t v = model_.getV(state);
 
-  ocs2::vector_t acceleration = (-velocity_damping_.array() * v.array()).matrix();
-  acceleration = acceleration.cwiseMax(acceleration_lower_bound_).cwiseMin(acceleration_upper_bound_);
+  const ocs2::vector_t acceleration = ocs2::vector_t::Zero(n);
 
   auto& data = pinocchio_interface_.getData();
   const auto& pinocchio_model = pinocchio_interface_.getModel();

@@ -128,6 +128,9 @@ private:
   std::string solver_type_{"ddp"};
   vector_t last_input_;
   vector_t last_tau_command_;
+  vector_t hold_joint_position_;
+  vector_t hold_joint_kp_;
+  vector_t hold_joint_kd_;
   vector_t low_level_pd_kp_;
   vector_t low_level_pd_kd_;
   vector_t estimated_ee_wrench_;
@@ -138,6 +141,7 @@ private:
   double relative_projection_error_{0.0};
   bool low_level_pd_feedback_active_{false};
   bool wrench_estimate_valid_{false};
+  bool hold_joint_position_valid_{false};
 
   std::thread mpc_thread_;
   std::atomic_bool execute_mpc_{false};

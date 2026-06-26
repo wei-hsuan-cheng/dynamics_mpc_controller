@@ -17,10 +17,7 @@ class InverseDynamicsInitializer final : public ocs2::Initializer
 public:
   InverseDynamicsInitializer(
     const ocs2::PinocchioInterface& pinocchioInterface,
-    InverseDynamicsMpcModel model,
-    ocs2::vector_t accelerationLowerBound,
-    ocs2::vector_t accelerationUpperBound,
-    ocs2::vector_t velocityDamping);
+    InverseDynamicsMpcModel model);
 
   ~InverseDynamicsInitializer() override = default;
   InverseDynamicsInitializer* clone() const override;
@@ -37,9 +34,6 @@ private:
 
   ocs2::PinocchioInterface pinocchio_interface_;
   InverseDynamicsMpcModel model_;
-  ocs2::vector_t acceleration_lower_bound_;
-  ocs2::vector_t acceleration_upper_bound_;
-  ocs2::vector_t velocity_damping_;
 };
 
 }  // namespace dynamics_mpc_controller

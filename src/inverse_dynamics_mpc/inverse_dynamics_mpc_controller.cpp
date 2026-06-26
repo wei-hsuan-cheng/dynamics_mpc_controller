@@ -126,8 +126,8 @@ bool InverseDynamicsMpcController::configure_mpc_data()
   mpc_data_.target_trajectories_topic_ = parameters_.topics.target_trajectories_topic;
   mpc_data_.mpc_observation_topic_ = parameters_.topics.mpc_observation_topic;
   mpc_data_.command_smoothing_alpha_ = parameters_.numeric.commandSmoothingAlpha;
-  mpc_data_.gravity_compensation_only_ = parameters_.numeric.gravityCompensationOnly;
-  mpc_data_.hold_velocity_damping_ = parameters_.numeric.holdVelocityDamping;
+  mpc_data_.always_hold_current_joint_config_ =
+    parameters_.holdCurrentJointConfig.alwaysHold;
   status_log_period_ms_ = std::max<std::int64_t>(
     1,
     static_cast<std::int64_t>(std::llround(1000.0 * parameters_.numeric.statusLogPeriod)));
@@ -186,6 +186,24 @@ bool InverseDynamicsMpcController::configure_mpc_ocs2()
   ee_motion_tracking_target_ = std::make_unique<target::EeMotionTrackingTarget>(*interface_);
   last_input_ = vector_t::Zero(static_cast<Eigen::Index>(model.inputDim()));
   last_tau_command_ = vector_t::Zero(static_cast<Eigen::Index>(model.jointDim()));
+  hold_joint_position_ = vector_t::Zero(static_cast<Eigen::Index>(model.jointDim()));
+  hold_joint_position_valid_ = false;
+  try {
+    hold_joint_kp_ = toEigenVectorExact(
+      parameters_.holdCurrentJointConfig.holdJointKp,
+      model.jointDim(),
+      "holdCurrentJointConfig.holdJointKp");
+    hold_joint_kd_ = toEigenVectorExact(
+      parameters_.holdCurrentJointConfig.holdJointKd,
+      model.jointDim(),
+      "holdCurrentJointConfig.holdJointKd");
+  } catch (const std::exception& e) {
+    RCLCPP_ERROR(
+      get_node()->get_logger(),
+      "[InverseDynamicsMpcController] failed to configure holdCurrentJointConfig: %s",
+      e.what());
+    return false;
+  }
   low_level_pd_kp_ = vector_t::Zero(static_cast<Eigen::Index>(model.jointDim()));
   low_level_pd_kd_ = vector_t::Zero(static_cast<Eigen::Index>(model.jointDim()));
   estimated_ee_wrench_ = vector_t::Zero(6);
@@ -355,6 +373,7 @@ controller_interface::CallbackReturn InverseDynamicsMpcController::on_activate(
   reset_mpc_warm_start_requested_ = false;
   target_received_ = false;
   target_timeout_hold_active_ = false;
+  hold_joint_position_valid_ = false;
   received_target_msg_.writeFromNonRT(std::shared_ptr<TargetMsg>{});
   latest_target_receive_time_sec_.writeFromNonRT(0.0);
   virtual_time_ = 0.0;
@@ -365,12 +384,12 @@ controller_interface::CallbackReturn InverseDynamicsMpcController::on_activate(
   // Hold robot
   apply_hold_command();
 
-  if (mpc_data_.gravity_compensation_only_) {
+  if (mpc_data_.always_hold_current_joint_config_) {
     RCLCPP_WARN_THROTTLE(
       get_node()->get_logger(),
       *get_node()->get_clock(),
       status_log_period_ms_,
-      "[InverseDynamicsMpcController] gravityCompensationOnly=true; bypassing MPC solver and commanding bounded inverse-dynamics hold.");
+      "[InverseDynamicsMpcController] holdCurrentJointConfig.alwaysHold=true; bypassing MPC solver and commanding bounded nonlinear + impedance hold.");
     RCLCPP_INFO(get_node()->get_logger(), "[InverseDynamicsMpcController] activated");
     return controller_interface::CallbackReturn::SUCCESS;
   }
@@ -460,6 +479,7 @@ controller_interface::CallbackReturn InverseDynamicsMpcController::on_activate(
 
   // Hold robot
   apply_hold_command();
+  hold_joint_position_valid_ = false;
 
   execute_mpc_ = true;
   mpc_thread_ = std::thread(&InverseDynamicsMpcController::mpc_loop, this);
@@ -475,6 +495,7 @@ controller_interface::CallbackReturn InverseDynamicsMpcController::on_deactivate
   reset_mpc_warm_start_requested_ = false;
   target_received_ = false;
   target_timeout_hold_active_ = false;
+  hold_joint_position_valid_ = false;
   received_target_msg_.writeFromNonRT(std::shared_ptr<TargetMsg>{});
   latest_target_receive_time_sec_.writeFromNonRT(0.0);
   if (mpc_thread_.joinable()) {
@@ -609,7 +630,7 @@ void InverseDynamicsMpcController::mpc_loop()
 
 controller_interface::return_type InverseDynamicsMpcController::update_reference_from_subscribers()
 {
-  if (mpc_data_.gravity_compensation_only_) {
+  if (mpc_data_.always_hold_current_joint_config_) {
     return controller_interface::return_type::OK;
   }
 
@@ -675,14 +696,14 @@ controller_interface::return_type InverseDynamicsMpcController::update_and_write
   const SystemObservation observation = build_observation(virtual_time_);
   publish_mpc_observation(observation);
 
-  if (mpc_data_.gravity_compensation_only_) {
+  if (mpc_data_.always_hold_current_joint_config_) {
     // Hold robot
     apply_hold_command();
     RCLCPP_INFO_THROTTLE(
       get_node()->get_logger(),
       *get_node()->get_clock(),
       status_log_period_ms_,
-      "[InverseDynamicsMpcController][HOLD_MODE] gravityCompensationOnly=true; applying bounded inverse-dynamics hold.");
+      "[InverseDynamicsMpcController][HOLD_MODE] holdCurrentJointConfig.alwaysHold=true; applying bounded nonlinear + impedance hold.");
     virtual_time_ += period.seconds();
     return controller_interface::return_type::OK;
   }
@@ -714,6 +735,7 @@ controller_interface::return_type InverseDynamicsMpcController::update_and_write
     if (!target_timeout_hold_active_.exchange(true)) {
       policy_performance_acceptable_ = false;
       reset_mpc_warm_start_requested_ = true;
+      hold_joint_position_valid_ = false;
     }
     // Hold robot
     apply_hold_command();
@@ -733,7 +755,7 @@ controller_interface::return_type InverseDynamicsMpcController::update_and_write
   const bool policy_updated = mrt_interface_->updatePolicy();
   if (policy_updated) {
     const auto& performance = mrt_interface_->getPerformanceIndices();
-    const auto& validation = parameters_.numeric.policyValidation;
+    const auto& validation = parameters_.policyValidation;
     policy_performance_acceptable_ = policy_performance_is_acceptable(performance);
 
     if (!policy_performance_acceptable_.load()) {
@@ -818,7 +840,7 @@ controller_interface::return_type InverseDynamicsMpcController::update_and_write
       "[InverseDynamicsMpcController][HOLD_FALLBACK] rejecting MPC command | RNEA residual=%.6g Nm, input-bound violation=%.6g.",
       rnea_residual,
       input_bound_violation);
-    if (parameters_.numeric.policyValidation.activate) {
+    if (parameters_.policyValidation.activate) {
       reset_mpc_warm_start_requested_ = true;
     }
     // Hold robot
@@ -896,35 +918,27 @@ void InverseDynamicsMpcController::check_initializer(const SystemObservation& ob
     bound_violation);
 }
 
-// Hold robot in its current position using a bounded RNEA nonlinear torque command
+// Hold robot around the latched joint position using bounded nonlinear + impedance torque.
 void InverseDynamicsMpcController::apply_hold_command()
 {
   const auto& model = interface_->getInverseDynamicsMpcModel();
   const std::size_t n = model.jointDim();
   const vector_t q = current_position_vector();
   const vector_t v = current_velocity_vector();
-  vector_t a_hold = vector_t::Zero(static_cast<Eigen::Index>(n));
 
-  for (std::size_t i = 0; i < n && i < mpc_data_.hold_velocity_damping_.size(); ++i) {
-    a_hold(static_cast<Eigen::Index>(i)) =
-      -mpc_data_.hold_velocity_damping_[i] * v(static_cast<Eigen::Index>(i));
+  if (!hold_joint_position_valid_ ||
+      hold_joint_position_.size() != static_cast<Eigen::Index>(n)) {
+    hold_joint_position_ = q;
+    hold_joint_position_valid_ = true;
   }
 
-  if (interface_->inputLimitsActive()) {
-    a_hold = a_hold.cwiseMax(
-      interface_->inputLowerBounds().segment(
-        static_cast<Eigen::Index>(model.aOffset()),
-        static_cast<Eigen::Index>(n)));
-    a_hold = a_hold.cwiseMin(
-      interface_->inputUpperBounds().segment(
-        static_cast<Eigen::Index>(model.aOffset()),
-        static_cast<Eigen::Index>(n)));
-  }
-
-  vector_t tau = interface_->computeInverseDynamicsTorque(
-    q,
-    v,
-    a_hold);
+  vector_t tau = interface_->computeNonlinearEffects(q, v) +
+    controller_utils::computeJointSpaceImpedanceTorque(
+      q,
+      v,
+      hold_joint_position_,
+      hold_joint_kp_,
+      hold_joint_kd_);
 
   if (interface_->inputLimitsActive()) {
     tau = tau.cwiseMax(
@@ -940,9 +954,6 @@ void InverseDynamicsMpcController::apply_hold_command()
   write_torque_command(tau);
 
   last_input_.setZero();
-  last_input_.segment(
-    static_cast<Eigen::Index>(model.aOffset()),
-    static_cast<Eigen::Index>(n)) = a_hold;
   last_input_.segment(
     static_cast<Eigen::Index>(model.tauOffset()),
     static_cast<Eigen::Index>(n)) = tau;
@@ -1006,6 +1017,7 @@ void InverseDynamicsMpcController::apply_torque_command(const vector_t& command_
 
   last_input_ = command_input;
   last_tau_command_ = tau;
+  hold_joint_position_valid_ = false;
 }
 
 void InverseDynamicsMpcController::write_torque_command(const vector_t& torque)
@@ -1063,7 +1075,7 @@ bool InverseDynamicsMpcController::policy_input_is_acceptable(
       interface_->inputUpperBounds().segment(tau_offset, tau_dim));
   }
 
-  const auto& validation = parameters_.numeric.policyValidation;
+  const auto& validation = parameters_.policyValidation;
   return !validation.activate ||
     (rnea_residual <= validation.maxRneaResidual &&
     input_bound_violation <= validation.inputBoundTolerance);
@@ -1072,7 +1084,7 @@ bool InverseDynamicsMpcController::policy_input_is_acceptable(
 bool InverseDynamicsMpcController::policy_performance_is_acceptable(
   const ocs2::PerformanceIndex& performance) const
 {
-  const auto& validation = parameters_.numeric.policyValidation;
+  const auto& validation = parameters_.policyValidation;
   return !validation.activate ||
     (std::isfinite(performance.cost) &&
     std::isfinite(performance.equalityConstraintsSSE) &&

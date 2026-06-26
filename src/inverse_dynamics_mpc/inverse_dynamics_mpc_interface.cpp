@@ -584,11 +584,7 @@ void InverseDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
   rollout_ptr_ = std::make_unique<ocs2::TimeTriggeredRollout>(*problem_.dynamicsPtr, rollout_settings);
   initializer_ptr_ = std::make_unique<InverseDynamicsInitializer>(
     *pinocchio_interface_ptr_,
-    inverse_dynamics_model_,
-    acceleration_lower,
-    acceleration_upper,
-    vectorFromArrayExact(
-      parameters.numeric.holdVelocityDamping, n, "numeric.holdVelocityDamping"));
+    inverse_dynamics_model_);
 }
 
 InverseDynamicsEvaluation InverseDynamicsMpcInterface::evaluateInverseDynamics(

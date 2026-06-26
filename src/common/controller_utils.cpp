@@ -84,6 +84,17 @@ double maxBoundViolation(
   return std::max(0.0, std::max(lower_violation.maxCoeff(), upper_violation.maxCoeff()));
 }
 
+vector_t computeJointSpaceImpedanceTorque(
+  const vector_t& position,
+  const vector_t& velocity,
+  const vector_t& referencePosition,
+  const vector_t& stiffness,
+  const vector_t& damping)
+{
+  return stiffness.cwiseProduct(referencePosition - position) -
+    damping.cwiseProduct(velocity);
+}
+
 bool commandIsStale(
   bool commandReceived,
   double currentTimeSec,

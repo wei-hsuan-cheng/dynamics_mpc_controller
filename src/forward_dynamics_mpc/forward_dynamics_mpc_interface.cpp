@@ -484,17 +484,7 @@ void ForwardDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
   rollout_ptr_ = std::make_unique<ocs2::TimeTriggeredRollout>(*problem_.dynamicsPtr, rollout_settings);
   initializer_ptr_ = std::make_unique<ForwardDynamicsInitializer>(
     *pinocchio_interface_ptr_,
-    forward_dynamics_model_,
-    vectorFromArrayExact(
-      parameters.numeric.holdAccelerationLowerBound,
-      n,
-      "numeric.holdAccelerationLowerBound"),
-    vectorFromArrayExact(
-      parameters.numeric.holdAccelerationUpperBound,
-      n,
-      "numeric.holdAccelerationUpperBound"),
-    vectorFromArrayExact(
-      parameters.numeric.holdVelocityDamping, n, "numeric.holdVelocityDamping"));
+    forward_dynamics_model_);
 }
 
 ocs2::vector_t ForwardDynamicsMpcInterface::computeForwardDynamics(

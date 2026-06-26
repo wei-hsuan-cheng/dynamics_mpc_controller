@@ -196,15 +196,19 @@ inverse_dynamics_mpc_controller:
       statusLogPeriod: 2.0
       targetTimeout: 0.2
       commandSmoothingAlpha: 1.0
-      gravityCompensationOnly: false
-      holdVelocityDamping: [50.0, 50.0, 50.0, 50.0, 50.0, 50.0]
-      policyValidation:
-        activate: false
-        maxEqualityConstraintsSSE: 1.0e-2
-        maxDynamicsViolationSSE: 1.0e-2
-        maxInequalityConstraintsSSE: 1.0e-6
-        maxRneaResidual: 0.1
-        inputBoundTolerance: 1.0e-3
+
+    holdCurrentJointConfig:
+      alwaysHold: false
+      holdJointKp: [100.0, 100.0, 100.0, 100.0, 100.0, 100.0]
+      holdJointKd: [50.0, 50.0, 50.0, 50.0, 50.0, 50.0]
+
+    policyValidation:
+      activate: false
+      maxEqualityConstraintsSSE: 1.0e-2
+      maxDynamicsViolationSSE: 1.0e-2
+      maxInequalityConstraintsSSE: 1.0e-6
+      maxRneaResidual: 0.1
+      inputBoundTolerance: 1.0e-3
 
     robot:
       prefix: "ur"
@@ -402,15 +406,17 @@ forward_dynamics_mpc_controller:
       statusLogPeriod: 2.0
       targetTimeout: 0.2
       commandSmoothingAlpha: 1.0
-      gravityCompensationOnly: false
-      holdVelocityDamping: [50.0, 50.0, 50.0, 50.0, 50.0, 50.0]
-      holdAccelerationLowerBound: [-10.0, -10.0, -10.0, -20.0, -20.0, -20.0]
-      holdAccelerationUpperBound: [10.0, 10.0, 10.0, 20.0, 20.0, 20.0]
-      policyValidation:
-        activate: false
-        maxDynamicsViolationSSE: 1.0e-2
-        maxInequalityConstraintsSSE: 1.0e-6
-        inputBoundTolerance: 1.0e-3
+
+    holdCurrentJointConfig:
+      alwaysHold: false
+      holdJointKp: [100.0, 100.0, 100.0, 100.0, 100.0, 100.0]
+      holdJointKd: [50.0, 50.0, 50.0, 50.0, 50.0, 50.0]
+
+    policyValidation:
+      activate: false
+      maxDynamicsViolationSSE: 1.0e-2
+      maxInequalityConstraintsSSE: 1.0e-6
+      inputBoundTolerance: 1.0e-3
 
     robot:
       prefix: "ur"

@@ -939,69 +939,76 @@ inverse_dynamics_mpc_controller:
       }
     }
 
-    gravityCompensationOnly: {
+  holdCurrentJointConfig:
+    alwaysHold: {
       type: bool,
       default_value: false,
-      description: "Bypass MPC policy output and command Pinocchio gravity compensation only"
+      description: "Bypass MPC policy output and command bounded RNEA hold torque around the current joint configuration"
     }
 
-    holdVelocityDamping: {
+    holdJointKp: {
       type: double_array,
       default_value: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-      description: "Joint-space damping gain used by hold mode as desired acceleration a_hold = -D * v"
+      description: "Joint-space proportional gain used by hold mode as impedance torque tau_hold = nonlinear(q, v) + Kp * (q_hold - q) - Kd * v"
     }
 
-    policyValidation:
-      activate: {
-        type: bool,
-        default_value: true,
-        description: "Reject MPC policies that fail solver, inverse-dynamics, or input-bound checks"
-      }
+    holdJointKd: {
+      type: double_array,
+      default_value: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      description: "Joint-space damping gain used by hold mode as impedance torque tau_hold = nonlinear(q, v) + Kp * (q_hold - q) - Kd * v"
+    }
 
-      maxEqualityConstraintsSSE: {
-        type: double,
-        default_value: 1.0e-2,
-        description: "Maximum accepted OCS2 equality-constraint SSE",
-        validation: {
-          gt_eq: [0.0]
-        }
-      }
+  policyValidation:
+    activate: {
+      type: bool,
+      default_value: true,
+      description: "Reject MPC policies that fail solver, inverse-dynamics, or input-bound checks"
+    }
 
-      maxDynamicsViolationSSE: {
-        type: double,
-        default_value: 1.0e-2,
-        description: "Maximum accepted OCS2 dynamics-violation SSE",
-        validation: {
-          gt_eq: [0.0]
-        }
+    maxEqualityConstraintsSSE: {
+      type: double,
+      default_value: 1.0e-2,
+      description: "Maximum accepted OCS2 equality-constraint SSE",
+      validation: {
+        gt_eq: [0.0]
       }
+    }
 
-      maxInequalityConstraintsSSE: {
-        type: double,
-        default_value: 1.0e-6,
-        description: "Maximum accepted OCS2 inequality-constraint SSE",
-        validation: {
-          gt_eq: [0.0]
-        }
+    maxDynamicsViolationSSE: {
+      type: double,
+      default_value: 1.0e-2,
+      description: "Maximum accepted OCS2 dynamics-violation SSE",
+      validation: {
+        gt_eq: [0.0]
       }
+    }
 
-      maxRneaResidual: {
-        type: double,
-        default_value: 0.1,
-        description: "Maximum accepted infinity norm of the current RNEA torque residual in Nm",
-        validation: {
-          gt_eq: [0.0]
-        }
+    maxInequalityConstraintsSSE: {
+      type: double,
+      default_value: 1.0e-6,
+      description: "Maximum accepted OCS2 inequality-constraint SSE",
+      validation: {
+        gt_eq: [0.0]
       }
+    }
 
-      inputBoundTolerance: {
-        type: double,
-        default_value: 1.0e-3,
-        description: "Allowed numerical input-bound violation",
-        validation: {
-          gt_eq: [0.0]
-        }
+    maxRneaResidual: {
+      type: double,
+      default_value: 0.1,
+      description: "Maximum accepted infinity norm of the current RNEA torque residual in Nm",
+      validation: {
+        gt_eq: [0.0]
       }
+    }
+
+    inputBoundTolerance: {
+      type: double,
+      default_value: 1.0e-3,
+      description: "Allowed numerical input-bound violation",
+      validation: {
+        gt_eq: [0.0]
+      }
+    }
 
   robot:
     prefix: {

@@ -39,6 +39,13 @@ double maxBoundViolation(
   const vector_t& lowerBound,
   const vector_t& upperBound);
 
+vector_t computeJointSpaceImpedanceTorque(
+  const vector_t& position,
+  const vector_t& velocity,
+  const vector_t& referencePosition,
+  const vector_t& stiffness,
+  const vector_t& damping);
+
 bool commandIsStale(
   bool commandReceived,
   double currentTimeSec,
