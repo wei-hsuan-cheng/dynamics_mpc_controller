@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import math
 import time as wall_time
 from typing import Sequence
 
@@ -12,9 +13,16 @@ from rclpy.node import Node
 DEFAULT_TOPIC = "/mujoco_ros2_control/external_wrench"
 DEFAULT_BODY_NAME = "ur_arm_tool0"
 DEFAULT_WRENCH_FRAME = "global" # "global" | "local"
-DEFAULT_FORCE = np.array([0.0, 0.0, 10.0])
-DEFAULT_TORQUE = np.array([0.0, 0.0, 0.0])
 
+DEFAULT_FORCE_CENTER = np.array([0.0, 0.0, 0.0])
+DEFAULT_FORCE_AMPLITUDE = np.array([0.0, 0.0, 20.0])
+DEFAULT_FORCE_PHASE = np.array([0.0, 0.0, 0.0])
+
+DEFAULT_TORQUE_CENTER = np.array([0.0, 0.0, 0.0])
+DEFAULT_TORQUE_AMPLITUDE = np.array([1.0, 0.0, 0.0])
+DEFAULT_TORQUE_PHASE = np.array([0.0, 0.0, 0.0])
+
+DEFAULT_WRENCH_FREQUENCY = 0.25 # [Hz]
 
 def _as_array(value, fallback: Sequence[float]) -> np.ndarray:
     if value is None:
@@ -29,6 +37,14 @@ def _resize(values: Sequence[float], size: int, fill: float) -> np.ndarray:
     return np.concatenate((values, np.full(size - values.size, fill, dtype=float)))
 
 
+def _sample_wave(center: np.ndarray, amplitude: np.ndarray, phase: np.ndarray, frequency: float, t: float):
+    omega = 2.0 * math.pi * frequency
+    return np.array([
+        center[i] + amplitude[i] * math.sin(omega * t + phase[i])
+        for i in range(len(center))
+    ])
+
+
 class MujocoExternalWrenchPublisher(Node):
     def __init__(self):
         super().__init__("mujoco_external_wrench_publisher")
@@ -36,32 +52,60 @@ class MujocoExternalWrenchPublisher(Node):
         self.declare_parameter("topic", DEFAULT_TOPIC)
         self.declare_parameter("body_name", DEFAULT_BODY_NAME)
         self.declare_parameter("wrench_frame", DEFAULT_WRENCH_FRAME)
-        self.declare_parameter("force", DEFAULT_FORCE.tolist())
-        self.declare_parameter("torque", DEFAULT_TORQUE.tolist())
         self.declare_parameter("publish_rate", 50.0)
+        self.declare_parameter("sine_frequency", DEFAULT_WRENCH_FREQUENCY)
+        self.declare_parameter("time_offset", 0.0)
         self.declare_parameter("duration", 0.0)
         self.declare_parameter("start_delay", 0.0)
         self.declare_parameter("zero_on_stop", True)
         self.declare_parameter("stamp_with_node_time", False)
+        self.declare_parameter("force_center", DEFAULT_FORCE_CENTER.tolist())
+        self.declare_parameter("force_amplitude", DEFAULT_FORCE_AMPLITUDE.tolist())
+        self.declare_parameter("force_phase", DEFAULT_FORCE_PHASE.tolist())
+        self.declare_parameter("torque_center", DEFAULT_TORQUE_CENTER.tolist())
+        self.declare_parameter("torque_amplitude", DEFAULT_TORQUE_AMPLITUDE.tolist())
+        self.declare_parameter("torque_phase", DEFAULT_TORQUE_PHASE.tolist())
 
         self.topic = str(self.get_parameter("topic").value)
         self.body_name = str(self.get_parameter("body_name").value)
         self.wrench_frame = str(self.get_parameter("wrench_frame").value)
-        self.force = _resize(
-            _as_array(self.get_parameter("force").value, DEFAULT_FORCE),
-            3,
-            0.0,
-        )
-        self.torque = _resize(
-            _as_array(self.get_parameter("torque").value, DEFAULT_TORQUE),
-            3,
-            0.0,
-        )
         self.publish_rate = max(1e-6, float(self.get_parameter("publish_rate").value))
+        self.sine_frequency = float(self.get_parameter("sine_frequency").value)
+        self.time_offset = float(self.get_parameter("time_offset").value)
         self.duration = max(0.0, float(self.get_parameter("duration").value))
         self.start_delay = max(0.0, float(self.get_parameter("start_delay").value))
         self.zero_on_stop = bool(self.get_parameter("zero_on_stop").value)
         self.stamp_with_node_time = bool(self.get_parameter("stamp_with_node_time").value)
+        self.force_center = _resize(
+            _as_array(self.get_parameter("force_center").value, DEFAULT_FORCE_CENTER),
+            3,
+            0.0,
+        )
+        self.force_amplitude = _resize(
+            _as_array(self.get_parameter("force_amplitude").value, DEFAULT_FORCE_AMPLITUDE),
+            3,
+            0.0,
+        )
+        self.force_phase = _resize(
+            _as_array(self.get_parameter("force_phase").value, DEFAULT_FORCE_PHASE),
+            3,
+            0.0,
+        )
+        self.torque_center = _resize(
+            _as_array(self.get_parameter("torque_center").value, DEFAULT_TORQUE_CENTER),
+            3,
+            0.0,
+        )
+        self.torque_amplitude = _resize(
+            _as_array(self.get_parameter("torque_amplitude").value, DEFAULT_TORQUE_AMPLITUDE),
+            3,
+            0.0,
+        )
+        self.torque_phase = _resize(
+            _as_array(self.get_parameter("torque_phase").value, DEFAULT_TORQUE_PHASE),
+            3,
+            0.0,
+        )
 
         self.start_wall_time = wall_time.monotonic()
         self.zero_sent = False
@@ -74,7 +118,13 @@ class MujocoExternalWrenchPublisher(Node):
             f"Publishing MuJoCo external wrench command to {self.topic} at "
             f"{self.publish_rate:.3f} Hz | body={self.body_name}, "
             f"wrench_frame={self.wrench_frame}, "
-            f"force={self.force.tolist()}, torque={self.torque.tolist()}, "
+            f"sine_frequency={self.sine_frequency:.3f} Hz, "
+            f"force_center={self.force_center.tolist()}, "
+            f"force_amplitude={self.force_amplitude.tolist()}, "
+            f"force_phase={self.force_phase.tolist()}, "
+            f"torque_center={self.torque_center.tolist()}, "
+            f"torque_amplitude={self.torque_amplitude.tolist()}, "
+            f"torque_phase={self.torque_phase.tolist()}, "
             f"duration={duration_text}, start_delay={self.start_delay:.3f} s, "
             f"stamp_with_node_time={self.stamp_with_node_time}"
         )
@@ -115,7 +165,22 @@ class MujocoExternalWrenchPublisher(Node):
                 self.publish_zero_once()
             return
 
-        self.publisher.publish(self.make_message(self.force, self.torque))
+        t = active_elapsed + self.time_offset
+        force = _sample_wave(
+            self.force_center,
+            self.force_amplitude,
+            self.force_phase,
+            self.sine_frequency,
+            t,
+        )
+        torque = _sample_wave(
+            self.torque_center,
+            self.torque_amplitude,
+            self.torque_phase,
+            self.sine_frequency,
+            t,
+        )
+        self.publisher.publish(self.make_message(force, torque))
 
 
 def main(args=None):
