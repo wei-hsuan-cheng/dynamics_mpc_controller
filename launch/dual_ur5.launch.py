@@ -32,6 +32,7 @@ def generate_launch_description():
         DeclareLaunchArgument("mujoco_headless", default_value="false"),
         DeclareLaunchArgument("mujoco_wait_to_start", default_value="true"),
         DeclareLaunchArgument("mujoco_real_time_factor", default_value="1.0"),
+        DeclareLaunchArgument("mujoco_publish_rate", default_value="100.0"),
         DeclareLaunchArgument("urdfFile", default_value=urdf_default),
         DeclareLaunchArgument(
             "libFolder",
@@ -108,6 +109,11 @@ def generate_launch_description():
             {
                 "mujoco_real_time_factor": ParameterValue(
                     LaunchConfiguration("mujoco_real_time_factor"), value_type=float
+                )
+            },
+            {
+                "mujoco_publish_rate": ParameterValue(
+                    LaunchConfiguration("mujoco_publish_rate"), value_type=float
                 )
             },
             {"gt_enabled": False},

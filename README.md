@@ -65,9 +65,10 @@ Useful launch args:
 ```bash
 mpcControllerName:=inverse_dynamics_mpc_controller | forward_dynamics_mpc_controller
 mujoco_headless:=true | false
-mujoco_real_time_factor:=1.0
-mpcFreq:=50 # (should be integer)
-mrtFreq:=1000 # (should be integer)
+mujoco_real_time_factor:=1.0 # double
+mujoco_publish_rate:=100.0 # double
+mpcFreq:=50 # should be integer
+mrtFreq:=1000 # should be integer
 ```
 
 Useful topics:
