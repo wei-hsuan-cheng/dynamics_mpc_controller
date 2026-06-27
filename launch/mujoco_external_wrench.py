@@ -6,12 +6,13 @@ from typing import Sequence
 import numpy as np
 
 import rclpy
-from geometry_msgs.msg import WrenchStamped
+from mujoco_ros2_control.msg import MujocoExternalWrench
 from rclpy.node import Node
 
 DEFAULT_TOPIC = "/mujoco_ros2_control/external_wrench"
 DEFAULT_BODY_NAME = "ur_arm_tool0"
-DEFAULT_FORCE = np.array([10.0, 20.0, 50.0])
+DEFAULT_WRENCH_FRAME = "global" # "global" | "local"
+DEFAULT_FORCE = np.array([0.0, 0.0, 10.0])
 DEFAULT_TORQUE = np.array([0.0, 0.0, 0.0])
 
 
@@ -34,6 +35,7 @@ class MujocoExternalWrenchPublisher(Node):
 
         self.declare_parameter("topic", DEFAULT_TOPIC)
         self.declare_parameter("body_name", DEFAULT_BODY_NAME)
+        self.declare_parameter("wrench_frame", DEFAULT_WRENCH_FRAME)
         self.declare_parameter("force", DEFAULT_FORCE.tolist())
         self.declare_parameter("torque", DEFAULT_TORQUE.tolist())
         self.declare_parameter("publish_rate", 50.0)
@@ -44,6 +46,7 @@ class MujocoExternalWrenchPublisher(Node):
 
         self.topic = str(self.get_parameter("topic").value)
         self.body_name = str(self.get_parameter("body_name").value)
+        self.wrench_frame = str(self.get_parameter("wrench_frame").value)
         self.force = _resize(
             _as_array(self.get_parameter("force").value, DEFAULT_FORCE),
             3,
@@ -63,13 +66,14 @@ class MujocoExternalWrenchPublisher(Node):
         self.start_wall_time = wall_time.monotonic()
         self.zero_sent = False
 
-        self.publisher = self.create_publisher(WrenchStamped, self.topic, 10)
+        self.publisher = self.create_publisher(MujocoExternalWrench, self.topic, 10)
         self.timer = self.create_timer(1.0 / self.publish_rate, self.publish)
 
         duration_text = "continuous" if self.duration == 0.0 else f"{self.duration:.3f} s"
         self.get_logger().info(
             f"Publishing MuJoCo external wrench command to {self.topic} at "
             f"{self.publish_rate:.3f} Hz | body={self.body_name}, "
+            f"wrench_frame={self.wrench_frame}, "
             f"force={self.force.tolist()}, torque={self.torque.tolist()}, "
             f"duration={duration_text}, start_delay={self.start_delay:.3f} s, "
             f"stamp_with_node_time={self.stamp_with_node_time}"
@@ -78,11 +82,13 @@ class MujocoExternalWrenchPublisher(Node):
     def elapsed_wall_time(self) -> float:
         return wall_time.monotonic() - self.start_wall_time
 
-    def make_message(self, force: np.ndarray, torque: np.ndarray) -> WrenchStamped:
-        msg = WrenchStamped()
+    def make_message(self, force: np.ndarray, torque: np.ndarray) -> MujocoExternalWrench:
+        msg = MujocoExternalWrench()
         if self.stamp_with_node_time:
             msg.header.stamp = self.get_clock().now().to_msg()
-        msg.header.frame_id = self.body_name
+        msg.header.frame_id = self.wrench_frame
+        msg.body_name = self.body_name
+        msg.wrench_frame = self.wrench_frame
         msg.wrench.force.x = float(force[0])
         msg.wrench.force.y = float(force[1])
         msg.wrench.force.z = float(force[2])

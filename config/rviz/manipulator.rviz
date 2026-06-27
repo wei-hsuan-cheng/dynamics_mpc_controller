@@ -417,7 +417,7 @@ Visualization Manager:
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /mujoco_ros2_control/external_wrench
+        Value: /mujoco_ros2_control/external_wrench_visualization
       Torque Arrow Scale: 0.5
       Torque Color: 204; 204; 51
       Value: true
