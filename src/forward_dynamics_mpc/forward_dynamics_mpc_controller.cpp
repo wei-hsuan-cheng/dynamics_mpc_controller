@@ -128,8 +128,8 @@ bool ForwardDynamicsMpcController::configure_mpc_data()
   mpc_data_.target_trajectories_topic_ = parameters_.topics.target_trajectories_topic;
   mpc_data_.mpc_observation_topic_ = parameters_.topics.mpc_observation_topic;
   mpc_data_.command_smoothing_alpha_ = parameters_.numeric.commandSmoothingAlpha;
-  mpc_data_.always_hold_current_joint_config_ =
-    parameters_.holdCurrentJointConfig.alwaysHold;
+  mpc_data_.always_hold_current_position_ =
+    parameters_.holdCurrentPosition.alwaysHold;
   status_log_period_ms_ = std::max<std::int64_t>(
     1,
     static_cast<std::int64_t>(std::llround(1000.0 * parameters_.numeric.statusLogPeriod)));
@@ -190,20 +190,36 @@ bool ForwardDynamicsMpcController::configure_mpc_ocs2()
   last_input_ = vector_t::Zero(static_cast<Eigen::Index>(model.inputDim()));
   last_tau_command_ = vector_t::Zero(static_cast<Eigen::Index>(model.jointDim()));
   hold_joint_position_ = vector_t::Zero(static_cast<Eigen::Index>(model.jointDim()));
-  hold_joint_position_valid_ = false;
+  hold_ee_pose_ = pinocchio::SE3::Identity();
+  reset_hold_reference();
   try {
+    hold_impedance_mode_ = parameters_.holdCurrentPosition.holdImpedanceMode;
+    if (hold_impedance_mode_ != "joint" && hold_impedance_mode_ != "cartesian") {
+      throw std::runtime_error(
+        "holdCurrentPosition.holdImpedanceMode must be 'joint' or 'cartesian'.");
+    }
     hold_joint_kp_ = toEigenVectorExact(
-      parameters_.holdCurrentJointConfig.holdJointKp,
+      parameters_.holdCurrentPosition.holdJointKp,
       model.jointDim(),
-      "holdCurrentJointConfig.holdJointKp");
+      "holdCurrentPosition.holdJointKp");
     hold_joint_kd_ = toEigenVectorExact(
-      parameters_.holdCurrentJointConfig.holdJointKd,
+      parameters_.holdCurrentPosition.holdJointKd,
       model.jointDim(),
-      "holdCurrentJointConfig.holdJointKd");
+      "holdCurrentPosition.holdJointKd");
+    hold_cartesian_kp_ = toEigenVectorExact(
+      parameters_.holdCurrentPosition.holdCartesianKp,
+      6,
+      "holdCurrentPosition.holdCartesianKp");
+    hold_cartesian_kd_ = controller_utils::resolveNegativeDampingFromStiffness(
+      hold_cartesian_kp_,
+      toEigenVectorExact(
+        parameters_.holdCurrentPosition.holdCartesianKd,
+        6,
+        "holdCurrentPosition.holdCartesianKd"));
   } catch (const std::exception& e) {
     RCLCPP_ERROR(
       get_node()->get_logger(),
-      "[ForwardDynamicsMpcController] failed to configure holdCurrentJointConfig: %s",
+      "[ForwardDynamicsMpcController] failed to configure holdCurrentPosition: %s",
       e.what());
     return false;
   }
@@ -373,7 +389,7 @@ controller_interface::CallbackReturn ForwardDynamicsMpcController::on_activate(
   reset_mpc_warm_start_requested_ = false;
   target_received_ = false;
   target_timeout_hold_active_ = false;
-  hold_joint_position_valid_ = false;
+  reset_hold_reference();
   received_target_msg_.writeFromNonRT(std::shared_ptr<TargetMsg>{});
   latest_target_receive_time_sec_.writeFromNonRT(0.0);
   virtual_time_ = 0.0;
@@ -384,12 +400,15 @@ controller_interface::CallbackReturn ForwardDynamicsMpcController::on_activate(
   // Hold robot
   apply_hold_command();
 
-  if (mpc_data_.always_hold_current_joint_config_) {
-    RCLCPP_WARN_THROTTLE(
+  if (mpc_data_.always_hold_current_position_) {
+    controller_utils::logHoldCommand(
       get_node()->get_logger(),
       *get_node()->get_clock(),
       status_log_period_ms_,
-      "[ForwardDynamicsMpcController] holdCurrentJointConfig.alwaysHold=true; bypassing MPC solver and commanding bounded nonlinear + impedance hold.");
+      controller_utils::HoldLogSeverity::Warn,
+      "ForwardDynamicsMpcController",
+      "holdCurrentPosition.alwaysHold=true; bypassing MPC solver",
+      hold_impedance_mode_);
     RCLCPP_INFO(get_node()->get_logger(), "[ForwardDynamicsMpcController] activated");
     return controller_interface::CallbackReturn::SUCCESS;
   }
@@ -456,10 +475,14 @@ controller_interface::CallbackReturn ForwardDynamicsMpcController::on_activate(
     // Hold robot
     apply_hold_command();
     execute_mpc_ = false;
-    RCLCPP_ERROR(
+    controller_utils::logHoldCommand(
       get_node()->get_logger(),
-      "[ForwardDynamicsMpcController] initial MPC solve failed; remaining in bounded hold mode: %s",
-      e.what());
+      *get_node()->get_clock(),
+      status_log_period_ms_,
+      controller_utils::HoldLogSeverity::Error,
+      "ForwardDynamicsMpcController",
+      std::string("initial MPC solve failed: ") + e.what(),
+      hold_impedance_mode_);
     RCLCPP_INFO(get_node()->get_logger(), "[ForwardDynamicsMpcController] activated in hold fallback");
     return controller_interface::CallbackReturn::SUCCESS;
   }
@@ -468,18 +491,21 @@ controller_interface::CallbackReturn ForwardDynamicsMpcController::on_activate(
     // Hold robot
     apply_hold_command();
     execute_mpc_ = false;
-    RCLCPP_WARN_THROTTLE(
+    controller_utils::logHoldCommand(
       get_node()->get_logger(),
       *get_node()->get_clock(),
       status_log_period_ms_,
-      "[ForwardDynamicsMpcController] no initial MPC policy received; remaining in bounded hold mode.");
+      controller_utils::HoldLogSeverity::Warn,
+      "ForwardDynamicsMpcController",
+      "no initial MPC policy received",
+      hold_impedance_mode_);
     RCLCPP_INFO(get_node()->get_logger(), "[ForwardDynamicsMpcController] activated in hold fallback");
     return controller_interface::CallbackReturn::SUCCESS;
   }
 
   // Hold robot
   apply_hold_command();
-  hold_joint_position_valid_ = false;
+  reset_hold_reference();
 
   execute_mpc_ = true;
   mpc_thread_ = std::thread(&ForwardDynamicsMpcController::mpc_loop, this);
@@ -495,7 +521,7 @@ controller_interface::CallbackReturn ForwardDynamicsMpcController::on_deactivate
   reset_mpc_warm_start_requested_ = false;
   target_received_ = false;
   target_timeout_hold_active_ = false;
-  hold_joint_position_valid_ = false;
+  reset_hold_reference();
   received_target_msg_.writeFromNonRT(std::shared_ptr<TargetMsg>{});
   latest_target_receive_time_sec_.writeFromNonRT(0.0);
   if (mpc_thread_.joinable()) {
@@ -631,7 +657,7 @@ void ForwardDynamicsMpcController::mpc_loop()
 
 controller_interface::return_type ForwardDynamicsMpcController::update_reference_from_subscribers()
 {
-  if (mpc_data_.always_hold_current_joint_config_) {
+  if (mpc_data_.always_hold_current_position_) {
     return controller_interface::return_type::OK;
   }
 
@@ -697,14 +723,17 @@ controller_interface::return_type ForwardDynamicsMpcController::update_and_write
   const SystemObservation observation = build_observation(virtual_time_);
   publish_mpc_observation(observation);
 
-  if (mpc_data_.always_hold_current_joint_config_) {
+  if (mpc_data_.always_hold_current_position_) {
     // Hold robot
     apply_hold_command();
-    RCLCPP_INFO_THROTTLE(
+    controller_utils::logHoldCommand(
       get_node()->get_logger(),
       *get_node()->get_clock(),
       status_log_period_ms_,
-      "[ForwardDynamicsMpcController][HOLD_MODE] holdCurrentJointConfig.alwaysHold=true; applying bounded nonlinear + impedance hold.");
+      controller_utils::HoldLogSeverity::Info,
+      "ForwardDynamicsMpcController",
+      "holdCurrentPosition.alwaysHold=true",
+      hold_impedance_mode_);
     virtual_time_ += period.seconds();
     return controller_interface::return_type::OK;
   }
@@ -712,11 +741,14 @@ controller_interface::return_type ForwardDynamicsMpcController::update_and_write
   if (!execute_mpc_) {
     // Hold robot
     apply_hold_command();
-    RCLCPP_WARN_THROTTLE(
+    controller_utils::logHoldCommand(
       get_node()->get_logger(),
       *get_node()->get_clock(),
       status_log_period_ms_,
-      "[ForwardDynamicsMpcController][HOLD_FALLBACK] MPC execution is disabled.");
+      controller_utils::HoldLogSeverity::Warn,
+      "ForwardDynamicsMpcController",
+      "MPC execution is disabled",
+      hold_impedance_mode_);
     virtual_time_ += period.seconds();
     return controller_interface::return_type::OK;
   }
@@ -736,17 +768,20 @@ controller_interface::return_type ForwardDynamicsMpcController::update_and_write
     if (!target_timeout_hold_active_.exchange(true)) {
       policy_performance_acceptable_ = false;
       reset_mpc_warm_start_requested_ = true;
-      hold_joint_position_valid_ = false;
+      reset_hold_reference();
     }
     // Hold robot
     apply_hold_command();
-    RCLCPP_WARN_THROTTLE(
+    controller_utils::logHoldCommand(
       get_node()->get_logger(),
       *get_node()->get_clock(),
       status_log_period_ms_,
-      "[ForwardDynamicsMpcController][HOLD_FALLBACK] target command timed out: age=%.3f s, timeout=%.3f s.",
-      time.seconds() - latest_target_time_sec,
-      parameters_.numeric.targetTimeout);
+      controller_utils::HoldLogSeverity::Warn,
+      "ForwardDynamicsMpcController",
+      "target command timed out: age=" +
+        std::to_string(time.seconds() - latest_target_time_sec) +
+        " s, timeout=" + std::to_string(parameters_.numeric.targetTimeout) + " s",
+      hold_impedance_mode_);
     virtual_time_ += period.seconds();
     return controller_interface::return_type::OK;
   }
@@ -778,11 +813,14 @@ controller_interface::return_type ForwardDynamicsMpcController::update_and_write
   if (!policy_performance_acceptable_.load()) {
     // Hold robot
     apply_hold_command();
-    RCLCPP_WARN_THROTTLE(
+    controller_utils::logHoldCommand(
       get_node()->get_logger(),
       *get_node()->get_clock(),
       status_log_period_ms_,
-      "[ForwardDynamicsMpcController][HOLD_FALLBACK] waiting for an acceptable MPC policy.");
+      controller_utils::HoldLogSeverity::Warn,
+      "ForwardDynamicsMpcController",
+      "waiting for an acceptable MPC policy",
+      hold_impedance_mode_);
     virtual_time_ += period.seconds();
     return controller_interface::return_type::OK;
   }
@@ -791,11 +829,14 @@ controller_interface::return_type ForwardDynamicsMpcController::update_and_write
   if (policy.timeTrajectory_.empty()) {
     // Hold robot
     apply_hold_command();
-    RCLCPP_WARN_THROTTLE(
+    controller_utils::logHoldCommand(
       get_node()->get_logger(),
       *get_node()->get_clock(),
       status_log_period_ms_,
-      "[ForwardDynamicsMpcController][HOLD_FALLBACK] received an empty MPC policy.");
+      controller_utils::HoldLogSeverity::Warn,
+      "ForwardDynamicsMpcController",
+      "received an empty MPC policy",
+      hold_impedance_mode_);
     virtual_time_ += period.seconds();
     return controller_interface::return_type::OK;
   }
@@ -816,11 +857,14 @@ controller_interface::return_type ForwardDynamicsMpcController::update_and_write
       !policy_state.allFinite() || !policy_input.allFinite()) {
     // Hold robot
     apply_hold_command();
-    RCLCPP_WARN_THROTTLE(
+    controller_utils::logHoldCommand(
       get_node()->get_logger(),
       *get_node()->get_clock(),
       status_log_period_ms_,
-      "[ForwardDynamicsMpcController][HOLD_FALLBACK] sampled MPC policy has invalid dimensions or non-finite values.");
+      controller_utils::HoldLogSeverity::Warn,
+      "ForwardDynamicsMpcController",
+      "sampled MPC policy has invalid dimensions or non-finite values",
+      hold_impedance_mode_);
     virtual_time_ += period.seconds();
     return controller_interface::return_type::OK;
   }
@@ -830,12 +874,15 @@ controller_interface::return_type ForwardDynamicsMpcController::update_and_write
   // Check input bounds and apply torque command
   double input_bound_violation = 0.0;
   if (!policy_input_is_acceptable(command_input, input_bound_violation)) {
-    RCLCPP_WARN_THROTTLE(
+    controller_utils::logHoldCommand(
       get_node()->get_logger(),
       *get_node()->get_clock(),
       status_log_period_ms_,
-      "[ForwardDynamicsMpcController][HOLD_FALLBACK] rejecting MPC command | input-bound violation=%.6g.",
-      input_bound_violation);
+      controller_utils::HoldLogSeverity::Warn,
+      "ForwardDynamicsMpcController",
+      "rejecting MPC command: input-bound violation=" +
+        std::to_string(input_bound_violation),
+      hold_impedance_mode_);
     if (parameters_.policyValidation.activate) {
       reset_mpc_warm_start_requested_ = true;
     }
@@ -897,25 +944,49 @@ void ForwardDynamicsMpcController::check_initializer(const SystemObservation& ob
     bound_violation);
 }
 
-// Hold robot around the latched joint position using bounded nonlinear + impedance torque.
+void ForwardDynamicsMpcController::reset_hold_reference()
+{
+  hold_joint_position_valid_ = false;
+  hold_ee_pose_valid_ = false;
+}
+
+// Hold robot around the latched joint position or end-effector pose using bounded nonlinear + impedance torque.
 void ForwardDynamicsMpcController::apply_hold_command()
 {
+  const auto& model = interface_->getForwardDynamicsMpcModel();
   const vector_t q = current_position_vector();
   const vector_t v = current_velocity_vector();
 
-  if (!hold_joint_position_valid_ ||
-      hold_joint_position_.size() != q.size()) {
-    hold_joint_position_ = q;
-    hold_joint_position_valid_ = true;
-  }
-
-  vector_t tau = interface_->computeNonlinearEffects(q, v) +
-    controller_utils::computeJointSpaceImpedanceTorque(
+  vector_t tau = interface_->computeNonlinearEffects(q, v);
+  if (hold_impedance_mode_ == "cartesian") {
+    if (!hold_ee_pose_valid_) {
+      hold_ee_pose_ = controller_utils::computeEndEffectorPose(
+        interface_->getPinocchioInterface(),
+        model.endEffectorFrameId(),
+        q);
+      hold_ee_pose_valid_ = true;
+    }
+    tau += controller_utils::computeCartesianImpedanceTorque(
+      interface_->getPinocchioInterface(),
+      model.endEffectorFrameId(),
+      q,
+      v,
+      hold_ee_pose_,
+      hold_cartesian_kp_,
+      hold_cartesian_kd_);
+  } else {
+    if (!hold_joint_position_valid_ ||
+        hold_joint_position_.size() != q.size()) {
+      hold_joint_position_ = q;
+      hold_joint_position_valid_ = true;
+    }
+    tau += controller_utils::computeJointSpaceImpedanceTorque(
       q,
       v,
       hold_joint_position_,
       hold_joint_kp_,
       hold_joint_kd_);
+  }
 
   if (interface_->inputLimitsActive()) {
     tau = tau.cwiseMax(interface_->inputLowerBounds());
@@ -967,7 +1038,7 @@ void ForwardDynamicsMpcController::apply_torque_command(const vector_t& command_
   write_torque_command(command_input);
   last_input_ = command_input;
   last_tau_command_ = command_input;
-  hold_joint_position_valid_ = false;
+  reset_hold_reference();
 }
 
 void ForwardDynamicsMpcController::write_torque_command(const vector_t& torque)

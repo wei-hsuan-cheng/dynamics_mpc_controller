@@ -3,9 +3,15 @@
 #include <algorithm>
 #include <cmath>
 #include <sstream>
+#include <stdexcept>
 
 #include <hardware_interface/types/hardware_interface_type_values.hpp>
 #include <ocs2_ros_interfaces/common/RosMsgConversions.h>
+#include <pinocchio/algorithm/frames.hpp>
+#include <pinocchio/algorithm/jacobian.hpp>
+#include <pinocchio/algorithm/kinematics.hpp>
+#include <pinocchio/spatial/explog.hpp>
+#include <rclcpp/logging.hpp>
 
 namespace dynamics_mpc_controller::controller_utils
 {
@@ -95,6 +101,72 @@ vector_t computeJointSpaceImpedanceTorque(
     damping.cwiseProduct(velocity);
 }
 
+vector_t resolveNegativeDampingFromStiffness(
+  const vector_t& stiffness,
+  const vector_t& damping)
+{
+  if (stiffness.size() != damping.size()) {
+    throw std::runtime_error("stiffness and damping vectors must have the same size");
+  }
+  if ((stiffness.array() < 0.0).any()) {
+    throw std::runtime_error("stiffness entries must be non-negative");
+  }
+
+  vector_t resolved = damping;
+  for (Eigen::Index i = 0; i < resolved.size(); ++i) {
+    if (resolved(i) < 0.0) {
+      resolved(i) = 2.0 * std::sqrt(stiffness(i));
+    }
+  }
+  return resolved;
+}
+
+pinocchio::SE3 computeEndEffectorPose(
+  const ocs2::PinocchioInterface& pinocchioInterface,
+  pinocchio::FrameIndex endEffectorFrameId,
+  const vector_t& position)
+{
+  const auto& model = pinocchioInterface.getModel();
+  auto data = pinocchioInterface.getData();
+  pinocchio::forwardKinematics(model, data, position);
+  pinocchio::updateFramePlacements(model, data);
+  return data.oMf[endEffectorFrameId];
+}
+
+vector_t computeCartesianImpedanceTorque(
+  const ocs2::PinocchioInterface& pinocchioInterface,
+  pinocchio::FrameIndex endEffectorFrameId,
+  const vector_t& position,
+  const vector_t& velocity,
+  const pinocchio::SE3& referencePose,
+  const vector_t& stiffness,
+  const vector_t& damping)
+{
+  const auto& model = pinocchioInterface.getModel();
+  auto data = pinocchioInterface.getData();
+  pinocchio::forwardKinematics(model, data, position, velocity);
+  pinocchio::computeJointJacobians(model, data, position);
+  pinocchio::updateFramePlacements(model, data);
+
+  const pinocchio::SE3 current_pose = data.oMf[endEffectorFrameId];
+  vector_t error = vector_t::Zero(6);
+  error.head<3>() = referencePose.translation() - current_pose.translation();
+  error.tail<3>() = pinocchio::log3(referencePose.rotation() * current_pose.rotation().transpose());
+
+  Eigen::Matrix<ocs2::scalar_t, 6, Eigen::Dynamic> jacobian(6, model.nv);
+  jacobian.setZero();
+  pinocchio::getFrameJacobian(
+    model,
+    data,
+    endEffectorFrameId,
+    pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED,
+    jacobian);
+
+  const vector_t twist = jacobian * velocity;
+  return jacobian.transpose() *
+    (stiffness.cwiseProduct(error) - damping.cwiseProduct(twist));
+}
+
 bool commandIsStale(
   bool commandReceived,
   double currentTimeSec,
@@ -108,6 +180,33 @@ bool commandIsStale(
     return true;
   }
   return (currentTimeSec - latestCommandTimeSec) >= timeoutSec;
+}
+
+void logHoldCommand(
+  rclcpp::Logger logger,
+  rclcpp::Clock& clock,
+  std::int64_t throttlePeriodMs,
+  HoldLogSeverity severity,
+  const std::string& controllerName,
+  const std::string& reason,
+  const std::string& impedanceMode)
+{
+  const std::string message =
+    "[" + controllerName + "][HOLD] reason=" + reason +
+    ", holdImpedanceMode=" + impedanceMode +
+    "; applying bounded nonlinear + impedance hold.";
+
+  switch (severity) {
+    case HoldLogSeverity::Info:
+      RCLCPP_INFO_THROTTLE(logger, clock, throttlePeriodMs, "%s", message.c_str());
+      break;
+    case HoldLogSeverity::Warn:
+      RCLCPP_WARN_THROTTLE(logger, clock, throttlePeriodMs, "%s", message.c_str());
+      break;
+    case HoldLogSeverity::Error:
+      RCLCPP_ERROR_THROTTLE(logger, clock, throttlePeriodMs, "%s", message.c_str());
+      break;
+  }
 }
 
 void publishMpcObservation(

@@ -24,6 +24,7 @@
 #include <ocs2_msgs/msg/mpc_observation.hpp>
 #include <ocs2_oc/oc_data/PerformanceIndex.h>
 #include <ocs2_sqp/SqpMpc.h>
+#include <pinocchio/spatial/se3.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_lifecycle/state.hpp>
 #include <realtime_tools/realtime_buffer.hpp>
@@ -88,6 +89,7 @@ private:
   SystemObservation build_observation(double time_sec) const;
   void check_initializer(const SystemObservation& observation);
   void apply_hold_command();
+  void reset_hold_reference();
   vector_t compute_policy_command_input(
     const SystemObservation& observation,
     const vector_t& policy_state,
@@ -131,6 +133,10 @@ private:
   vector_t hold_joint_position_;
   vector_t hold_joint_kp_;
   vector_t hold_joint_kd_;
+  vector_t hold_cartesian_kp_;
+  vector_t hold_cartesian_kd_;
+  pinocchio::SE3 hold_ee_pose_{pinocchio::SE3::Identity()};
+  std::string hold_impedance_mode_{"joint"};
   vector_t low_level_pd_kp_;
   vector_t low_level_pd_kd_;
   vector_t estimated_ee_wrench_;
@@ -142,6 +148,7 @@ private:
   bool low_level_pd_feedback_active_{false};
   bool wrench_estimate_valid_{false};
   bool hold_joint_position_valid_{false};
+  bool hold_ee_pose_valid_{false};
 
   std::thread mpc_thread_;
   std::atomic_bool execute_mpc_{false};

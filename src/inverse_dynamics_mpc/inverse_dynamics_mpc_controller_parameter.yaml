@@ -939,11 +939,17 @@ inverse_dynamics_mpc_controller:
       }
     }
 
-  holdCurrentJointConfig:
+  holdCurrentPosition:
     alwaysHold: {
       type: bool,
       default_value: false,
-      description: "Bypass MPC policy output and command bounded RNEA hold torque around the current joint configuration"
+      description: "Bypass MPC policy output and command bounded nonlinear + impedance hold torque around the latched joint position or end-effector pose"
+    }
+
+    holdImpedanceMode: {
+      type: string,
+      default_value: "cartesian",
+      description: "Hold impedance mode. Use 'joint' for joint-space impedance or 'cartesian' for end-effector Cartesian impedance."
     }
 
     holdJointKp: {
@@ -956,6 +962,18 @@ inverse_dynamics_mpc_controller:
       type: double_array,
       default_value: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
       description: "Joint-space damping gain used by hold mode as impedance torque tau_hold = nonlinear(q, v) + Kp * (q_hold - q) - Kd * v"
+    }
+
+    holdCartesianKp: {
+      type: double_array,
+      default_value: [500.0, 500.0, 500.0, 30.0, 30.0, 30.0],
+      description: "Cartesian hold stiffness [x, y, z, rx, ry, rz] used as tau_hold = nonlinear(q, v) + J^T * (Kp * pose_error - Kd * J * v)"
+    }
+
+    holdCartesianKd: {
+      type: double_array,
+      default_value: [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0],
+      description: "Cartesian hold damping [linear, angular]. Negative entries are replaced with 2 * sqrt(holdCartesianKp) per axis."
     }
 
   policyValidation:
