@@ -8,7 +8,8 @@
     <child link="ur_arm_base_link"/>
   </joint>
 
-  <!-- Static wall obstacle for self-collision geometry checks. -->
+  <!-- Static obstacles for self-collision geometry checks. -->
+  <!-- wall -->
   <link name="wall">
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -16,13 +17,13 @@
         <box size="0.04 1.20 1.20"/>
       </geometry>
       <material name="WallRed">
-        <color rgba="0.8 0.1 0.1 0.45"/>
+        <color rgba="0.8 0.1 0.1 0.25"/>
       </material>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <box size="0.04 1.20 1.20"/>
+        <box size="0.01 1.20 1.20"/>
       </geometry>
     </collision>
   </link>
@@ -31,6 +32,32 @@
     <parent link="world"/>
     <child link="wall"/>
   </joint>
+  <!-- end wall -->
+
+  <!-- box -->
+  <link name="box">
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <box size="0.25 0.25 0.25"/>
+      </geometry>
+      <material name="BoxBlue">
+        <color rgba="0.1 0.1 0.8 0.25"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <box size="0.25 0.25 0.25"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="world_to_box_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0.7 0 0.5"/>
+    <parent link="world"/>
+    <child link="box"/>
+  </joint>
+  <!-- end box -->
 
   <!-- links: main serial chain -->
   <link name="ur_arm_base_link"/>

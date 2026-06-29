@@ -35,6 +35,7 @@ controller_manager:
             # - pair_6
             # - pair_7
             - pair_8
+            - pair_9
 
           pair_1:
             link_a: ur_arm_upper_arm_link
@@ -60,6 +61,9 @@ controller_manager:
           pair_8:
             link_a: ur_arm_wrist_3_link
             link_b: wall
+          pair_9:
+            link_a: ur_arm_wrist_3_link
+            link_b: box
 
 inverse_dynamics_mpc_controller:
   ros__parameters:
