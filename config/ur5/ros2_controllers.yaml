@@ -73,7 +73,7 @@ inverse_dynamics_mpc_controller:
       mpc:
         mpcDesiredFrequency: $(var mpcFreq)
         mrtDesiredFrequency: $(var mrtFreq)
-        solverType: "sqp" # ddp | sqp
+        solverType: sqp # ddp | sqp
         timeHorizon: 1.0
         solutionTimeWindow: 0.1
         coldStart: false
@@ -84,8 +84,8 @@ inverse_dynamics_mpc_controller:
           manipulatorModelType: 0
           omnidirectionalBase: false
           removeJoints: [""]
-          baseFrame: "ur_arm_base_link"
-          endEffectorFrame: "ur_arm_tool0"
+          baseFrame: ur_arm_base_link
+          endEffectorFrame: ur_arm_tool0
 
         model_settings:
           usePreComputation: false
@@ -171,7 +171,7 @@ inverse_dynamics_mpc_controller:
         eeMotionTracking:
           activate: true
           terminalScaling: 0.0
-          twistFrame: "ee" # "base" | "ee"
+          twistFrame: ee # base | ee
           pose:
             scaling: 1.0e3
             diagonal: [2.0, 2.0, 2.0, 0.5, 0.5, 0.5]
@@ -216,14 +216,14 @@ inverse_dynamics_mpc_controller:
             upperBound: [3.15, 3.15, 3.15, 3.2, 3.2, 3.2]
 
     paths:
-      libFolder: "$(var libFolder)"
-      urdfFile: "$(var urdfFile)"
+      libFolder: $(var libFolder)
+      urdfFile: $(var urdfFile)
 
     topics:
-      target_trajectories_topic: "$(var targetTrajectoriesTopic)"
-      estimated_ee_wrench_topic: "$(var estimatedEeWrenchTopic)"
-      mpc_observation_topic: "$(var mpcObservationTopic)"
-      mpc_policy_topic: "$(var mpcPolicyTopic)"
+      target_trajectories_topic: $(var targetTrajectoriesTopic)
+      estimated_ee_wrench_topic: $(var estimatedEeWrenchTopic)
+      mpc_observation_topic: $(var mpcObservationTopic)
+      mpc_policy_topic: $(var mpcPolicyTopic)
 
     policyPublishing:
       publish: true
@@ -254,7 +254,7 @@ inverse_dynamics_mpc_controller:
 
     holdCurrentPosition:
       alwaysHold: false
-      holdImpedanceMode: "cartesian"  # "joint" | "cartesian"
+      holdImpedanceMode: cartesian  # joint | cartesian
       holdJointKp: [100.0, 100.0, 100.0, 100.0, 100.0, 100.0]
       holdJointKd: [50.0, 50.0, 50.0, 50.0, 50.0, 50.0]
       holdCartesianKp: [500.0, 500.0, 500.0, 30.0, 30.0, 30.0]
@@ -269,7 +269,7 @@ inverse_dynamics_mpc_controller:
       inputBoundTolerance: 1.0e-3
 
     robot:
-      prefix: "ur"
+      prefix: ur
       body_joint_names:
         - arm_shoulder_pan_joint
         - arm_shoulder_lift_joint
@@ -310,7 +310,7 @@ forward_dynamics_mpc_controller:
       mpc:
         mpcDesiredFrequency: $(var mpcFreq)
         mrtDesiredFrequency: $(var mrtFreq)
-        solverType: "sqp" # ddp | sqp
+        solverType: sqp # ddp | sqp
         timeHorizon: 2.0
         solutionTimeWindow: 0.2
         coldStart: false
@@ -321,8 +321,8 @@ forward_dynamics_mpc_controller:
           manipulatorModelType: 0
           omnidirectionalBase: false
           removeJoints: [""]
-          baseFrame: "ur_arm_base_link"
-          endEffectorFrame: "ur_arm_tool0"
+          baseFrame: ur_arm_base_link
+          endEffectorFrame: ur_arm_tool0
 
         model_settings:
           usePreComputation: false
@@ -397,7 +397,7 @@ forward_dynamics_mpc_controller:
         eeMotionTracking:
           activate: true
           terminalScaling: 0.0
-          twistFrame: "ee" # "base" | "ee"
+          twistFrame: ee # base | ee
           pose:
             scaling: 1.0e3
             diagonal: [2.0, 2.0, 2.0, 0.5, 0.5, 0.5]
@@ -430,14 +430,14 @@ forward_dynamics_mpc_controller:
             upperBound: [3.15, 3.15, 3.15, 3.2, 3.2, 3.2]
 
     paths:
-      libFolder: "$(var libFolder)"
-      urdfFile: "$(var urdfFile)"
+      libFolder: $(var libFolder)
+      urdfFile: $(var urdfFile)
 
     topics:
-      target_trajectories_topic: "$(var targetTrajectoriesTopic)"
-      estimated_ee_wrench_topic: "$(var estimatedEeWrenchTopic)"
-      mpc_observation_topic: "$(var mpcObservationTopic)"
-      mpc_policy_topic: "$(var mpcPolicyTopic)"
+      target_trajectories_topic: $(var targetTrajectoriesTopic)
+      estimated_ee_wrench_topic: $(var estimatedEeWrenchTopic)
+      mpc_observation_topic: $(var mpcObservationTopic)
+      mpc_policy_topic: $(var mpcPolicyTopic)
 
     policyPublishing:
       publish: true
@@ -468,7 +468,7 @@ forward_dynamics_mpc_controller:
 
     holdCurrentPosition:
       alwaysHold: false
-      holdImpedanceMode: "cartesian"  # "joint" | "cartesian"
+      holdImpedanceMode: cartesian  # joint | cartesian
       holdJointKp: [100.0, 100.0, 100.0, 100.0, 100.0, 100.0]
       holdJointKd: [50.0, 50.0, 50.0, 50.0, 50.0, 50.0]
       holdCartesianKp: [500.0, 500.0, 500.0, 30.0, 30.0, 30.0]
@@ -481,7 +481,7 @@ forward_dynamics_mpc_controller:
       inputBoundTolerance: 1.0e-3
 
     robot:
-      prefix: "ur"
+      prefix: ur
       body_joint_names:
         - arm_shoulder_pan_joint
         - arm_shoulder_lift_joint
@@ -516,18 +516,18 @@ forward_dynamics_mpc_controller:
 
 policy_visualization:
   ros__parameters:
-    urdfFile: "$(var urdfFile)"
+    urdfFile: $(var urdfFile)
     removeJoints: [""]
-    endEffectorFrame: "ur_arm_tool0"
-    mpcPolicyTopic: "$(var mpcPolicyTopic)"
-    frameId: "world"
+    endEffectorFrame: ur_arm_tool0
+    mpcPolicyTopic: $(var mpcPolicyTopic)
+    frameId: world
 
     optimized_state_trajectory:
       activate: true
-      markerTopic: "/policy_visualization/optimizedStateTrajectory"
+      markerTopic: /policy_visualization/optimizedStateTrajectory
       lineWidth: 0.005
       pointScale: 0.01
 
     self_collision:
       activate: true
-      markerTopic: "/policy_visualization/selfCollisionDistanceMarkers"
+      markerTopic: /policy_visualization/selfCollisionDistanceMarkers
