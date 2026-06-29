@@ -4,7 +4,9 @@
 #include <cmath>
 #include <cstddef>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -17,6 +19,7 @@
 #include <ocs2_core/integration/SensitivityIntegrator.h>
 #include <ocs2_oc/rollout/TimeTriggeredRollout.h>
 
+#include "dynamics_mpc_controller/common/constraint/dynamics_self_collision_constraint.hpp"
 #include "dynamics_mpc_controller/common/cost/ee_motion_tracking_cost.hpp"
 #include "dynamics_mpc_controller/common/cost/input_tracking_cost.hpp"
 #include "dynamics_mpc_controller/common/cost/joint_tracking_cost.hpp"
@@ -162,26 +165,36 @@ std::unique_ptr<ocs2::LinearStateInputConstraint> createInputBoxConstraint(
     std::move(e), std::move(C), std::move(D));
 }
 
-std::unique_ptr<ocs2::LinearStateInputConstraint> createStateBoxConstraint(
+std::unique_ptr<ocs2::LinearStateInputConstraint> createStateSubvectorBoxConstraint(
   std::size_t inputDim,
+  std::size_t stateDim,
+  std::size_t stateOffset,
   const ocs2::vector_t& lowerBound,
   const ocs2::vector_t& upperBound)
 {
   if (lowerBound.size() != upperBound.size()) {
     throw std::runtime_error("[InverseDynamicsMpcInterface] state limit lower/upper dimensions do not match.");
   }
+  if (stateOffset + static_cast<std::size_t>(lowerBound.size()) > stateDim) {
+    throw std::runtime_error("[InverseDynamicsMpcInterface] state limit offset exceeds state dimension.");
+  }
 
-  const Eigen::Index state_dim = lowerBound.size();
-  ocs2::vector_t e = ocs2::vector_t::Zero(2 * state_dim);
-  ocs2::matrix_t C = ocs2::matrix_t::Zero(2 * state_dim, state_dim);
-  ocs2::matrix_t D = ocs2::matrix_t::Zero(2 * state_dim, static_cast<Eigen::Index>(inputDim));
+  const Eigen::Index constrained_dim = lowerBound.size();
+  ocs2::vector_t e = ocs2::vector_t::Zero(2 * constrained_dim);
+  ocs2::matrix_t C = ocs2::matrix_t::Zero(
+    2 * constrained_dim,
+    static_cast<Eigen::Index>(stateDim));
+  ocs2::matrix_t D = ocs2::matrix_t::Zero(
+    2 * constrained_dim,
+    static_cast<Eigen::Index>(inputDim));
+  const Eigen::Index offset = static_cast<Eigen::Index>(stateOffset);
 
-  for (Eigen::Index i = 0; i < state_dim; ++i) {
+  for (Eigen::Index i = 0; i < constrained_dim; ++i) {
     e(i) = -lowerBound(i);
-    C(i, i) = 1.0;
+    C(i, offset + i) = 1.0;
 
-    e(state_dim + i) = upperBound(i);
-    C(state_dim + i, i) = -1.0;
+    e(constrained_dim + i) = upperBound(i);
+    C(constrained_dim + i, offset + i) = -1.0;
   }
 
   return std::make_unique<ocs2::LinearStateInputConstraint>(
@@ -555,7 +568,8 @@ void InverseDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
   validateBounds(position_lower, position_upper, "joint position");
   validateBounds(velocity_lower, velocity_upper, "joint velocity");
 
-  state_limits_active_ = state_limits.activate;
+  state_limits_active_ =
+    state_limits.jointPosition.activate || state_limits.jointVelocity.activate;
   state_lower_bounds_.resize(static_cast<Eigen::Index>(inverse_dynamics_model_.stateDim()));
   state_upper_bounds_.resize(static_cast<Eigen::Index>(inverse_dynamics_model_.stateDim()));
   state_lower_bounds_.head(static_cast<Eigen::Index>(n)) = position_lower;
@@ -563,13 +577,73 @@ void InverseDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
   state_lower_bounds_.tail(static_cast<Eigen::Index>(n)) = velocity_lower;
   state_upper_bounds_.tail(static_cast<Eigen::Index>(n)) = velocity_upper;
 
-  if (state_limits_active_) {
+  if (state_limits.jointPosition.activate) {
     problem_.inequalityConstraintPtr->add(
-      "stateLimits",
-      createStateBoxConstraint(
+      "jointPositionLimits",
+      createStateSubvectorBoxConstraint(
         inverse_dynamics_model_.inputDim(),
-        state_lower_bounds_,
-        state_upper_bounds_));
+        inverse_dynamics_model_.stateDim(),
+        0,
+        position_lower,
+        position_upper));
+  }
+  if (state_limits.jointVelocity.activate) {
+    problem_.inequalityConstraintPtr->add(
+      "jointVelocityLimits",
+      createStateSubvectorBoxConstraint(
+        inverse_dynamics_model_.inputDim(),
+        inverse_dynamics_model_.stateDim(),
+        n,
+        velocity_lower,
+        velocity_upper));
+  }
+
+  const auto& self_collision = parameters.ocs2.task.selfCollision;
+  self_collision_hard_stop_active_ = false;
+  self_collision_hard_stop_distance_ = 0.0;
+  self_collision_distance_evaluator_.reset();
+  if (self_collision.activate) {
+    if (self_collision.hardStopDistance > self_collision.minimumDistance) {
+      throw std::runtime_error(
+        "selfCollision.hardStopDistance must be less than or equal to selfCollision.minimumDistance.");
+    }
+
+    std::vector<std::pair<std::string, std::string>> collision_link_pairs;
+    collision_link_pairs.reserve(self_collision.link_pair_names.size());
+    for (const auto& pair_name : self_collision.link_pair_names) {
+      const auto& entry = self_collision.link_pair_names_map.at(pair_name);
+      collision_link_pairs.emplace_back(entry.link_a, entry.link_b);
+    }
+
+    std::vector<std::pair<std::size_t, std::size_t>> collision_object_pairs;
+    collision_object_pairs.reserve(self_collision.object_pair_names.size());
+    for (const auto& pair_name : self_collision.object_pair_names) {
+      const auto& entry = self_collision.object_pair_names_map.at(pair_name);
+      collision_object_pairs.emplace_back(
+        static_cast<std::size_t>(entry.object_a),
+        static_cast<std::size_t>(entry.object_b));
+    }
+
+    problem_.stateInequalityConstraintPtr->add(
+      "selfCollision",
+      constraint::createDynamicsSelfCollisionConstraint(
+        *pinocchio_interface_ptr_,
+        n,
+        collision_link_pairs,
+        collision_object_pairs,
+        self_collision.minimumDistance,
+        "inverse_dynamics_self_collision",
+        parameters.paths.libFolder,
+        recompile_libraries,
+        true));
+
+    self_collision_hard_stop_active_ = self_collision.hardStopDistance > 0.0;
+    self_collision_hard_stop_distance_ = self_collision.hardStopDistance;
+    self_collision_distance_evaluator_ =
+      std::make_unique<constraint::DynamicsSelfCollisionDistanceEvaluator>(
+      *pinocchio_interface_ptr_,
+      collision_link_pairs,
+      collision_object_pairs);
   }
 
   ocs2::rollout::Settings rollout_settings;
@@ -585,6 +659,15 @@ void InverseDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
   initializer_ptr_ = std::make_unique<InverseDynamicsInitializer>(
     *pinocchio_interface_ptr_,
     inverse_dynamics_model_);
+}
+
+double InverseDynamicsMpcInterface::computeMinimumSelfCollisionDistance(
+  const ocs2::vector_t& q) const
+{
+  if (!self_collision_distance_evaluator_) {
+    return std::numeric_limits<double>::infinity();
+  }
+  return self_collision_distance_evaluator_->computeMinimumDistance(q);
 }
 
 InverseDynamicsEvaluation InverseDynamicsMpcInterface::evaluateInverseDynamics(

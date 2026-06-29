@@ -101,6 +101,9 @@ private:
     const vector_t& command_input,
     double& rnea_residual,
     double& input_bound_violation) const;
+  bool self_collision_hard_stop_is_triggered(
+    const SystemObservation& observation,
+    double& minimum_distance) const;
   bool policy_performance_is_acceptable(const ocs2::PerformanceIndex& performance) const;
   void update_wrench_estimate(double period_sec);
   void publish_mpc_observation(const SystemObservation& observation);
@@ -156,6 +159,7 @@ private:
   std::atomic_bool reset_mpc_warm_start_requested_{false};
   std::atomic_bool target_received_{false};
   std::atomic_bool target_timeout_hold_active_{false};
+  std::atomic_bool self_collision_hard_stop_hold_active_{false};
 
   realtime_tools::RealtimeBuffer<std::shared_ptr<TargetMsg>> received_target_msg_;
   realtime_tools::RealtimeBuffer<double> latest_target_receive_time_sec_;

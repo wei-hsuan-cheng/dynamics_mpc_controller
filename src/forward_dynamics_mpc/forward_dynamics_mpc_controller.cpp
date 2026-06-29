@@ -84,6 +84,7 @@ controller_interface::CallbackReturn ForwardDynamicsMpcController::on_configure(
       latest_target_receive_time_sec_.writeFromNonRT(get_node()->get_clock()->now().seconds());
       target_received_ = true;
       target_timeout_hold_active_ = false;
+      self_collision_hard_stop_hold_active_ = false;
     });
   mpc_observation_publisher_ = get_node()->create_publisher<ocs2_msgs::msg::MpcObservation>(
     mpc_data_.mpc_observation_topic_,
@@ -389,6 +390,7 @@ controller_interface::CallbackReturn ForwardDynamicsMpcController::on_activate(
   reset_mpc_warm_start_requested_ = false;
   target_received_ = false;
   target_timeout_hold_active_ = false;
+  self_collision_hard_stop_hold_active_ = false;
   reset_hold_reference();
   received_target_msg_.writeFromNonRT(std::shared_ptr<TargetMsg>{});
   latest_target_receive_time_sec_.writeFromNonRT(0.0);
@@ -521,6 +523,7 @@ controller_interface::CallbackReturn ForwardDynamicsMpcController::on_deactivate
   reset_mpc_warm_start_requested_ = false;
   target_received_ = false;
   target_timeout_hold_active_ = false;
+  self_collision_hard_stop_hold_active_ = false;
   reset_hold_reference();
   received_target_msg_.writeFromNonRT(std::shared_ptr<TargetMsg>{});
   latest_target_receive_time_sec_.writeFromNonRT(0.0);
@@ -787,6 +790,32 @@ controller_interface::return_type ForwardDynamicsMpcController::update_and_write
   }
 
   target_timeout_hold_active_ = false;
+
+  double minimum_self_collision_distance = std::numeric_limits<double>::infinity();
+  if (self_collision_hard_stop_is_triggered(observation, minimum_self_collision_distance)) {
+    reference_manager_->setTargetTrajectories(joint_tracking_target_->fromObservation(observation));
+    if (!self_collision_hard_stop_hold_active_.exchange(true)) {
+      policy_performance_acceptable_ = false;
+      reset_mpc_warm_start_requested_ = true;
+      reset_hold_reference();
+    }
+    // Hold robot
+    apply_hold_command();
+    controller_utils::logHoldCommand(
+      get_node()->get_logger(),
+      *get_node()->get_clock(),
+      status_log_period_ms_,
+      controller_utils::HoldLogSeverity::Warn,
+      "ForwardDynamicsMpcController",
+      "self-collision hard stop: nearestDistance=" +
+        std::to_string(minimum_self_collision_distance) +
+        " m, hardStopDistance=" +
+        std::to_string(interface_->selfCollisionHardStopDistance()) + " m",
+      hold_impedance_mode_);
+    virtual_time_ += period.seconds();
+    return controller_interface::return_type::OK;
+  }
+  self_collision_hard_stop_hold_active_ = false;
 
   const bool policy_updated = mrt_interface_->updatePolicy();
   if (policy_updated) {
@@ -1072,6 +1101,32 @@ bool ForwardDynamicsMpcController::policy_input_is_acceptable(
   const auto& validation = parameters_.policyValidation;
   return !validation.activate ||
     input_bound_violation <= validation.inputBoundTolerance;
+}
+
+bool ForwardDynamicsMpcController::self_collision_hard_stop_is_triggered(
+  const SystemObservation& observation,
+  double& minimum_distance) const
+{
+  minimum_distance = std::numeric_limits<double>::infinity();
+  if (!interface_->selfCollisionHardStopActive()) {
+    return false;
+  }
+
+  const auto& model = interface_->getForwardDynamicsMpcModel();
+  try {
+    minimum_distance = interface_->computeMinimumSelfCollisionDistance(
+      model.getJointPosition(observation.state));
+  } catch (const std::exception& e) {
+    RCLCPP_WARN_THROTTLE(
+      get_node()->get_logger(),
+      *get_node()->get_clock(),
+      status_log_period_ms_,
+      "[ForwardDynamicsMpcController] self-collision hard-stop evaluation failed: %s",
+      e.what());
+    return true;
+  }
+  return std::isfinite(minimum_distance) &&
+    minimum_distance <= interface_->selfCollisionHardStopDistance();
 }
 
 bool ForwardDynamicsMpcController::policy_performance_is_acceptable(

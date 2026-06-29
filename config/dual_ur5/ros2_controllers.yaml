@@ -11,6 +11,61 @@ controller_manager:
     forward_dynamics_mpc_controller:
       type: dynamics_mpc_controller/ForwardDynamicsMpcController
 
+/**:
+  ros__parameters:
+    ocs2:
+      task:
+        selfCollision:
+          activate: false
+          minimumDistance: 0.05
+          hardStopDistance: 0.01
+          link_pair_names:
+            [arm1_pair_1, arm1_pair_2, arm1_pair_3, arm1_pair_4, arm1_pair_5, arm1_pair_6, arm1_pair_7,
+             arm2_pair_1, arm2_pair_2, arm2_pair_3, arm2_pair_4, arm2_pair_5, arm2_pair_6, arm2_pair_7]
+
+          arm1_pair_1:
+            link_a: ur_arm1_upper_arm_link
+            link_b: ur_arm1_wrist_3_link
+          arm1_pair_2:
+            link_a: ur_arm1_upper_arm_link
+            link_b: ur_arm1_wrist_2_link
+          arm1_pair_3:
+            link_a: ur_arm1_upper_arm_link
+            link_b: ur_arm1_wrist_1_link
+          arm1_pair_4:
+            link_a: ur_arm1_shoulder_link
+            link_b: ur_arm1_wrist_3_link
+          arm1_pair_5:
+            link_a: ur_arm1_shoulder_link
+            link_b: ur_arm1_wrist_2_link
+          arm1_pair_6:
+            link_a: ur_arm1_shoulder_link
+            link_b: ur_arm1_wrist_1_link
+          arm1_pair_7:
+            link_a: ur_arm1_forearm_link
+            link_b: ur_arm1_shoulder_link
+          arm2_pair_1:
+            link_a: ur_arm2_upper_arm_link
+            link_b: ur_arm2_wrist_3_link
+          arm2_pair_2:
+            link_a: ur_arm2_upper_arm_link
+            link_b: ur_arm2_wrist_2_link
+          arm2_pair_3:
+            link_a: ur_arm2_upper_arm_link
+            link_b: ur_arm2_wrist_1_link
+          arm2_pair_4:
+            link_a: ur_arm2_shoulder_link
+            link_b: ur_arm2_wrist_3_link
+          arm2_pair_5:
+            link_a: ur_arm2_shoulder_link
+            link_b: ur_arm2_wrist_2_link
+          arm2_pair_6:
+            link_a: ur_arm2_shoulder_link
+            link_b: ur_arm2_wrist_1_link
+          arm2_pair_7:
+            link_a: ur_arm2_forearm_link
+            link_b: ur_arm2_shoulder_link
+
 inverse_dynamics_mpc_controller:
   ros__parameters:
     update_rate: $(var mrtFreq)
@@ -161,13 +216,14 @@ inverse_dynamics_mpc_controller:
             upperBound: [100.0, 100.0, 100.0, 20.0, 20.0, 20.0]
 
         stateLimits:
-          activate: true
           jointPosition:
+            activate: true
             lowerBound: [-6.283185307, -6.283185307, -6.283185307, -6.283185307, -6.283185307, -6.283185307,
                          -6.283185307, -6.283185307, -6.283185307, -6.283185307, -6.283185307, -6.283185307]
             upperBound: [6.283185307, 6.283185307, 6.283185307, 6.283185307, 6.283185307, 6.283185307,
                          6.283185307, 6.283185307, 6.283185307, 6.283185307, 6.283185307, 6.283185307]
           jointVelocity:
+            activate: true
             lowerBound: [-3.15, -3.15, -3.15, -3.2, -3.2, -3.2,
                          -3.15, -3.15, -3.15, -3.2, -3.2, -3.2]
             upperBound: [3.15, 3.15, 3.15, 3.2, 3.2, 3.2,
@@ -421,13 +477,14 @@ forward_dynamics_mpc_controller:
                          150.0, 150.0, 150.0, 28.0, 28.0, 28.0]
 
         stateLimits:
-          activate: true
           jointPosition:
+            activate: true
             lowerBound: [-6.283185307, -6.283185307, -6.283185307, -6.283185307, -6.283185307, -6.283185307,
                          -6.283185307, -6.283185307, -6.283185307, -6.283185307, -6.283185307, -6.283185307]
             upperBound: [6.283185307, 6.283185307, 6.283185307, 6.283185307, 6.283185307, 6.283185307,
                          6.283185307, 6.283185307, 6.283185307, 6.283185307, 6.283185307, 6.283185307]
           jointVelocity:
+            activate: true
             lowerBound: [-3.15, -3.15, -3.15, -3.2, -3.2, -3.2,
                          -3.15, -3.15, -3.15, -3.2, -3.2, -3.2]
             upperBound: [3.15, 3.15, 3.15, 3.2, 3.2, 3.2,
@@ -569,3 +626,7 @@ policy_visualization:
       markerTopic: "/policy_visualization/optimizedStateTrajectory"
       lineWidth: 0.01
       pointScale: 0.025
+
+    self_collision:
+      activate: true
+      markerTopic: "/policy_visualization/selfCollisionDistanceMarkers"

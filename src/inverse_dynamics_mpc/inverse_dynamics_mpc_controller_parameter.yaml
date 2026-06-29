@@ -624,13 +624,13 @@ inverse_dynamics_mpc_controller:
           }
 
       stateLimits:
-        activate: {
-          type: bool,
-          default_value: false,
-          description: "Enforce hard joint position and velocity bounds in the OCP"
-        }
-
         jointPosition:
+          activate: {
+            type: bool,
+            default_value: false,
+            description: "Enforce hard joint position bounds in the OCP"
+          }
+
           lowerBound: {
             type: double_array,
             default_value: [-6.283185307, -6.283185307, -6.283185307, -6.283185307, -6.283185307, -6.283185307],
@@ -644,6 +644,12 @@ inverse_dynamics_mpc_controller:
           }
 
         jointVelocity:
+          activate: {
+            type: bool,
+            default_value: false,
+            description: "Enforce hard joint velocity bounds in the OCP"
+          }
+
           lowerBound: {
             type: double_array,
             default_value: [-3.15, -3.15, -3.15, -3.2, -3.2, -3.2],
@@ -655,6 +661,77 @@ inverse_dynamics_mpc_controller:
             default_value: [3.15, 3.15, 3.15, 3.2, 3.2, 3.2],
             description: "Joint velocity upper bounds in rad/s"
           }
+
+      selfCollision:
+        activate: {
+          type: bool,
+          default_value: false,
+          description: "Enforce hard self-collision distance constraints in the OCP"
+        }
+
+        minimumDistance: {
+          type: double,
+          default_value: 0.0,
+          description: "Minimum allowed distance between configured collision pairs",
+          validation: {
+            gt_eq: [0.0]
+          }
+        }
+
+        hardStopDistance: {
+          type: double,
+          default_value: 0.0,
+          description: "Runtime self-collision hard-stop distance. If current minimum distance is at or below this threshold, the controller falls back to hold mode. Set 0.0 to disable.",
+          validation: {
+            gt_eq: [0.0]
+          }
+        }
+
+        link_pair_names: {
+          type: string_array,
+          default_value: [],
+          description: "Named link collision pairs",
+          validation: {
+            unique<>: null
+          }
+        }
+
+        __map_link_pair_names:
+          link_a:
+            type: string
+            default_value: ""
+            description: "First link in the collision pair"
+
+          link_b:
+            type: string
+            default_value: ""
+            description: "Second link in the collision pair"
+
+        object_pair_names: {
+          type: string_array,
+          default_value: [],
+          description: "Named Pinocchio collision-object index pairs",
+          validation: {
+            unique<>: null
+          }
+        }
+
+        __map_object_pair_names:
+          object_a:
+            type: int
+            default_value: 0
+            description: "First collision-object index"
+            validation: {
+              gt_eq: [0]
+            }
+
+          object_b:
+            type: int
+            default_value: 0
+            description: "Second collision-object index"
+            validation: {
+              gt_eq: [0]
+            }
 
       jointTracking:
         activate: {

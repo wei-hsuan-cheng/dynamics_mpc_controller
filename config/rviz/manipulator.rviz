@@ -355,17 +355,19 @@ Visualization Manager:
         Value: /mobile_manipulator/visualization/sphereSelfCollisionDistanceMarkers
       Value: false
     - Class: rviz_default_plugins/MarkerArray
-      Enabled: false
-      Name: FCL Self-Collision Distances
+      Enabled: true
+      Name: Policy Self-Collision Distances
       Namespaces:
-        {}
+        selfCollisionArrow: true
+        selfCollisionEndpoints: true
+        selfCollisionText: true
       Topic:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /mobile_manipulator/visualization/fclSelfCollisionDistanceMarkers
-      Value: false
+        Value: /policy_visualization/selfCollisionDistanceMarkers
+      Value: true
     - Class: rviz_default_plugins/MarkerArray
       Enabled: false
       Name: Manipulability Ellipsoids

@@ -21,6 +21,7 @@
   <depend>ocs2_pinocchio_interface</depend>
   <depend>ocs2_robotic_tools</depend>
   <depend>ocs2_ros_interfaces</depend>
+  <depend>ocs2_self_collision</depend>
   <depend>ocs2_sqp</depend>
   <depend>pluginlib</depend>
   <depend>pinocchio</depend>

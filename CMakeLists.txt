@@ -20,6 +20,7 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   ocs2_pinocchio_interface
   ocs2_robotic_tools
   ocs2_ros_interfaces
+  ocs2_self_collision
   ocs2_sqp
   pinocchio
   pluginlib
@@ -47,6 +48,7 @@ generate_parameter_library(forward_dynamics_mpc_controller_parameters
 
 add_library(${PROJECT_NAME} SHARED
   src/common/controller_utils.cpp
+  src/common/constraint/dynamics_self_collision_constraint.cpp
   src/common/cost/ee_motion_tracking_cost.cpp
   src/common/cost/input_tracking_cost.cpp
   src/common/cost/joint_tracking_cost.cpp
@@ -54,6 +56,7 @@ add_library(${PROJECT_NAME} SHARED
   src/diagnostics/mpc_policy_publisher.cpp
   src/estimation/momentum_observer_wrench_estimator.cpp
   src/visualization/optimized_state_trajectory_visualization.cpp
+  src/visualization/self_collision_visualization.cpp
 
   src/inverse_dynamics_mpc/constraint/inverse_dynamics_ee_wrench_tracking_constraint.cpp
   src/inverse_dynamics_mpc/constraint/inverse_dynamics_rnea_constraint_cppad.cpp

@@ -11,6 +11,49 @@ controller_manager:
     forward_dynamics_mpc_controller:
       type: dynamics_mpc_controller/ForwardDynamicsMpcController
 
+/**:
+  ros__parameters:
+    ocs2:
+      task:
+        selfCollision:
+          activate: true
+          minimumDistance: 0.05
+          hardStopDistance: 0.01
+          link_pair_names:
+            # - pair_1
+            # - pair_2
+            # - pair_3
+            # - pair_4
+            # - pair_5
+            # - pair_6
+            # - pair_7
+            - pair_8
+
+          pair_1:
+            link_a: ur_arm_upper_arm_link
+            link_b: ur_arm_wrist_3_link
+          pair_2:
+            link_a: ur_arm_upper_arm_link
+            link_b: ur_arm_wrist_2_link
+          pair_3:
+            link_a: ur_arm_upper_arm_link
+            link_b: ur_arm_wrist_1_link
+          pair_4:
+            link_a: ur_arm_shoulder_link
+            link_b: ur_arm_wrist_3_link
+          pair_5:
+            link_a: ur_arm_shoulder_link
+            link_b: ur_arm_wrist_2_link
+          pair_6:
+            link_a: ur_arm_shoulder_link
+            link_b: ur_arm_wrist_1_link
+          pair_7:
+            link_a: ur_arm_forearm_link
+            link_b: ur_arm_shoulder_link
+          pair_8:
+            link_a: ur_arm_wrist_3_link
+            link_b: wall
+
 inverse_dynamics_mpc_controller:
   ros__parameters:
     update_rate: $(var mrtFreq)
@@ -152,11 +195,12 @@ inverse_dynamics_mpc_controller:
             upperBound: [100.0, 100.0, 100.0, 20.0, 20.0, 20.0]
 
         stateLimits:
-          activate: true
           jointPosition:
+            activate: true
             lowerBound: [-6.283185307, -6.283185307, -6.283185307, -6.283185307, -6.283185307, -6.283185307]
             upperBound: [6.283185307, 6.283185307, 6.283185307, 6.283185307, 6.283185307, 6.283185307]
           jointVelocity:
+            activate: true
             lowerBound: [-3.15, -3.15, -3.15, -3.2, -3.2, -3.2]
             upperBound: [3.15, 3.15, 3.15, 3.2, 3.2, 3.2]
 
@@ -365,11 +409,12 @@ forward_dynamics_mpc_controller:
             upperBound: [150.0, 150.0, 150.0, 28.0, 28.0, 28.0]
 
         stateLimits:
-          activate: true
           jointPosition:
+            activate: true
             lowerBound: [-6.283185307, -6.283185307, -6.283185307, -6.283185307, -6.283185307, -6.283185307]
             upperBound: [6.283185307, 6.283185307, 6.283185307, 6.283185307, 6.283185307, 6.283185307]
           jointVelocity:
+            activate: true
             lowerBound: [-3.15, -3.15, -3.15, -3.2, -3.2, -3.2]
             upperBound: [3.15, 3.15, 3.15, 3.2, 3.2, 3.2]
 
@@ -471,3 +516,7 @@ policy_visualization:
       markerTopic: "/policy_visualization/optimizedStateTrajectory"
       lineWidth: 0.005
       pointScale: 0.01
+
+    self_collision:
+      activate: true
+      markerTopic: "/policy_visualization/selfCollisionDistanceMarkers"

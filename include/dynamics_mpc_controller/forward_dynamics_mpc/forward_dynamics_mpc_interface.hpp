@@ -15,6 +15,7 @@
 #include <ocs2_robotic_tools/common/RobotInterface.h>
 #include <ocs2_sqp/SqpSettings.h>
 
+#include "dynamics_mpc_controller/common/constraint/dynamics_self_collision_constraint.hpp"
 #include "dynamics_mpc_controller/forward_dynamics_mpc/forward_dynamics_mpc_model.hpp"
 #include "dynamics_mpc_controller/forward_dynamics_mpc_controller_parameters.hpp"
 
@@ -48,6 +49,9 @@ public:
   bool stateLimitsActive() const { return state_limits_active_; }
   const ocs2::vector_t& stateLowerBounds() const { return state_lower_bounds_; }
   const ocs2::vector_t& stateUpperBounds() const { return state_upper_bounds_; }
+  bool selfCollisionHardStopActive() const { return self_collision_hard_stop_active_; }
+  double selfCollisionHardStopDistance() const { return self_collision_hard_stop_distance_; }
+  double computeMinimumSelfCollisionDistance(const ocs2::vector_t& q) const;
 
   ocs2::vector_t computeForwardDynamics(
     const ocs2::vector_t& q,
@@ -84,10 +88,14 @@ private:
   std::string default_ee_motion_twist_frame_{"ee"};
   bool input_limits_active_{false};
   bool state_limits_active_{false};
+  bool self_collision_hard_stop_active_{false};
+  double self_collision_hard_stop_distance_{0.0};
   ocs2::vector_t input_lower_bounds_;
   ocs2::vector_t input_upper_bounds_;
   ocs2::vector_t state_lower_bounds_;
   ocs2::vector_t state_upper_bounds_;
+  std::unique_ptr<constraint::DynamicsSelfCollisionDistanceEvaluator>
+    self_collision_distance_evaluator_;
 };
 
 }  // namespace dynamics_mpc_controller
