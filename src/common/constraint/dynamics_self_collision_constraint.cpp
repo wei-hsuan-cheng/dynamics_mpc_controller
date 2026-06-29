@@ -8,6 +8,7 @@
 #include <pinocchio/algorithm/kinematics.hpp>
 
 #include <ocs2_core/augmented_lagrangian/StateAugmentedLagrangian.h>
+#include <ocs2_core/constraint/StateInputConstraint.h>
 #include <ocs2_core/penalties/augmented/ModifiedRelaxedBarrierPenalty.h>
 #include <ocs2_core/penalties/augmented/SlacknessSquaredHingePenalty.h>
 #include <ocs2_core/penalties/penalties/RelaxedBarrierPenalty.h>
@@ -21,6 +22,92 @@ namespace dynamics_mpc_controller
 {
 namespace constraint
 {
+namespace
+{
+
+ocs2::ConstraintOrder getStateConstraintOrder(
+  const std::unique_ptr<ocs2::StateConstraint>& stateConstraint)
+{
+  if (!stateConstraint) {
+    throw std::runtime_error(
+      "[DynamicsSelfCollision] cannot wrap a null state constraint as a state-input constraint.");
+  }
+  return stateConstraint->getOrder();
+}
+
+class StateOnlyConstraintAsStateInputConstraint final : public ocs2::StateInputConstraint
+{
+public:
+  explicit StateOnlyConstraintAsStateInputConstraint(
+    std::unique_ptr<ocs2::StateConstraint> stateConstraint)
+  : ocs2::StateInputConstraint(getStateConstraintOrder(stateConstraint)),
+    state_constraint_(std::move(stateConstraint))
+  {}
+
+  StateOnlyConstraintAsStateInputConstraint* clone() const override
+  {
+    return new StateOnlyConstraintAsStateInputConstraint(*this);
+  }
+
+  bool isActive(ocs2::scalar_t time) const override
+  {
+    return state_constraint_->isActive(time);
+  }
+
+  std::size_t getNumConstraints(ocs2::scalar_t time) const override
+  {
+    return state_constraint_->getNumConstraints(time);
+  }
+
+  ocs2::vector_t getValue(
+    ocs2::scalar_t time,
+    const ocs2::vector_t& state,
+    const ocs2::vector_t&,
+    const ocs2::PreComputation& preComp) const override
+  {
+    return state_constraint_->getValue(time, state, preComp);
+  }
+
+  ocs2::VectorFunctionLinearApproximation getLinearApproximation(
+    ocs2::scalar_t time,
+    const ocs2::vector_t& state,
+    const ocs2::vector_t& input,
+    const ocs2::PreComputation& preComp) const override
+  {
+    auto approximation = state_constraint_->getLinearApproximation(time, state, preComp);
+    approximation.dfdu.setZero(approximation.f.rows(), input.rows());
+    return approximation;
+  }
+
+  ocs2::VectorFunctionQuadraticApproximation getQuadraticApproximation(
+    ocs2::scalar_t time,
+    const ocs2::vector_t& state,
+    const ocs2::vector_t& input,
+    const ocs2::PreComputation& preComp) const override
+  {
+    auto approximation = state_constraint_->getQuadraticApproximation(time, state, preComp);
+    const auto num_constraints = approximation.f.size();
+    approximation.dfdu.setZero(num_constraints, input.rows());
+    approximation.dfdux.resize(static_cast<std::size_t>(num_constraints));
+    approximation.dfduu.resize(static_cast<std::size_t>(num_constraints));
+    for (Eigen::Index i = 0; i < num_constraints; ++i) {
+      approximation.dfdux[static_cast<std::size_t>(i)].setZero(input.rows(), state.rows());
+      approximation.dfduu[static_cast<std::size_t>(i)].setZero(input.rows(), input.rows());
+    }
+    return approximation;
+  }
+
+private:
+  StateOnlyConstraintAsStateInputConstraint(const StateOnlyConstraintAsStateInputConstraint& rhs)
+  : ocs2::StateInputConstraint(rhs),
+    state_constraint_(rhs.state_constraint_->clone())
+  {
+  }
+
+  std::unique_ptr<ocs2::StateConstraint> state_constraint_;
+};
+
+}  // namespace
 
 void validateDynamicsSelfCollisionConstraintSettings(
   const std::string& solverType,
@@ -144,7 +231,9 @@ void addDynamicsSelfCollisionConstraint(
   const DynamicsSelfCollisionConstraintSettings& settings)
 {
   if (settings.implementation == "hard") {
-    problem.stateInequalityConstraintPtr->add("selfCollision", std::move(constraint));
+    problem.inequalityConstraintPtr->add(
+      "selfCollision",
+      std::make_unique<StateOnlyConstraintAsStateInputConstraint>(std::move(constraint)));
     return;
   }
 
