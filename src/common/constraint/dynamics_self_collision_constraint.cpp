@@ -231,9 +231,7 @@ void addDynamicsSelfCollisionConstraint(
   const DynamicsSelfCollisionConstraintSettings& settings)
 {
   if (settings.implementation == "hard") {
-    problem.inequalityConstraintPtr->add(
-      "selfCollision",
-      std::make_unique<StateOnlyConstraintAsStateInputConstraint>(std::move(constraint)));
+    problem.stateInequalityConstraintPtr->add("selfCollision", std::move(constraint));
     return;
   }
 
