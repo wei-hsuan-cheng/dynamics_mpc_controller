@@ -507,6 +507,17 @@ void ForwardDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
       throw std::runtime_error(
         "selfCollision.hardStopDistance must be less than or equal to selfCollision.minimumDistance.");
     }
+    constraint::DynamicsSelfCollisionConstraintSettings self_collision_settings;
+    self_collision_settings.implementation = self_collision.implementation;
+    self_collision_settings.mu = self_collision.mu;
+    self_collision_settings.delta = self_collision.delta;
+    self_collision_settings.penaltyType = self_collision.penaltyType;
+    self_collision_settings.scale = self_collision.scale;
+    self_collision_settings.stepSize = self_collision.stepSize;
+    self_collision_settings.relaxation = self_collision.relaxation;
+    constraint::validateDynamicsSelfCollisionConstraintSettings(
+      parameters.ocs2.mpc.solverType,
+      self_collision_settings);
 
     std::vector<std::pair<std::string, std::string>> collision_link_pairs;
     collision_link_pairs.reserve(self_collision.link_pair_names.size());
@@ -524,8 +535,8 @@ void ForwardDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
         static_cast<std::size_t>(entry.object_b));
     }
 
-    problem_.stateInequalityConstraintPtr->add(
-      "selfCollision",
+    constraint::addDynamicsSelfCollisionConstraint(
+      problem_,
       constraint::createDynamicsSelfCollisionConstraint(
         *pinocchio_interface_ptr_,
         n,
@@ -535,7 +546,9 @@ void ForwardDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
         "forward_dynamics_self_collision",
         parameters.paths.libFolder,
         recompile_libraries,
-        true));
+        true),
+      parameters.ocs2.mpc.solverType,
+      self_collision_settings);
 
     self_collision_hard_stop_active_ = self_collision.hardStopDistance > 0.0;
     self_collision_hard_stop_distance_ = self_collision.hardStopDistance;

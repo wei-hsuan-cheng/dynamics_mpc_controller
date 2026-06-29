@@ -13,10 +13,30 @@
 #include <ocs2_pinocchio_interface/PinocchioStateInputMapping.h>
 #include <ocs2_self_collision/PinocchioGeometryInterface.h>
 
+namespace ocs2
+{
+struct OptimalControlProblem;
+}
+
 namespace dynamics_mpc_controller
 {
 namespace constraint
 {
+
+struct DynamicsSelfCollisionConstraintSettings
+{
+  std::string implementation{"hard"};
+  ocs2::scalar_t mu{1.0e-2};
+  ocs2::scalar_t delta{1.0e-3};
+  std::string penaltyType{"slacknesssquaredhinge"};
+  ocs2::scalar_t scale{10.0};
+  ocs2::scalar_t stepSize{1.0};
+  ocs2::scalar_t relaxation{1.0};
+};
+
+void validateDynamicsSelfCollisionConstraintSettings(
+  const std::string& solverType,
+  const DynamicsSelfCollisionConstraintSettings& settings);
 
 class DynamicsSelfCollisionPinocchioMapping final :
   public ocs2::PinocchioStateInputMapping<ocs2::scalar_t>
@@ -52,6 +72,12 @@ std::unique_ptr<ocs2::StateConstraint> createDynamicsSelfCollisionConstraint(
   const std::string& modelFolder,
   bool recompileLibraries,
   bool verbose);
+
+void addDynamicsSelfCollisionConstraint(
+  ocs2::OptimalControlProblem& problem,
+  std::unique_ptr<ocs2::StateConstraint> constraint,
+  const std::string& solverType,
+  const DynamicsSelfCollisionConstraintSettings& settings);
 
 class DynamicsSelfCollisionDistanceEvaluator
 {

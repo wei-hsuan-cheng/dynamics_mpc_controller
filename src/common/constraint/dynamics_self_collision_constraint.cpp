@@ -7,6 +7,13 @@
 
 #include <pinocchio/algorithm/kinematics.hpp>
 
+#include <ocs2_core/augmented_lagrangian/StateAugmentedLagrangian.h>
+#include <ocs2_core/penalties/augmented/ModifiedRelaxedBarrierPenalty.h>
+#include <ocs2_core/penalties/augmented/SlacknessSquaredHingePenalty.h>
+#include <ocs2_core/penalties/penalties/RelaxedBarrierPenalty.h>
+#include <ocs2_core/penalties/penalties/SquaredHingePenalty.h>
+#include <ocs2_core/soft_constraint/StateSoftConstraint.h>
+#include <ocs2_oc/oc_problem/OptimalControlProblem.h>
 #include <ocs2_self_collision/PinocchioGeometryInterface.h>
 #include <ocs2_self_collision/SelfCollisionConstraintCppAd.h>
 
@@ -14,6 +21,38 @@ namespace dynamics_mpc_controller
 {
 namespace constraint
 {
+
+void validateDynamicsSelfCollisionConstraintSettings(
+  const std::string& solverType,
+  const DynamicsSelfCollisionConstraintSettings& settings)
+{
+  const bool supported_implementation =
+    settings.implementation == "hard" ||
+    settings.implementation == "rbf" ||
+    settings.implementation == "al";
+  if (!supported_implementation) {
+    throw std::runtime_error(
+      "[DynamicsSelfCollision] unsupported selfCollision.implementation '" +
+      settings.implementation + "'. Expected one of: hard, rbf, al.");
+  }
+
+  if (solverType == "ddp" && settings.implementation == "hard") {
+    throw std::runtime_error(
+      "[DynamicsSelfCollision] selfCollision.implementation='hard' is not supported with solverType='ddp'. "
+      "Use 'al' or 'rbf', or switch solverType to 'sqp'.");
+  }
+
+  if (solverType == "sqp") {
+    return;
+  }
+  if (solverType == "ddp") {
+    return;
+  }
+
+  throw std::runtime_error(
+    "[DynamicsSelfCollision] unsupported solverType '" + solverType +
+    "' for selfCollision. Expected 'ddp' or 'sqp'.");
+}
 
 DynamicsSelfCollisionPinocchioMapping::DynamicsSelfCollisionPinocchioMapping(
   std::size_t jointDim)
@@ -96,6 +135,100 @@ std::unique_ptr<ocs2::StateConstraint> createDynamicsSelfCollisionConstraint(
     modelFolder,
     recompileLibraries,
     verbose);
+}
+
+void addDynamicsSelfCollisionConstraint(
+  ocs2::OptimalControlProblem& problem,
+  std::unique_ptr<ocs2::StateConstraint> constraint,
+  const std::string& solverType,
+  const DynamicsSelfCollisionConstraintSettings& settings)
+{
+  if (settings.implementation == "hard") {
+    problem.stateInequalityConstraintPtr->add("selfCollision", std::move(constraint));
+    return;
+  }
+
+  if (settings.implementation == "rbf") {
+    problem.stateSoftConstraintPtr->add(
+      "selfCollision",
+      std::make_unique<ocs2::StateSoftConstraint>(
+        std::move(constraint),
+        std::make_unique<ocs2::RelaxedBarrierPenalty>(
+          ocs2::RelaxedBarrierPenalty::Config{settings.mu, settings.delta})));
+    return;
+  }
+
+  if (settings.implementation == "al") {
+    if (solverType == "sqp") {
+      if (
+        settings.penaltyType == "slacknesssquaredhingepenalty" ||
+        settings.penaltyType == "slacknesssquaredhinge" ||
+        settings.penaltyType == "hinge")
+      {
+        problem.stateSoftConstraintPtr->add(
+          "selfCollision",
+          std::make_unique<ocs2::StateSoftConstraint>(
+            std::move(constraint),
+            std::make_unique<ocs2::SquaredHingePenalty>(
+              ocs2::SquaredHingePenalty::Config{settings.scale, 0.0})));
+        return;
+      }
+
+      if (
+        settings.penaltyType == "modifiedrelaxedbarrierpenalty" ||
+        settings.penaltyType == "modifiedrelaxedbarrier" ||
+        settings.penaltyType == "barrier")
+      {
+        problem.stateSoftConstraintPtr->add(
+          "selfCollision",
+          std::make_unique<ocs2::StateSoftConstraint>(
+            std::move(constraint),
+            std::make_unique<ocs2::RelaxedBarrierPenalty>(
+              ocs2::RelaxedBarrierPenalty::Config{settings.scale, settings.relaxation})));
+        return;
+      }
+
+      throw std::runtime_error(
+        "[DynamicsSelfCollision] unsupported selfCollision.penaltyType '" +
+        settings.penaltyType + "' for implementation 'al'.");
+    }
+
+    if (
+      settings.penaltyType == "slacknesssquaredhingepenalty" ||
+      settings.penaltyType == "slacknesssquaredhinge" ||
+      settings.penaltyType == "hinge")
+    {
+      problem.stateInequalityLagrangianPtr->add(
+        "selfCollision",
+        std::make_unique<ocs2::StateAugmentedLagrangian>(
+          std::move(constraint),
+          ocs2::augmented::SlacknessSquaredHingePenalty::create(
+            {settings.scale, settings.stepSize})));
+      return;
+    }
+
+    if (
+      settings.penaltyType == "modifiedrelaxedbarrierpenalty" ||
+      settings.penaltyType == "modifiedrelaxedbarrier" ||
+      settings.penaltyType == "barrier")
+    {
+      problem.stateInequalityLagrangianPtr->add(
+        "selfCollision",
+        std::make_unique<ocs2::StateAugmentedLagrangian>(
+          std::move(constraint),
+          ocs2::augmented::ModifiedRelaxedBarrierPenalty::create(
+            {settings.scale, settings.relaxation, settings.stepSize})));
+      return;
+    }
+
+    throw std::runtime_error(
+      "[DynamicsSelfCollision] unsupported selfCollision.penaltyType '" +
+      settings.penaltyType + "' for implementation 'al'.");
+  }
+
+  throw std::runtime_error(
+    "[DynamicsSelfCollision] unsupported selfCollision.implementation '" +
+    settings.implementation + "'. Expected one of: hard, rbf, al.");
 }
 
 DynamicsSelfCollisionDistanceEvaluator::DynamicsSelfCollisionDistanceEvaluator(

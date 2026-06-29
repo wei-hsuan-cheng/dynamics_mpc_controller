@@ -617,6 +617,69 @@ forward_dynamics_mpc_controller:
           }
         }
 
+        implementation: {
+          type: string,
+          default_value: "hard",
+          description: "Self-collision constraint handling. SQP supports hard, rbf, and al. DDP supports rbf and al.",
+          validation: {
+            one_of<>: [["hard", "rbf", "al"]]
+          }
+        }
+
+        mu: {
+          type: double,
+          default_value: 1.0e-2,
+          description: "Relaxed barrier penalty mu for selfCollision.implementation=rbf.",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        delta: {
+          type: double,
+          default_value: 1.0e-3,
+          description: "Relaxed barrier penalty delta for selfCollision.implementation=rbf.",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        penaltyType: {
+          type: string,
+          default_value: "slacknesssquaredhinge",
+          description: "Augmented Lagrangian penalty type for selfCollision.implementation=al.",
+          validation: {
+            one_of<>: [["slacknesssquaredhingepenalty", "slacknesssquaredhinge", "hinge", "modifiedrelaxedbarrierpenalty", "modifiedrelaxedbarrier", "barrier"]]
+          }
+        }
+
+        scale: {
+          type: double,
+          default_value: 10.0,
+          description: "Augmented Lagrangian penalty scale for selfCollision.implementation=al.",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        stepSize: {
+          type: double,
+          default_value: 1.0,
+          description: "Augmented Lagrangian multiplier update step size for selfCollision.implementation=al.",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        relaxation: {
+          type: double,
+          default_value: 1.0,
+          description: "Modified relaxed barrier relaxation for selfCollision.implementation=al with barrier penalty.",
+          validation: {
+            gt_eq: [0.0]
+          }
+        }
+
         link_pair_names: {
           type: string_array,
           default_value: [],

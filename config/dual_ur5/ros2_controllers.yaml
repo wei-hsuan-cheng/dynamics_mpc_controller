@@ -19,6 +19,13 @@ controller_manager:
           activate: false
           minimumDistance: 0.05
           hardStopDistance: 0.01
+          implementation: rbf # rbf | al | hard (for sqp only)
+          mu: 1.0e-2
+          delta: 1.0e-3
+          penaltyType: slacknesssquaredhinge # slacknesssquaredhinge | barrier
+          scale: 10.0
+          stepSize: 1.0
+          relaxation: 1.0
           link_pair_names:
             [arm1_pair_1, arm1_pair_2, arm1_pair_3, arm1_pair_4, arm1_pair_5, arm1_pair_6, arm1_pair_7,
              arm2_pair_1, arm2_pair_2, arm2_pair_3, arm2_pair_4, arm2_pair_5, arm2_pair_6, arm2_pair_7]
