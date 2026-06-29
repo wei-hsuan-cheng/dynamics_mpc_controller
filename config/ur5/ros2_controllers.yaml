@@ -74,8 +74,8 @@ inverse_dynamics_mpc_controller:
         mpcDesiredFrequency: $(var mpcFreq)
         mrtDesiredFrequency: $(var mrtFreq)
         solverType: "sqp" # ddp | sqp
-        timeHorizon: 2.0
-        solutionTimeWindow: 0.2
+        timeHorizon: 1.0
+        solutionTimeWindow: 0.1
         coldStart: false
         debugPrint: false
 
@@ -131,9 +131,9 @@ inverse_dynamics_mpc_controller:
             hessianCorrectionMultiple: 1e-5
 
         sqp:
-          nThreads: 5
+          nThreads: 1
           dt: 0.02
-          sqpIteration: 5
+          sqpIteration: 1
           deltaTol: 1e-4
           costTol: 1e-4
           g_max: 1e-2
