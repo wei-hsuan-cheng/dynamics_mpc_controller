@@ -89,7 +89,7 @@ inverse_dynamics_mpc_controller:
 
         model_settings:
           usePreComputation: false
-          recompileLibraries: false
+          recompileLibraries: true
           
           ##### wrenchInRNEA #####
           # false: u=[jointAcceleration, jointTorque], RNEA-tau=0
@@ -326,7 +326,7 @@ forward_dynamics_mpc_controller:
 
         model_settings:
           usePreComputation: false
-          recompileLibraries: false
+          recompileLibraries: true
 
         ddp:
           algorithm: SLQ # SLQ | ILQR
