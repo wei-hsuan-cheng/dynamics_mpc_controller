@@ -14,7 +14,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <box size="0.04 1.20 1.20"/>
+        <box size="0.001 1.60 1.60"/>
       </geometry>
       <material name="WallRed">
         <color rgba="0.8 0.1 0.1 0.25"/>
@@ -23,12 +23,12 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <box size="0.01 1.20 1.20"/>
+        <box size="0.001 1.60 1.60"/>
       </geometry>
     </collision>
   </link>
   <joint name="world_to_wall_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0.8 0 0.75"/>
+    <origin rpy="0 0 0" xyz="0.8 0 0.8"/>
     <parent link="world"/>
     <child link="wall"/>
   </joint>
@@ -42,7 +42,7 @@
         <box size="0.25 0.25 0.25"/>
       </geometry>
       <material name="BoxBlue">
-        <color rgba="0.1 0.1 0.8 0.25"/>
+        <color rgba="0.1 0.1 0.8 0.8"/>
       </material>
     </visual>
     <collision>
