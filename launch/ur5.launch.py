@@ -14,11 +14,10 @@ from launch_ros.substitutions import FindPackageShare
 def generate_launch_description():
     mpc_share = FindPackageShare("dynamics_mpc_controller")
     mpc_share_dir = get_package_share_directory("dynamics_mpc_controller")
-    package_root = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
     initial_pose_default = os.path.join(mpc_share_dir, "config", "ur5", "initial_pose.yaml")
     rviz_default = os.path.join(mpc_share_dir, "config", "rviz", "manipulator.rviz")
-    lib_folder_default = os.path.join(package_root, "auto_generated", "ur5")
+    lib_folder_default = os.path.join("auto_generated", "ur5")
 
     urdf_default = PathJoinSubstitution([mpc_share, "description", "ur5", "urdf", "ur5.urdf"])
     controllers_default = PathJoinSubstitution([mpc_share, "config", "ur5", "ros2_controllers.yaml"])
