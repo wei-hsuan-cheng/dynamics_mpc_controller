@@ -10,7 +10,7 @@ from rclpy.node import Node
 
 from geometry_msgs.msg import TransformStamped
 from ocs2_msgs.msg import DynamicsMpcTargets
-from ocs2_msgs.msg import MpcObservation, MpcState
+from ocs2_msgs.msg import MpcInput, MpcObservation, MpcState
 from std_msgs.msg import Float64MultiArray
 from tf2_ros import TransformBroadcaster
 
@@ -39,6 +39,12 @@ DEFAULT_TWIST_ANGULAR_PHASE = np.array([0.0, 0.0, 0.0])
 
 DEFAULT_POSE_WEIGHTS = np.array([2.0, 2.0, 2.0, 0.5, 0.5, 0.5]) * 1000.0
 DEFAULT_TWIST_WEIGHTS = np.array([2.0, 2.0, 2.0, 0.5, 0.5, 0.5]) * 1000.0
+
+DEFAULT_PUBLISH_EE_WRENCH = False
+DEFAULT_EE_WRENCH_FRAME = "ee"  # empty uses controller YAML default; otherwise "world" | "base" | "ee"
+DEFAULT_EE_WRENCH_CENTER = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+DEFAULT_EE_WRENCH_AMPLITUDE = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+DEFAULT_EE_WRENCH_PHASE = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
 
 def _as_array(value, fallback: Sequence[float]) -> np.ndarray:
@@ -109,6 +115,11 @@ class EeMotionTrackingTargetPublisher(Node):
         self.declare_parameter("twist_angular_phase", DEFAULT_TWIST_ANGULAR_PHASE.tolist())
         self.declare_parameter("pose_weights", DEFAULT_POSE_WEIGHTS.tolist())
         self.declare_parameter("twist_weights", DEFAULT_TWIST_WEIGHTS.tolist())
+        self.declare_parameter("publish_ee_wrench", DEFAULT_PUBLISH_EE_WRENCH)
+        self.declare_parameter("ee_wrench_frame", DEFAULT_EE_WRENCH_FRAME)
+        self.declare_parameter("ee_wrench_center", DEFAULT_EE_WRENCH_CENTER.tolist())
+        self.declare_parameter("ee_wrench_amplitude", DEFAULT_EE_WRENCH_AMPLITUDE.tolist())
+        self.declare_parameter("ee_wrench_phase", DEFAULT_EE_WRENCH_PHASE.tolist())
 
         self.topic = self.get_parameter("topic").value
         self.observation_topic = self.get_parameter("observation_topic").value
@@ -158,6 +169,18 @@ class EeMotionTrackingTargetPublisher(Node):
             _as_array(self.get_parameter("pose_weights").value, DEFAULT_POSE_WEIGHTS), 6, 20.0)
         self.twist_weights = _resize(
             _as_array(self.get_parameter("twist_weights").value, DEFAULT_TWIST_WEIGHTS), 6, 2.0)
+        self.publish_ee_wrench = bool(self.get_parameter("publish_ee_wrench").value)
+        self.ee_wrench_frame = str(self.get_parameter("ee_wrench_frame").value).lower()
+        if self.ee_wrench_frame not in ("", "base", "global", "world", "ee", "end_effector", "end_effector_frame"):
+            raise RuntimeError(
+                "ee_wrench_frame must be empty, 'world'/'base', or 'ee'"
+            )
+        self.ee_wrench_center = _resize(
+            _as_array(self.get_parameter("ee_wrench_center").value, DEFAULT_EE_WRENCH_CENTER), 6, 0.0)
+        self.ee_wrench_amplitude = _resize(
+            _as_array(self.get_parameter("ee_wrench_amplitude").value, DEFAULT_EE_WRENCH_AMPLITUDE), 6, 0.0)
+        self.ee_wrench_phase = _resize(
+            _as_array(self.get_parameter("ee_wrench_phase").value, DEFAULT_EE_WRENCH_PHASE), 6, 0.0)
 
         self.trajectory_samples = int(math.floor(self.trajectory_duration / self.trajectory_dt)) + 1
         self.start_time = self.get_clock().now()
@@ -177,6 +200,8 @@ class EeMotionTrackingTargetPublisher(Node):
         self.get_logger().info(
             f"Publishing {self.command_type} DynamicsMpcTargets to {self.topic}, "
             f"twist_frame={self.twist_frame}, "
+            f"publish_ee_wrench={self.publish_ee_wrench}, "
+            f"ee_wrench_frame={self.ee_wrench_frame}, "
             f"{self.trajectory_samples} ZOH trajectory samples over {self.trajectory_duration:.3f} s "
             f"with dt {self.trajectory_dt:.3f} s, using OCS2 time from {self.observation_topic}"
         )
@@ -250,9 +275,19 @@ class EeMotionTrackingTargetPublisher(Node):
         )
         return linear_twist + angular_twist
 
+    def ee_wrench_target(self, t: float):
+        return _sample_wave(
+            self.ee_wrench_center,
+            self.ee_wrench_amplitude,
+            self.ee_wrench_phase,
+            self.sine_frequency,
+            t,
+        )
+
     def fill_trajectory(self, msg: DynamicsMpcTargets, t0: float):
         zoh_pose = self.pose_target(t0)
         zoh_twist = self.twist_target(t0)
+        zoh_wrench = self.ee_wrench_target(t0)
 
         for sample_index in range(self.trajectory_samples):
             t = t0 + sample_index * self.trajectory_dt
@@ -267,6 +302,11 @@ class EeMotionTrackingTargetPublisher(Node):
             msg.time_trajectory.append(float(t))
             msg.state_trajectory.append(state)
 
+            if self.publish_ee_wrench:
+                wrench = MpcInput()
+                wrench.value = [float(x) for x in zoh_wrench]
+                msg.ee_wrench_trajectory.append(wrench)
+
     def publish(self):
         t0 = self.current_target_time()
         if t0 is None:
@@ -276,6 +316,8 @@ class EeMotionTrackingTargetPublisher(Node):
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.command_type = self.command_type
         msg.ee_motion_twist_frame = self.twist_frame
+        if self.publish_ee_wrench:
+            msg.ee_wrench_frame = self.ee_wrench_frame
         if self.command_type in ("ee_motion_pose", "ee_motion"):
             msg.ee_motion_pose_tracking_weights = Float64MultiArray()
             msg.ee_motion_pose_tracking_weights.data = [float(w) for w in self.pose_weights]

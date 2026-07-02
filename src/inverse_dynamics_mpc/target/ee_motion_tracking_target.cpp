@@ -1,5 +1,6 @@
 #include "dynamics_mpc_controller/inverse_dynamics_mpc/target/ee_motion_tracking_target.hpp"
 
+#include <cmath>
 #include <cstddef>
 #include <stdexcept>
 #include <string>
@@ -7,6 +8,7 @@
 #include <utility>
 #include <vector>
 
+#include <Eigen/Geometry>
 #include <std_msgs/msg/float64_multi_array.hpp>
 
 #include "dynamics_mpc_controller/common/target/target_encoding.hpp"
@@ -76,6 +78,12 @@ enum class EeMotionCommandMode
   PoseTwist,
 };
 
+enum class EeWrenchFrame
+{
+  World,
+  Ee,
+};
+
 bool supportsCommandType(const std::string& commandType)
 {
   return commandType == "ee_motion_pose" ||
@@ -111,6 +119,58 @@ double twistFrameFromMessage(const std::string& frame, const std::string& defaul
   }
   throw std::invalid_argument(
     "ee_motion_twist_frame must be empty, 'base', or 'ee', got '" + selected_frame + "'");
+}
+
+EeWrenchFrame wrenchFrameFromMessage(const std::string& frame, const std::string& defaultFrame)
+{
+  const std::string& selected_frame = frame.empty() ? defaultFrame : frame;
+  if (selected_frame == "base" || selected_frame == "global" || selected_frame == "world") {
+    return EeWrenchFrame::World;
+  }
+  if (selected_frame == "ee" || selected_frame == "end_effector" ||
+      selected_frame == "end_effector_frame") {
+    return EeWrenchFrame::Ee;
+  }
+  throw std::invalid_argument(
+    "ee_wrench_frame must be empty, 'base'/'world', or 'ee', got '" + selected_frame + "'");
+}
+
+ocs2::matrix_t rotationFromEeMotionPoseTarget(const ocs2::vector_t& rawState)
+{
+  const Eigen::Quaternion<ocs2::scalar_t> q(
+    rawState(6),
+    rawState(3),
+    rawState(4),
+    rawState(5));
+  const ocs2::scalar_t norm = q.norm();
+  if (norm <= 1.0e-12 || !std::isfinite(norm)) {
+    throw std::runtime_error("ee_motion pose target quaternion must be finite and nonzero");
+  }
+  return q.normalized().toRotationMatrix();
+}
+
+ocs2::vector_t wrenchTargetInWorldFrame(
+  const ocs2::vector_t& rawWrench,
+  EeWrenchFrame wrenchFrame,
+  const ocs2::vector_t& rawState,
+  EeMotionCommandMode commandMode)
+{
+  if (rawWrench.size() != 6) {
+    throw std::runtime_error("ee_wrench_trajectory sample dimension must be 6");
+  }
+  if (wrenchFrame == EeWrenchFrame::World) {
+    return rawWrench;
+  }
+  if (commandMode == EeMotionCommandMode::Twist) {
+    throw std::runtime_error(
+      "ee_wrench_frame='ee' requires an EE pose target so the wrench can be rotated to the world/base frame");
+  }
+
+  const ocs2::matrix_t world_R_ee = rotationFromEeMotionPoseTarget(rawState);
+  ocs2::vector_t wrench = ocs2::vector_t::Zero(6);
+  wrench.head<3>() = world_R_ee * rawWrench.head<3>();
+  wrench.tail<3>() = world_R_ee * rawWrench.tail<3>();
+  return wrench;
 }
 
 ocs2::vector_t makeEeMotionTargetState(
@@ -229,6 +289,8 @@ EeMotionTrackingTarget::TargetTrajectories EeMotionTrackingTarget::fromMessage(
   const EeMotionCommandMode command_mode = commandModeFromMessage(msg.command_type);
   const double twist_frame = twistFrameFromMessage(
     msg.ee_motion_twist_frame, interface_.defaultEeMotionTwistFrame());
+  const EeWrenchFrame wrench_frame = wrenchFrameFromMessage(
+    msg.ee_wrench_frame, interface_.defaultEeWrenchFrame());
   const std::size_t n = model.jointDim();
   if (msg.time_trajectory.empty() || msg.state_trajectory.empty()) {
     throw std::runtime_error("dynamics MPC target trajectory is empty");
@@ -282,9 +344,10 @@ EeMotionTrackingTarget::TargetTrajectories EeMotionTrackingTarget::fromMessage(
   input_trajectory.reserve(msg.state_trajectory.size());
 
   for (std::size_t sample = 0; sample < msg.state_trajectory.size(); ++sample) {
+    const ocs2::vector_t raw_state = vectorFromMessage(msg.state_trajectory[sample]);
     state_trajectory.push_back(
       makeEeMotionTargetState(
-        vectorFromMessage(msg.state_trajectory[sample]),
+        raw_state,
         command_mode,
         twist_frame,
         (has_pose_weights &&
@@ -322,10 +385,8 @@ EeMotionTrackingTarget::TargetTrajectories EeMotionTrackingTarget::fromMessage(
     if (model.hasEeWrenchInput() && !model.trackZeroWrench() &&
         !msg.ee_wrench_trajectory.empty()) {
       const ocs2::vector_t raw_wrench = vectorFromMessage(msg.ee_wrench_trajectory[sample]);
-      if (raw_wrench.size() != 6) {
-        throw std::runtime_error("ee_wrench_trajectory sample dimension must be 6");
-      }
-      input.segment(static_cast<Eigen::Index>(model.wrenchOffset()), 6) = raw_wrench;
+      input.segment(static_cast<Eigen::Index>(model.wrenchOffset()), 6) =
+        wrenchTargetInWorldFrame(raw_wrench, wrench_frame, raw_state, command_mode);
     }
 
     input_trajectory.push_back(std::move(input));

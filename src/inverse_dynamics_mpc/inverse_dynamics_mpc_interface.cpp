@@ -20,6 +20,7 @@
 #include <ocs2_oc/rollout/TimeTriggeredRollout.h>
 
 #include "dynamics_mpc_controller/common/constraint/dynamics_self_collision_constraint.hpp"
+#include "dynamics_mpc_controller/common/constraint/ee_contact_friction_cone_soft_constraint.hpp"
 #include "dynamics_mpc_controller/common/cost/ee_motion_tracking_cost.hpp"
 #include "dynamics_mpc_controller/common/cost/input_tracking_cost.hpp"
 #include "dynamics_mpc_controller/common/cost/joint_tracking_cost.hpp"
@@ -315,6 +316,14 @@ void InverseDynamicsMpcInterface::setupPinocchio(const Params& parameters)
   const std::string ee_frame_name = model.frames[ee_frame_id].name;
   const bool wrench_in_rnea = parameters.ocs2.task.model_settings.wrenchInRNEA;
   const bool track_zero_wrench = parameters.ocs2.task.model_settings.trackZeroWrench;
+  default_ee_wrench_frame_ = parameters.ocs2.task.model_settings.eeWrenchFrame;
+  if (default_ee_wrench_frame_ != "base" && default_ee_wrench_frame_ != "global" &&
+      default_ee_wrench_frame_ != "world" && default_ee_wrench_frame_ != "ee" &&
+      default_ee_wrench_frame_ != "end_effector" &&
+      default_ee_wrench_frame_ != "end_effector_frame") {
+    throw std::runtime_error(
+      "[InverseDynamicsMpcInterface] model_settings.eeWrenchFrame must be 'world'/'base' or 'ee'.");
+  }
   if (track_zero_wrench && !wrench_in_rnea) {
     throw std::runtime_error(
       "[InverseDynamicsMpcInterface] model_settings.trackZeroWrench requires wrenchInRNEA=true.");
@@ -339,6 +348,7 @@ void InverseDynamicsMpcInterface::setupPinocchio(const Params& parameters)
   if (inverse_dynamics_model_.hasEeWrenchInput()) {
     std::cerr << "\n #### trackZeroWrench: " <<
       (inverse_dynamics_model_.trackZeroWrench() ? "true" : "false");
+    std::cerr << "\n #### eeWrenchFrame: " << default_ee_wrench_frame_;
   }
   std::cerr << "\n #### eeFrame: " << inverse_dynamics_model_.endEffectorFrame();
   std::cerr << "\n #### =============================================================================\n";
@@ -510,6 +520,45 @@ void InverseDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
         parameters.paths.libFolder,
         recompile_libraries,
         true));
+  }
+
+  const auto& ee_contact_friction_cone =
+    parameters.ocs2.task.eeContactFrictionConeSoftConstraint;
+  if (ee_contact_friction_cone.activate) {
+    if (!has_ee_wrench) {
+      throw std::runtime_error(
+        "[InverseDynamicsMpcInterface] eeContactFrictionConeSoftConstraint requires "
+        "model_settings.wrenchInRNEA=true.");
+    }
+    const ocs2::vector_t contact_normal = vectorFromArrayExact(
+      ee_contact_friction_cone.normal,
+      3,
+      "eeContactFrictionConeSoftConstraint.normal");
+    problem_.softConstraintPtr->add(
+      "eeContactFrictionCone",
+      constraint::createEeContactFrictionConeSoftConstraint(
+        inverse_dynamics_model_.stateDim(),
+        inverse_dynamics_model_.inputDim(),
+        inverse_dynamics_model_.wrenchOffset(),
+        contact_normal,
+        ee_contact_friction_cone.frictionCoefficient,
+        ee_contact_friction_cone.coneRegularization,
+        ee_contact_friction_cone.normalForceLowerBound,
+        ee_contact_friction_cone.mu,
+        ee_contact_friction_cone.delta));
+
+    std::cerr << "\n #### eeContactFrictionConeSoftConstraint:";
+    std::cerr << "\n #### =============================================================================";
+    std::cerr << "\n #### normal: " << contact_normal.transpose();
+    std::cerr << "\n #### frictionCoefficient: " <<
+      ee_contact_friction_cone.frictionCoefficient;
+    std::cerr << "\n #### normalForceLowerBound: " <<
+      ee_contact_friction_cone.normalForceLowerBound;
+    std::cerr << "\n #### coneRegularization: " <<
+      ee_contact_friction_cone.coneRegularization;
+    std::cerr << "\n #### penalty mu: " << ee_contact_friction_cone.mu;
+    std::cerr << "\n #### penalty delta: " << ee_contact_friction_cone.delta;
+    std::cerr << "\n #### =============================================================================\n";
   }
 
   const auto& input_limits = parameters.ocs2.task.inputLimits;

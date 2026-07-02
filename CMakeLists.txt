@@ -49,6 +49,7 @@ generate_parameter_library(forward_dynamics_mpc_controller_parameters
 add_library(${PROJECT_NAME} SHARED
   src/common/controller_utils.cpp
   src/common/constraint/dynamics_self_collision_constraint.cpp
+  src/common/constraint/ee_contact_friction_cone_soft_constraint.cpp
   src/common/cost/ee_motion_tracking_cost.cpp
   src/common/cost/input_tracking_cost.cpp
   src/common/cost/joint_tracking_cost.cpp
@@ -132,9 +133,11 @@ install(DIRECTORY config/
 install(DIRECTORY description/
   DESTINATION share/${PROJECT_NAME}/description
 )
-install(DIRECTORY auto_generated/
-  DESTINATION share/${PROJECT_NAME}/auto_generated
-)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/auto_generated")
+  install(DIRECTORY auto_generated/
+    DESTINATION share/${PROJECT_NAME}/auto_generated
+  )
+endif()
 install(FILES dynamics_mpc_controller_plugin.xml
   DESTINATION share/${PROJECT_NAME}
 )

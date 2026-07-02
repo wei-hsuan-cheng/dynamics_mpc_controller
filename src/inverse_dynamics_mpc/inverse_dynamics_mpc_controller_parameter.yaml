@@ -115,6 +115,15 @@ inverse_dynamics_mpc_controller:
           description: "Select the inverse-dynamics formulation: false uses [joint acceleration, joint torque]; true adds an end-effector wrench input in RNEA"
         }
 
+        eeWrenchFrame: {
+          type: string,
+          default_value: "world",
+          description: "Default representation frame for target EE wrench when the target message leaves ee_wrench_frame empty",
+          validation: {
+            one_of<>: [["base", "global", "world", "ee", "end_effector", "end_effector_frame"]]
+          }
+        }
+
         trackZeroWrench: {
           type: bool,
           default_value: false,
@@ -795,6 +804,64 @@ inverse_dynamics_mpc_controller:
             validation: {
               gt_eq: [0]
             }
+
+      eeContactFrictionConeSoftConstraint:
+        activate: {
+          type: bool,
+          default_value: false,
+          description: "Enable a relaxed-barrier friction cone soft constraint on the inverse-dynamics end-effector wrench input"
+        }
+
+        normal: {
+          type: double_array,
+          default_value: [0.0, 0.0, 1.0],
+          description: "Contact surface normal represented in the same world/base-aligned frame as the EE wrench force"
+        }
+
+        frictionCoefficient: {
+          type: double,
+          default_value: 0.8,
+          description: "Coulomb friction coefficient for the EE contact cone",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        coneRegularization: {
+          type: double,
+          default_value: 1.0e-6,
+          description: "Small positive regularization added inside the tangential force norm",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        normalForceLowerBound: {
+          type: double,
+          default_value: 0.0,
+          description: "Minimum compressive normal force for the contact wrench",
+          validation: {
+            gt_eq: [0.0]
+          }
+        }
+
+        mu: {
+          type: double,
+          default_value: 0.1,
+          description: "Relaxed barrier penalty mu for the EE contact friction cone",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        delta: {
+          type: double,
+          default_value: 5.0,
+          description: "Relaxed barrier penalty delta for the EE contact friction cone",
+          validation: {
+            gt: [0.0]
+          }
+        }
 
       jointTracking:
         activate: {

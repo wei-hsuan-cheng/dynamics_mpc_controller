@@ -47,6 +47,7 @@ public:
   const ocs2::PinocchioInterface& getPinocchioInterface() const { return *pinocchio_interface_ptr_; }
   const InverseDynamicsMpcModel& getInverseDynamicsMpcModel() const { return inverse_dynamics_model_; }
   const std::string& defaultEeMotionTwistFrame() const { return default_ee_motion_twist_frame_; }
+  const std::string& defaultEeWrenchFrame() const { return default_ee_wrench_frame_; }
   bool inputLimitsActive() const { return input_limits_active_; }
   const ocs2::vector_t& inputLowerBounds() const { return input_lower_bounds_; }
   const ocs2::vector_t& inputUpperBounds() const { return input_upper_bounds_; }
@@ -96,6 +97,7 @@ private:
 
   InverseDynamicsMpcModel inverse_dynamics_model_;
   std::string default_ee_motion_twist_frame_{"ee"};
+  std::string default_ee_wrench_frame_{"world"};
   bool input_limits_active_{false};
   bool state_limits_active_{false};
   bool self_collision_hard_stop_active_{false};

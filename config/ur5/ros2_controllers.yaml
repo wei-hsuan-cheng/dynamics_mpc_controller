@@ -94,7 +94,8 @@ inverse_dynamics_mpc_controller:
           ##### wrenchInRNEA #####
           # false: u=[jointAcceleration, jointTorque], RNEA-tau=0
           # true: u=[jointAcceleration, jointTorque, eeWrench], RNEA-J^T*wrench-tau=0
-          wrenchInRNEA: false
+          wrenchInRNEA: true
+          eeWrenchFrame: "ee" # "world" | "base" | "ee"
 
           ##### trackZeroWrench ##### 
           # Only valid when wrenchInRNEA is true.
@@ -190,6 +191,18 @@ inverse_dynamics_mpc_controller:
             eeWrench:
               scaling: 10.0
               diagonal: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+
+        ##### Floor-contact friction cone on the optimized EE wrench.
+        ##### Requires model_settings.wrenchInRNEA=true and trackZeroWrench=false.
+        ##### The normal is expressed in the same world/base-aligned frame as the EE wrench force.
+        eeContactFrictionConeSoftConstraint:
+          activate: true
+          normal: [0.0, 0.0, 1.0]
+          frictionCoefficient: 0.8
+          coneRegularization: 1.0e-6
+          normalForceLowerBound: 0.0
+          mu: 0.1
+          delta: 5.0
 
         inputLimits:
           activate: true
