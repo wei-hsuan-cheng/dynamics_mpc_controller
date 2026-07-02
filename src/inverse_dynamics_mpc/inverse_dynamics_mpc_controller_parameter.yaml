@@ -60,21 +60,6 @@ inverse_dynamics_mpc_controller:
 
     task:
       model_information:
-        manipulatorModelType: {
-          type: int,
-          default_value: 0,
-          description: "Fixed-base Pinocchio model type. This controller currently requires 0.",
-          validation: {
-            one_of<>: [[0]]
-          }
-        }
-
-        omnidirectionalBase: {
-          type: bool,
-          default_value: false,
-          description: "Unused for fixed-base inverse-dynamics MPC"
-        }
-
         removeJoints: {
           type: string_array,
           default_value: [],
@@ -97,12 +82,6 @@ inverse_dynamics_mpc_controller:
         }
 
       model_settings:
-        usePreComputation: {
-          type: bool,
-          default_value: false,
-          description: "Reserved for future inverse-dynamics precomputation"
-        }
-
         recompileLibraries: {
           type: bool,
           default_value: true,

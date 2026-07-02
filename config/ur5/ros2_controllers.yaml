@@ -81,14 +81,11 @@ inverse_dynamics_mpc_controller:
 
       task:
         model_information:
-          manipulatorModelType: 0
-          omnidirectionalBase: false
           removeJoints: [""]
           baseFrame: ur_arm_base_link
           endEffectorFrame: ur_arm_tool0
 
         model_settings:
-          usePreComputation: false
           recompileLibraries: true
           
           ##### wrenchInRNEA #####
@@ -331,14 +328,11 @@ forward_dynamics_mpc_controller:
 
       task:
         model_information:
-          manipulatorModelType: 0
-          omnidirectionalBase: false
           removeJoints: [""]
           baseFrame: ur_arm_base_link
           endEffectorFrame: ur_arm_tool0
 
         model_settings:
-          usePreComputation: false
           recompileLibraries: true
 
         ddp:
