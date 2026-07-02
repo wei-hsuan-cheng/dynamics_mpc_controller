@@ -2,18 +2,16 @@
 
 import math
 import numpy as np
-import time as wall_time
 from typing import Sequence
 
 import rclpy
 from rclpy.node import Node
 
 from ocs2_msgs.msg import DynamicsMpcTargets
-from ocs2_msgs.msg import MpcObservation, MpcState
+from ocs2_msgs.msg import MpcState
 from std_msgs.msg import Float64MultiArray
 
 DEFAULT_TARGET_TOPIC = "/mpc_targets"
-DEFAULT_OBSERVATION_TOPIC = "/mpc_observation"
 DEFAULT_COMMAND_TYPE = "joint_position"  # "joint_position" | "joint_velocity" | "joint"
 
 DEFAULT_JOINT_NAMES = [
@@ -63,9 +61,7 @@ class JointTrackingTargetPublisher(Node):
         super().__init__("joint_tracking_target_publisher")
 
         self.declare_parameter("topic", DEFAULT_TARGET_TOPIC)
-        self.declare_parameter("observation_topic", DEFAULT_OBSERVATION_TOPIC)
         self.declare_parameter("command_type", DEFAULT_COMMAND_TYPE)
-        self.declare_parameter("wait_for_observation", True)
         self.declare_parameter("publish_rate", 50.0)
         self.declare_parameter("trajectory_duration", 2.0)
         self.declare_parameter("trajectory_dt", 0.02)
@@ -82,13 +78,11 @@ class JointTrackingTargetPublisher(Node):
         self.declare_parameter("velocity_weights", DEFAULT_VELOCITY_WEIGHTS.tolist())
 
         self.topic = self.get_parameter("topic").value
-        self.observation_topic = self.get_parameter("observation_topic").value
         self.command_type = str(self.get_parameter("command_type").value)
         if self.command_type not in ("joint_position", "joint_velocity", "joint"):
             raise RuntimeError(
                 "command_type must be 'joint_position', 'joint_velocity', or 'joint'"
             )
-        self.wait_for_observation = bool(self.get_parameter("wait_for_observation").value)
         self.publish_rate = float(self.get_parameter("publish_rate").value)
         self.trajectory_duration = float(self.get_parameter("trajectory_duration").value)
         self.trajectory_dt = float(self.get_parameter("trajectory_dt").value)
@@ -142,46 +136,15 @@ class JointTrackingTargetPublisher(Node):
         self.trajectory_dt = max(1e-6, self.trajectory_dt)
         self.trajectory_samples = int(math.floor(self.trajectory_duration / self.trajectory_dt)) + 1
         self.publish_rate = max(1e-6, self.publish_rate)
-        self.start_time = self.get_clock().now()
-        self.latest_observation_time = None
-        self.last_wait_log_time = 0.0
 
         self.publisher = self.create_publisher(DynamicsMpcTargets, self.topic, 1)
-        self.observation_subscription = self.create_subscription(
-            MpcObservation,
-            self.observation_topic,
-            self.observation_callback,
-            10,
-        )
         self.timer = self.create_timer(1.0 / self.publish_rate, self.publish)
 
         self.get_logger().info(
             f"Publishing {self.command_type} DynamicsMpcTargets to {self.topic} with {joint_count} joints, "
             f"{self.trajectory_samples} ZOH trajectory samples over {self.trajectory_duration:.3f} s "
-            f"with dt {self.trajectory_dt:.3f} s, using OCS2 time from "
-            f"{self.observation_topic}"
+            f"with dt {self.trajectory_dt:.3f} s, using ROS node time"
         )
-
-    def elapsed_time(self) -> float:
-        now = self.get_clock().now()
-        return (now - self.start_time).nanoseconds * 1e-9
-
-    def observation_callback(self, msg: MpcObservation):
-        self.latest_observation_time = float(msg.time)
-
-    def current_target_time(self):
-        if self.latest_observation_time is not None:
-            return self.latest_observation_time + self.time_offset
-        if not self.wait_for_observation:
-            return self.elapsed_time() + self.time_offset
-
-        now = wall_time.monotonic()
-        if now - self.last_wait_log_time > 2.0:
-            self.get_logger().warn(
-                f"Waiting for OCS2 observation on {self.observation_topic} before publishing targets."
-            )
-            self.last_wait_log_time = now
-        return None
 
     def joint_target(self, t: float):
         omega = 2.0 * math.pi * self.sine_frequency
@@ -217,9 +180,7 @@ class JointTrackingTargetPublisher(Node):
             msg.state_trajectory.append(state)
 
     def publish(self):
-        t0 = self.current_target_time()
-        if t0 is None:
-            return
+        t0 = self.get_clock().now().nanoseconds / 1e9 + self.time_offset
 
         msg = DynamicsMpcTargets()
         msg.header.stamp = self.get_clock().now().to_msg()

@@ -395,7 +395,7 @@ controller_interface::CallbackReturn InverseDynamicsMpcController::on_activate(
   received_target_msg_.writeFromNonRT(std::shared_ptr<TargetMsg>{});
   latest_target_receive_time_sec_.writeFromNonRT(0.0);
   virtual_time_ = 0.0;
-  const SystemObservation initial_observation = build_observation(virtual_time_);
+  const SystemObservation initial_observation = build_observation(get_node()->now().seconds());
   reference_manager_->setTargetTrajectories(
     joint_tracking_target_->fromObservation(initial_observation));
 
@@ -722,7 +722,7 @@ controller_interface::return_type InverseDynamicsMpcController::update_and_write
     }
   }
 
-  const SystemObservation observation = build_observation(virtual_time_);
+  const SystemObservation observation = build_observation(get_node()->now().seconds());
   publish_mpc_observation(observation);
 
   if (mpc_data_.always_hold_current_position_) {
