@@ -10,7 +10,7 @@
 #include <ocs2_msgs/msg/mpc_flattened_controller.hpp>
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
 #include <ocs2_self_collision/PinocchioGeometryInterface.h>
-#include <rclcpp/node.hpp>
+#include <rclcpp_lifecycle/lifecycle_node.hpp>
 #include <rclcpp/publisher.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
@@ -22,7 +22,7 @@ class SelfCollisionVisualization
 public:
   struct Settings
   {
-    std::string marker_topic{"/policy_visualization/selfCollisionDistanceMarkers"};
+    std::string marker_topic{"/performance_visualization/selfCollisionDistanceMarkers"};
     std::string frame_id{"world"};
     double minimum_distance{0.0};
     std::vector<std::pair<std::string, std::string>> collision_link_pairs;
@@ -31,19 +31,23 @@ public:
 
   SelfCollisionVisualization(
     ocs2::PinocchioInterface pinocchioInterface,
-    rclcpp::Node& node,
+    rclcpp_lifecycle::LifecycleNode& node,
     Settings settings);
 
   void publish(const ocs2_msgs::msg::MpcFlattenedController& policy);
+  void publish(const ocs2::vector_t& state);
+  void publish(const ocs2::vector_array_t& stateTrajectory);
 
 private:
   using Message = visualization_msgs::msg::MarkerArray;
 
+  ocs2::vector_array_t extractJointPositionTrajectory(
+    const ocs2::vector_array_t& stateTrajectory) const;
   Message createMessage(const std::vector<ocs2::vector_t>& jointPositionTrajectory);
 
   ocs2::PinocchioInterface pinocchio_interface_;
   ocs2::PinocchioGeometryInterface geometry_interface_;
-  rclcpp::Node& node_;
+  rclcpp_lifecycle::LifecycleNode& node_;
   Settings settings_;
   rclcpp::Publisher<Message>::SharedPtr marker_publisher_;
 };

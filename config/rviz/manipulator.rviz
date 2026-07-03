@@ -285,14 +285,18 @@ Visualization Manager:
       Enabled: true
       Name: Optimized State Trajectory
       Namespaces:
-        optimizedStateTrajectoryLine: true
-        optimizedStateTrajectorySamples: true
+        optimizedStateTrajectoryLine_ur_arm1_tool0: true
+        optimizedStateTrajectoryLine_ur_arm2_tool0: true
+        optimizedStateTrajectoryLine_ur_arm_tool0: true
+        optimizedStateTrajectorySamples_ur_arm1_tool0: true
+        optimizedStateTrajectorySamples_ur_arm2_tool0: true
+        optimizedStateTrajectorySamples_ur_arm_tool0: true
       Topic:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /policy_visualization/optimizedStateTrajectory
+        Value: /performance_visualization/optimizedStateTrajectory
       Value: true
     - Class: rviz_default_plugins/MarkerArray
       Enabled: true
@@ -356,7 +360,7 @@ Visualization Manager:
       Value: false
     - Class: rviz_default_plugins/MarkerArray
       Enabled: true
-      Name: Policy Self-Collision Distances
+      Name: Performance Self-Collision Distances
       Namespaces:
         selfCollisionArrow: true
         selfCollisionEndpoints: true
@@ -366,7 +370,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /policy_visualization/selfCollisionDistanceMarkers
+        Value: /performance_visualization/selfCollisionDistanceMarkers
       Value: true
     - Class: rviz_default_plugins/MarkerArray
       Enabled: false

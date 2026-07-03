@@ -47,6 +47,11 @@ namespace diagnostics
 class MpcPolicyPublisher;
 }
 
+namespace visualization
+{
+class PerformanceVisualization;
+}
+
 namespace target
 {
 class ForwardEeMotionTrackingTarget;
@@ -125,6 +130,7 @@ private:
   std::unique_ptr<target::ForwardJointTrackingTarget> joint_tracking_target_;
   std::unique_ptr<target::ForwardEeMotionTrackingTarget> ee_motion_tracking_target_;
   std::shared_ptr<diagnostics::MpcPolicyPublisher> mpc_policy_observer_;
+  std::unique_ptr<visualization::PerformanceVisualization> performance_visualizer_;
 
   double virtual_time_{0.0};
   std::int64_t status_log_period_ms_{2000};

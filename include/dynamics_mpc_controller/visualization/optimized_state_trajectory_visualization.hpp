@@ -3,12 +3,13 @@
 
 #include <cstddef>
 #include <string>
+#include <vector>
 
 #include <ocs2_core/Types.h>
 #include <ocs2_msgs/msg/mpc_flattened_controller.hpp>
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
 #include <pinocchio/multibody/fwd.hpp>
-#include <rclcpp/node.hpp>
+#include <rclcpp_lifecycle/lifecycle_node.hpp>
 #include <rclcpp/publisher.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
@@ -20,8 +21,9 @@ class OptimizedStateTrajectoryVisualization
 public:
   struct Settings
   {
-    std::string marker_topic{"/policy_visualization/optimizedStateTrajectory"};
+    std::string marker_topic{"/performance_visualization/optimizedStateTrajectory"};
     std::string frame_id{"world"};
+    std::vector<std::string> frame_names;
     double line_width{0.01};
     double point_scale{0.025};
   };
@@ -29,19 +31,23 @@ public:
   OptimizedStateTrajectoryVisualization(
     ocs2::PinocchioInterface pinocchioInterface,
     pinocchio::FrameIndex endEffectorFrameId,
-    rclcpp::Node& node,
+    rclcpp_lifecycle::LifecycleNode& node,
     Settings settings);
 
   void publish(const ocs2_msgs::msg::MpcFlattenedController& policy);
+  void publish(const ocs2::vector_array_t& stateTrajectory);
 
 private:
   using Message = visualization_msgs::msg::MarkerArray;
 
+  ocs2::vector_array_t extractJointPositionTrajectory(
+    const ocs2::vector_array_t& stateTrajectory) const;
   Message createMessage(const ocs2::vector_array_t& jointPositionTrajectory);
 
   ocs2::PinocchioInterface pinocchio_interface_;
-  pinocchio::FrameIndex end_effector_frame_id_{0};
-  rclcpp::Node& node_;
+  std::vector<std::string> frame_names_;
+  std::vector<pinocchio::FrameIndex> frame_ids_;
+  rclcpp_lifecycle::LifecycleNode& node_;
   Settings settings_;
   rclcpp::Publisher<Message>::SharedPtr marker_publisher_;
 };

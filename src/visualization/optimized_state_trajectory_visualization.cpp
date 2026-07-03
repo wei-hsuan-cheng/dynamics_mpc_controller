@@ -59,16 +59,27 @@ geometry_msgs::msg::Point toPoint(const Eigen::Vector3d& position)
 OptimizedStateTrajectoryVisualization::OptimizedStateTrajectoryVisualization(
   ocs2::PinocchioInterface pinocchioInterface,
   pinocchio::FrameIndex endEffectorFrameId,
-  rclcpp::Node& node,
+  rclcpp_lifecycle::LifecycleNode& node,
   Settings settings)
 : pinocchio_interface_(std::move(pinocchioInterface)),
-  end_effector_frame_id_(endEffectorFrameId),
   node_(node),
   settings_(std::move(settings))
 {
   const auto& model = pinocchio_interface_.getModel();
-  if (end_effector_frame_id_ >= model.frames.size()) {
+  if (endEffectorFrameId >= model.frames.size()) {
     throw std::invalid_argument("Optimized state trajectory end-effector frame ID is invalid.");
+  }
+  frame_names_ = settings_.frame_names;
+  if (frame_names_.empty()) {
+    frame_names_.push_back(model.frames[endEffectorFrameId].name);
+  }
+  frame_ids_.reserve(frame_names_.size());
+  for (const auto& frame_name : frame_names_) {
+    if (!model.existFrame(frame_name)) {
+      throw std::invalid_argument(
+        "Optimized state trajectory frame does not exist in Pinocchio model: " + frame_name);
+    }
+    frame_ids_.push_back(model.getFrameId(frame_name));
   }
   if (settings_.frame_id.empty()) {
     throw std::invalid_argument("Optimized state trajectory frame ID must not be empty.");
@@ -113,6 +124,43 @@ void OptimizedStateTrajectoryVisualization::publish(
   marker_publisher_->publish(createMessage(joint_positions));
 }
 
+void OptimizedStateTrajectoryVisualization::publish(
+  const ocs2::vector_array_t& stateTrajectory)
+{
+  const auto joint_positions = extractJointPositionTrajectory(stateTrajectory);
+  if (joint_positions.empty()) {
+    return;
+  }
+
+  marker_publisher_->publish(createMessage(joint_positions));
+}
+
+ocs2::vector_array_t OptimizedStateTrajectoryVisualization::extractJointPositionTrajectory(
+  const ocs2::vector_array_t& stateTrajectory) const
+{
+  const auto& model = pinocchio_interface_.getModel();
+  const Eigen::Index joint_dim = model.nq;
+  if (joint_dim <= 0 || stateTrajectory.empty()) {
+    return {};
+  }
+
+  ocs2::vector_array_t joint_positions;
+  joint_positions.reserve(stateTrajectory.size());
+  for (const auto& state : stateTrajectory) {
+    if (state.size() < joint_dim) {
+      throw std::runtime_error("Optimized state sample is shorter than Pinocchio model.nq.");
+    }
+
+    const auto q = state.head(joint_dim).eval();
+    if (!q.allFinite()) {
+      throw std::runtime_error("Optimized state trajectory contains a non-finite joint position.");
+    }
+    joint_positions.push_back(q);
+  }
+
+  return joint_positions;
+}
+
 OptimizedStateTrajectoryVisualization::Message OptimizedStateTrajectoryVisualization::createMessage(
   const ocs2::vector_array_t& jointPositionTrajectory)
 {
@@ -125,31 +173,40 @@ OptimizedStateTrajectoryVisualization::Message OptimizedStateTrajectoryVisualiza
   delete_all.action = visualization_msgs::msg::Marker::DELETEALL;
   message.markers.push_back(std::move(delete_all));
 
-  visualization_msgs::msg::Marker line;
-  line.header.frame_id = settings_.frame_id;
-  line.header.stamp = toTimeMsg(stamp);
-  line.ns = "optimizedStateTrajectoryLine";
-  line.id = 0;
-  line.type = visualization_msgs::msg::Marker::LINE_STRIP;
-  line.action = visualization_msgs::msg::Marker::ADD;
-  line.pose.orientation.w = 1.0;
-  line.scale.x = settings_.line_width;
+  std::vector<visualization_msgs::msg::Marker> line_markers;
+  std::vector<visualization_msgs::msg::Marker> point_markers;
+  line_markers.reserve(frame_ids_.size());
+  point_markers.reserve(frame_ids_.size());
 
-  visualization_msgs::msg::Marker points;
-  points.header = line.header;
-  points.ns = "optimizedStateTrajectorySamples";
-  points.id = 1;
-  points.type = visualization_msgs::msg::Marker::SPHERE_LIST;
-  points.action = visualization_msgs::msg::Marker::ADD;
-  points.pose.orientation.w = 1.0;
-  points.scale.x = settings_.point_scale;
-  points.scale.y = settings_.point_scale;
-  points.scale.z = settings_.point_scale;
+  for (std::size_t frame_index = 0; frame_index < frame_ids_.size(); ++frame_index) {
+    visualization_msgs::msg::Marker line;
+    line.header.frame_id = settings_.frame_id;
+    line.header.stamp = toTimeMsg(stamp);
+    line.ns = "optimizedStateTrajectoryLine_" + frame_names_[frame_index];
+    line.id = static_cast<int>(2 * frame_index);
+    line.type = visualization_msgs::msg::Marker::LINE_STRIP;
+    line.action = visualization_msgs::msg::Marker::ADD;
+    line.pose.orientation.w = 1.0;
+    line.scale.x = settings_.line_width;
+    line.points.reserve(jointPositionTrajectory.size());
+    line.colors.reserve(jointPositionTrajectory.size());
 
-  line.points.reserve(jointPositionTrajectory.size());
-  line.colors.reserve(jointPositionTrajectory.size());
-  points.points.reserve(jointPositionTrajectory.size());
-  points.colors.reserve(jointPositionTrajectory.size());
+    visualization_msgs::msg::Marker points;
+    points.header = line.header;
+    points.ns = "optimizedStateTrajectorySamples_" + frame_names_[frame_index];
+    points.id = static_cast<int>(2 * frame_index + 1);
+    points.type = visualization_msgs::msg::Marker::SPHERE_LIST;
+    points.action = visualization_msgs::msg::Marker::ADD;
+    points.pose.orientation.w = 1.0;
+    points.scale.x = settings_.point_scale;
+    points.scale.y = settings_.point_scale;
+    points.scale.z = settings_.point_scale;
+    points.points.reserve(jointPositionTrajectory.size());
+    points.colors.reserve(jointPositionTrajectory.size());
+
+    line_markers.push_back(std::move(line));
+    point_markers.push_back(std::move(points));
+  }
 
   const auto& model = pinocchio_interface_.getModel();
   auto& data = pinocchio_interface_.getData();
@@ -157,19 +214,25 @@ OptimizedStateTrajectoryVisualization::Message OptimizedStateTrajectoryVisualiza
     pinocchio::forwardKinematics(model, data, jointPositionTrajectory[index]);
     pinocchio::updateFramePlacements(model, data);
 
-    const auto point = toPoint(data.oMf[end_effector_frame_id_].translation());
     const double progress = jointPositionTrajectory.size() > 1 ?
       static_cast<double>(index) / static_cast<double>(jointPositionTrajectory.size() - 1) : 0.0;
     const auto color = trajectoryColor(progress);
 
-    line.points.push_back(point);
-    line.colors.push_back(color);
-    points.points.push_back(point);
-    points.colors.push_back(color);
+    for (std::size_t frame_index = 0; frame_index < frame_ids_.size(); ++frame_index) {
+      const auto point = toPoint(data.oMf[frame_ids_[frame_index]].translation());
+      line_markers[frame_index].points.push_back(point);
+      line_markers[frame_index].colors.push_back(color);
+      point_markers[frame_index].points.push_back(point);
+      point_markers[frame_index].colors.push_back(color);
+    }
   }
 
-  message.markers.push_back(std::move(line));
-  message.markers.push_back(std::move(points));
+  for (auto& line : line_markers) {
+    message.markers.push_back(std::move(line));
+  }
+  for (auto& points : point_markers) {
+    message.markers.push_back(std::move(points));
+  }
   return message;
 }
 

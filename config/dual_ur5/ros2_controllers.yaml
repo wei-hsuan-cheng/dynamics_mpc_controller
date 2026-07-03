@@ -15,6 +15,22 @@ controller_manager:
   ros__parameters:
     ocs2:
       task:
+        model_information:
+          removeJoints: [""]
+          baseFrame: "root"
+          endEffectorFrame: "ur_arm1_tool0"
+
+        visualization:
+          frameId: "world"
+          update_rate: 30.0
+          collision:
+            activate: true
+          trajectory:
+            activate: true
+            frame_names:
+              - "ur_arm1_tool0"
+              - "ur_arm2_tool0"
+
         selfCollision:
           activate: false
           minimumDistance: 0.05
@@ -626,21 +642,3 @@ forward_dynamics_mpc_controller:
       arm2_wrist_3_joint:
         command_interfaces: [effort]
         state_interfaces: [position, velocity, effort]
-
-policy_visualization:
-  ros__parameters:
-    urdfFile: "$(var urdfFile)"
-    removeJoints: [""]
-    endEffectorFrame: "ur_arm1_tool0"
-    mpcPolicyTopic: "$(var mpcPolicyTopic)"
-    frameId: "world"
-
-    optimized_state_trajectory:
-      activate: true
-      markerTopic: "/policy_visualization/optimizedStateTrajectory"
-      lineWidth: 0.01
-      pointScale: 0.025
-
-    self_collision:
-      activate: true
-      markerTopic: "/policy_visualization/selfCollisionDistanceMarkers"

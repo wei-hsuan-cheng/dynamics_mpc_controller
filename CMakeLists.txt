@@ -57,6 +57,7 @@ add_library(${PROJECT_NAME} SHARED
   src/diagnostics/mpc_policy_publisher.cpp
   src/estimation/momentum_observer_wrench_estimator.cpp
   src/visualization/optimized_state_trajectory_visualization.cpp
+  src/visualization/performance_visualization.cpp
   src/visualization/self_collision_visualization.cpp
 
   src/inverse_dynamics_mpc/constraint/inverse_dynamics_ee_wrench_tracking_constraint.cpp
@@ -99,28 +100,6 @@ pluginlib_export_plugin_description_file(
   dynamics_mpc_controller_plugin.xml
 )
 
-add_executable(policy_visualization_node
-  src/visualization/policy_visualization_node.cpp
-)
-target_compile_features(policy_visualization_node PUBLIC cxx_std_17)
-target_include_directories(policy_visualization_node
-  PRIVATE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-)
-target_link_libraries(policy_visualization_node
-  ${PROJECT_NAME}
-)
-ament_target_dependencies(policy_visualization_node
-  rclcpp
-  geometry_msgs
-  ocs2_msgs
-  ocs2_pinocchio_interface
-  pinocchio
-  std_msgs
-  visualization_msgs
-)
-
 install(DIRECTORY include/
   DESTINATION include
 )
@@ -150,10 +129,6 @@ install(TARGETS
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
-)
-
-install(TARGETS policy_visualization_node
-  DESTINATION lib/${PROJECT_NAME}
 )
 
 if(BUILD_TESTING)

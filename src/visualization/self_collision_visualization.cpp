@@ -135,7 +135,7 @@ visualization_msgs::msg::Marker makeDeleteAllMarker(
 
 SelfCollisionVisualization::SelfCollisionVisualization(
   ocs2::PinocchioInterface pinocchioInterface,
-  rclcpp::Node& node,
+  rclcpp_lifecycle::LifecycleNode& node,
   Settings settings)
 : pinocchio_interface_(std::move(pinocchioInterface)),
   geometry_interface_(
@@ -191,6 +191,48 @@ void SelfCollisionVisualization::publish(
   }
 
   marker_publisher_->publish(createMessage(joint_positions));
+}
+
+void SelfCollisionVisualization::publish(const ocs2::vector_t& state)
+{
+  const ocs2::vector_array_t state_trajectory{state};
+  publish(state_trajectory);
+}
+
+void SelfCollisionVisualization::publish(const ocs2::vector_array_t& stateTrajectory)
+{
+  const auto joint_positions = extractJointPositionTrajectory(stateTrajectory);
+  if (joint_positions.empty()) {
+    return;
+  }
+
+  marker_publisher_->publish(createMessage(joint_positions));
+}
+
+ocs2::vector_array_t SelfCollisionVisualization::extractJointPositionTrajectory(
+  const ocs2::vector_array_t& stateTrajectory) const
+{
+  const auto& model = pinocchio_interface_.getModel();
+  const Eigen::Index joint_dim = model.nq;
+  if (joint_dim <= 0 || stateTrajectory.empty()) {
+    return {};
+  }
+
+  ocs2::vector_array_t joint_positions;
+  joint_positions.reserve(stateTrajectory.size());
+  for (const auto& state : stateTrajectory) {
+    if (state.size() < joint_dim) {
+      throw std::runtime_error("Self-collision state sample is shorter than Pinocchio model.nq.");
+    }
+
+    const auto q = state.head(joint_dim).eval();
+    if (!q.allFinite()) {
+      throw std::runtime_error("Self-collision state trajectory contains a non-finite joint position.");
+    }
+    joint_positions.push_back(q);
+  }
+
+  return joint_positions;
 }
 
 SelfCollisionVisualization::Message SelfCollisionVisualization::createMessage(

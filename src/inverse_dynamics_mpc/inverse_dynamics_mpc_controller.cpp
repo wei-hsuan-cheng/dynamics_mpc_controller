@@ -18,6 +18,7 @@
 #include "dynamics_mpc_controller/estimation/momentum_observer_wrench_estimator.hpp"
 #include "dynamics_mpc_controller/inverse_dynamics_mpc/target/ee_motion_tracking_target.hpp"
 #include "dynamics_mpc_controller/inverse_dynamics_mpc/target/joint_tracking_target.hpp"
+#include "dynamics_mpc_controller/visualization/performance_visualization.hpp"
 
 namespace dynamics_mpc_controller
 {
@@ -273,6 +274,21 @@ bool InverseDynamicsMpcController::configure_mpc_ocs2()
         e.what());
       return false;
     }
+  }
+
+  performance_visualizer_.reset();
+  try {
+    performance_visualizer_ = std::make_unique<visualization::PerformanceVisualization>(
+      get_node(),
+      interface_->getPinocchioInterface(),
+      model.endEffectorFrameId(),
+      visualization::makePerformanceVisualizationSettings(parameters_));
+  } catch (const std::exception& e) {
+    RCLCPP_ERROR(
+      get_node()->get_logger(),
+      "[InverseDynamicsMpcController] failed to configure performance visualization: %s",
+      e.what());
+    return false;
   }
   return true;
 }
@@ -869,6 +885,10 @@ controller_interface::return_type InverseDynamicsMpcController::update_and_write
       hold_impedance_mode_);
     virtual_time_ += period.seconds();
     return controller_interface::return_type::OK;
+  }
+
+  if (performance_visualizer_) {
+    performance_visualizer_->update_visualization(observation.state, policy.stateTrajectory_);
   }
 
   vector_t policy_state;
