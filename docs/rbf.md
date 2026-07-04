@@ -151,7 +151,7 @@ $$
 
 ### `delta`
 
-`delta` controls where the logarithmic branch switches into the quadratic relaxation. For $h > \delta$, `delta` has no effect. For $h \le \delta`, the boundary stiffness is
+`delta` controls where the logarithmic branch switches into the quadratic relaxation. For $h > \delta$, `delta` has no effect. For $h \le \delta$, the boundary stiffness is
 
 $$
 p''(0) = \frac{\mu}{\delta^2}.
