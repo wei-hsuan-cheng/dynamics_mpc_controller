@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Generate relaxed barrier function plots for docs/rbf.md."""
 
 from pathlib import Path
@@ -24,15 +23,15 @@ logging.getLogger("matplotlib").setLevel(logging.ERROR)
 SCRIPT_DIR = Path(__file__).resolve().parent
 CMU_SERIF_FONT = Path.home() / "Library/Fonts/cmu.serif-roman.ttf"
 
-MAIN_DELTA = 0.5
-MAIN_MU = 1.0
+RBF_DELTA = 0.5
+RBF_MU = 1.0
 
-DELTA_SWEEP = [
+RBF_PARAMS_DELTA_SWEEP = [
     {"delta": 0.75, "mu": 1.0, "color": "tab:blue", "linestyle": ":"},
     {"delta": 0.10, "mu": 1.0, "color": "tab:green", "linestyle": "--"},
     {"delta": 0.01, "mu": 1.0, "color": "tab:purple", "linestyle": "-."},
 ]
-MU_SWEEP = [
+RBF_PARAMS_MU_SWEEP = [
     {"delta": 0.10, "mu": 0.01, "color": "tab:blue", "linestyle": ":"},
     {"delta": 0.10, "mu": 0.10, "color": "tab:green", "linestyle": "--"},
     {"delta": 0.10, "mu": 1.00, "color": "tab:purple", "linestyle": "-."},
@@ -107,7 +106,7 @@ def draw_right_refs(ax, lower, upper, center, delta, include_zero_y=True):
     ax.axvline(upper - delta, color=BLUE, lw=0.9, ls="--", alpha=0.75, zorder=0)
 
 
-def generate_main_plot():
+def generate_rbf_plot():
     fig, axes = plt.subplots(3, 2, figsize=(11, 9.4), constrained_layout=True)
 
     h = np.linspace(-0.75, 2.6, 2400)
@@ -116,12 +115,13 @@ def generate_main_plot():
     lower, upper = -1.0, 2.0
     center = 0.5
     inside = (z > lower + 1e-5) & (z < upper - 1e-5)
-    main_label = rf"$\delta={MAIN_DELTA:g},\ \mu={MAIN_MU:g}$"
+    main_label = rf"$\delta={RBF_DELTA:g},\ \mu={RBF_MU:g}$"
 
+    # Subplot [0, 0]: One-sided relaxed barrier
     ax = axes[0, 0]
-    draw_left_refs(ax, MAIN_DELTA)
+    draw_left_refs(ax, RBF_DELTA)
     ax.plot(h_log, -np.log(h_log), color=RED, lw=2.2, label=r"$-\log(h)$", zorder=3)
-    ax.plot(h, beta(h, MAIN_DELTA, MAIN_MU), color=BLUE, lw=2.0, ls="--", label=main_label, zorder=2)
+    ax.plot(h, beta(h, RBF_DELTA, RBF_MU), color=BLUE, lw=2.0, ls="--", label=main_label, zorder=2)
     ax.annotate(r"$h=0$", xy=(0.0, -1.65), xytext=(-0.06, -1.65), fontsize=10.5, ha="right")
     ax.annotate(r"$p=0$", xy=(2.25, 0.0), xytext=(2.25, 0.25), fontsize=10.5)
     ax.set_xlim(-0.75, 2.6)
@@ -130,13 +130,14 @@ def generate_main_plot():
     ax.set_title("One-sided relaxed barrier")
     ax.legend(frameon=False, loc="upper right", fontsize=9)
 
+    # Subplot [0, 1]: Two-sided relaxed barrier
     ax = axes[0, 1]
-    draw_right_refs(ax, lower, upper, center, MAIN_DELTA)
+    draw_right_refs(ax, lower, upper, center, RBF_DELTA)
     solid = np.full_like(z, np.nan)
     solid[inside] = -np.log(z[inside] - lower) - np.log(upper - z[inside])
     solid -= -np.log(center - lower) - np.log(upper - center)
-    relaxed = beta(z - lower, MAIN_DELTA, MAIN_MU) + beta(upper - z, MAIN_DELTA, MAIN_MU)
-    relaxed -= beta(center - lower, MAIN_DELTA, MAIN_MU) + beta(upper - center, MAIN_DELTA, MAIN_MU)
+    relaxed = beta(z - lower, RBF_DELTA, RBF_MU) + beta(upper - z, RBF_DELTA, RBF_MU)
+    relaxed -= beta(center - lower, RBF_DELTA, RBF_MU) + beta(upper - center, RBF_DELTA, RBF_MU)
     ax.plot(z, solid, color=RED, lw=2.2, label="log barrier", zorder=3)
     ax.plot(z, relaxed, color=BLUE, lw=2.0, ls="--", label=main_label, zorder=2)
     ax.annotate(r"$z=0.5$", xy=(center, -0.48), xytext=(center + 0.08, -0.48), fontsize=10.5)
@@ -147,20 +148,22 @@ def generate_main_plot():
     ax.set_title(r"Two-sided interval $-1 \leq z \leq 2$")
     ax.legend(frameon=False, loc="upper center", fontsize=9)
 
+    # Subplot [1, 0]: One-sided relaxed barrier 1st derivative
     ax = axes[1, 0]
-    draw_left_refs(ax, MAIN_DELTA)
+    draw_left_refs(ax, RBF_DELTA)
     ax.plot(h_log, -1.0 / h_log, color=RED, lw=2.0, label=r"$-1/h$", zorder=3)
-    ax.plot(h, beta_prime(h, MAIN_DELTA, MAIN_MU), color=BLUE, lw=2.0, ls="--", label=main_label, zorder=2)
+    ax.plot(h, beta_prime(h, RBF_DELTA, RBF_MU), color=BLUE, lw=2.0, ls="--", label=main_label, zorder=2)
     ax.set_xlim(-0.75, 2.6)
     ax.set_ylim(-55.0, 8.0)
     ax.set_ylabel(r"$p'_{\mu,\delta}(h)$")
     ax.legend(frameon=False, loc="lower right", fontsize=9)
 
+    # Subplot [1, 1]: Two-sided relaxed barrier 1st derivative
     ax = axes[1, 1]
-    draw_right_refs(ax, lower, upper, center, MAIN_DELTA)
+    draw_right_refs(ax, lower, upper, center, RBF_DELTA)
     blog_prime = np.full_like(z, np.nan)
     blog_prime[inside] = -1.0 / (z[inside] - lower) + 1.0 / (upper - z[inside])
-    relaxed_prime = beta_prime(z - lower, MAIN_DELTA, MAIN_MU) - beta_prime(upper - z, MAIN_DELTA, MAIN_MU)
+    relaxed_prime = beta_prime(z - lower, RBF_DELTA, RBF_MU) - beta_prime(upper - z, RBF_DELTA, RBF_MU)
     ax.plot(z, blog_prime, color=RED, lw=2.0, label=r"$B_{\log}^{\prime}(z)$", zorder=3)
     ax.plot(z, relaxed_prime, color=BLUE, lw=2.0, ls="--", label=main_label, zorder=2)
     ax.set_xlim(-1.35, 2.35)
@@ -168,10 +171,11 @@ def generate_main_plot():
     ax.set_ylabel(r"$B'(z)$")
     ax.legend(frameon=False, loc="upper center", fontsize=9)
 
+    # Subplot [2, 0]: One-sided relaxed barrier 2nd derivative
     ax = axes[2, 0]
-    draw_left_refs(ax, MAIN_DELTA, include_zero_y=False)
+    draw_left_refs(ax, RBF_DELTA, include_zero_y=False)
     ax.plot(h_log, 1.0 / (h_log * h_log), color=RED, lw=2.0, label=r"$1/h^2$", zorder=3)
-    ax.plot(h, beta_second(h, MAIN_DELTA, MAIN_MU), color=BLUE, lw=2.0, ls="--", label=main_label, zorder=2)
+    ax.plot(h, beta_second(h, RBF_DELTA, RBF_MU), color=BLUE, lw=2.0, ls="--", label=main_label, zorder=2)
     ax.set_yscale("log")
     ax.set_xlim(-0.75, 2.6)
     ax.set_ylim(1e-1, 3e3)
@@ -179,11 +183,12 @@ def generate_main_plot():
     ax.set_ylabel(r"$p''_{\mu,\delta}(h)$")
     ax.legend(frameon=False, loc="upper right", fontsize=9)
 
+    # Subplot [2, 1]: Two-sided relaxed barrier 2nd derivative
     ax = axes[2, 1]
-    draw_right_refs(ax, lower, upper, center, MAIN_DELTA, include_zero_y=False)
+    draw_right_refs(ax, lower, upper, center, RBF_DELTA, include_zero_y=False)
     blog_second = np.full_like(z, np.nan)
     blog_second[inside] = 1.0 / ((z[inside] - lower) ** 2) + 1.0 / ((upper - z[inside]) ** 2)
-    relaxed_second = beta_second(z - lower, MAIN_DELTA, MAIN_MU) + beta_second(upper - z, MAIN_DELTA, MAIN_MU)
+    relaxed_second = beta_second(z - lower, RBF_DELTA, RBF_MU) + beta_second(upper - z, RBF_DELTA, RBF_MU)
     ax.plot(z, blog_second, color=RED, lw=2.0, label=r"$B_{\log}^{\prime\prime}(z)$", zorder=3)
     ax.plot(z, relaxed_second, color=BLUE, lw=2.0, ls="--", label=main_label, zorder=2)
     ax.set_yscale("log")
@@ -194,6 +199,8 @@ def generate_main_plot():
     ax.legend(frameon=False, loc="upper center", fontsize=9)
 
     fig.suptitle("Relaxed logarithmic barrier, derivative, and curvature", fontsize=14)
+    
+    # Save figure
     fig.savefig(SCRIPT_DIR / "rbf_penalty.png", dpi=220, bbox_inches="tight")
     plt.close(fig)
 
@@ -226,28 +233,33 @@ def draw_one_sided_tuning_axis(ax, curves, title):
     ax.legend(frameon=False, loc="upper right", fontsize=9)
 
 
-def generate_tuning_pair_plot():
+def generate_rbf_tuning_plot():
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.2), constrained_layout=True)
+    
+    # Subplot [0, 0]: One-sided relaxed barrier; fix mu, sweep delta
     draw_one_sided_tuning_axis(
         axes[0],
-        DELTA_SWEEP,
+        RBF_PARAMS_DELTA_SWEEP,
         r"$\delta$ sweep with $\mu=1$",
     )
+    
+    # Subplot [0, 1]: One-sided relaxed barrier; fix delta, sweep mu
     draw_one_sided_tuning_axis(
         axes[1],
-        MU_SWEEP,
+        RBF_PARAMS_MU_SWEEP,
         r"$\mu$ sweep with $\delta=0.1$",
     )
     fig.suptitle("One-sided relaxed barrier tuning sweeps", fontsize=14)
 
+    # Save figure
     fig.savefig(SCRIPT_DIR / "rbf_penalty_tuning_pairs.png", dpi=220, bbox_inches="tight")
     plt.close(fig)
 
 
 def main():
     configure_matplotlib()
-    generate_main_plot()
-    generate_tuning_pair_plot()
+    generate_rbf_plot()
+    generate_rbf_tuning_plot()
 
 
 if __name__ == "__main__":
