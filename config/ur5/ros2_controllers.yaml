@@ -36,7 +36,7 @@ controller_manager:
           hardStopDistance: 0.01
           implementation: rbf # rbf | al | hard (for sqp only)
           mu: 1.0e-2
-          delta: 1.0e-3
+          delta: 5.0e-4
           penaltyType: slacknesssquaredhinge # slacknesssquaredhinge | barrier
           scale: 10.0
           stepSize: 1.0
