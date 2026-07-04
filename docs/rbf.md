@@ -110,13 +110,13 @@ The dashed blue vertical guide lines mark the quadratic-extension switch points.
 The left column shows the one-sided relaxed barrier. The right column shows a two-sided interval example built from two one-sided barriers:
 
 $$
-B(z)
+p_{\mu,\delta}^{[h_{\min}, h_{\max}]}(h)
 =
-\beta(z - z_{\min}; \delta)
+\beta(h - h_{\min}; \delta)
 +
-\beta(z_{\max} - z; \delta),
+\beta(h_{\max} - h; \delta),
 \qquad
-z_{\min} \le z \le z_{\max}.
+h_{\min} \le h \le h_{\max}.
 $$
 
 This is the same idea used for pairwise self-collision: each distance margin is a one-sided inequality.

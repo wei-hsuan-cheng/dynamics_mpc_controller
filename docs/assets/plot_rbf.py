@@ -11,6 +11,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib import font_manager
+from matplotlib import ticker
 
 warnings.filterwarnings(
     "ignore",
@@ -23,7 +24,7 @@ logging.getLogger("matplotlib").setLevel(logging.ERROR)
 SCRIPT_DIR = Path(__file__).resolve().parent
 CMU_SERIF_FONT = Path.home() / "Library/Fonts/cmu.serif-roman.ttf"
 
-RBF_DELTA = 0.1
+RBF_DELTA = 0.075
 RBF_MU = 1.0
 
 RBF_PARAMS_DELTA_SWEEP = [
@@ -113,6 +114,19 @@ def mask_two_sided_quadratic_regions(z, values, lower, upper, delta):
     return masked_values
 
 
+def format_log_y_axis(ax):
+    major_ticks = [1e-1, 1e0, 1e1, 1e2, 1e3]
+
+    def formatter(value, _position):
+        exponent = int(np.round(np.log10(value)))
+        return rf"$10^{{{exponent}}}$"
+
+    ax.yaxis.set_major_locator(ticker.FixedLocator(major_ticks))
+    ax.yaxis.set_major_formatter(ticker.FuncFormatter(formatter))
+    ax.yaxis.set_minor_locator(ticker.LogLocator(base=10.0, subs=np.arange(2, 10) * 0.1))
+    ax.yaxis.set_minor_formatter(ticker.NullFormatter())
+
+
 def generate_rbf_plot():
     fig, axes = plt.subplots(3, 2, figsize=(11, 9.4), constrained_layout=True)
 
@@ -132,7 +146,7 @@ def generate_rbf_plot():
     ax = axes[0, 0]
     draw_left_refs(ax, RBF_DELTA)
     
-    log_penalty[0, 0] = ax.plot(h_log, -RBF_MU * np.log(h_log), color=RED, lw=2.2, label=r"$- \mu \log(h)$", zorder=2)
+    log_penalty[0, 0] = ax.plot(h_log, -RBF_MU * np.log(h_log), color=RED, lw=2.2, label=r"$p_{\mu,\delta}(h) = - \mu \log(h)$", zorder=2)
     quadratic_penalty[0, 0] = ax.plot(h, beta(h, RBF_DELTA, RBF_MU), color=BLUE, lw=2.0, ls="--", label=main_label, zorder=3)
     
     ax.annotate(r"$h=0$", xy=(0.0, -1.65), xytext=(-0.06, -1.65), fontsize=10.5, ha="right")
@@ -154,24 +168,24 @@ def generate_rbf_plot():
     relaxed -= beta(center - lower, RBF_DELTA, RBF_MU) + beta(upper - center, RBF_DELTA, RBF_MU)
     relaxed_quadratic = mask_two_sided_quadratic_regions(z, relaxed, lower, upper, RBF_DELTA)
     
-    log_penalty[0, 1] = ax.plot(z, solid, color=RED, lw=2.2, label="log barrier", zorder=2)
+    log_penalty[0, 1] = ax.plot(z, solid, color=RED, lw=2.2, label="$p_{\mu,\delta}(h)$", zorder=2)
     quadratic_penalty[0, 1] = ax.plot(z, relaxed_quadratic, color=BLUE, lw=2.0, ls="--", label=main_label, zorder=3)
     
-    ax.annotate(r"$z=0.5$", xy=(center, -0.48), xytext=(center + 0.08, -0.48), fontsize=10.5)
+    ax.annotate(r"$h=0.5$", xy=(center, -0.48), xytext=(center + 0.08, -0.48), fontsize=10.5)
     ax.annotate(r"$p=0$", xy=(1.98, 0.0), xytext=(2.02, 0.25), fontsize=10.5)
-    ax.annotate(r"$\delta$", xy=(lower + RBF_DELTA, 0.2), xytext=(lower + RBF_DELTA + 0.1, 0.2), fontsize=10.5, ha="right", color=BLUE)
-    ax.annotate(r"$\delta$", xy=(upper - RBF_DELTA, 0.2), xytext=(upper - RBF_DELTA - 0.1, 0.2), fontsize=10.5, ha="left", color=BLUE)
+    ax.annotate(r"$h_{\min} + \delta$", xy=(lower + RBF_DELTA, 0.2), xytext=(lower + RBF_DELTA - 0.05, 1.0), fontsize=10.5, ha="right", color=BLUE)
+    ax.annotate(r"$h_{\max} - \delta$", xy=(upper - RBF_DELTA, 0.2), xytext=(upper - RBF_DELTA + 0.05, 1.0), fontsize=10.5, ha="left", color=BLUE)
     ax.set_xlim(-1.35, 2.35)
     ax.set_ylim(-0.6, 10.0)
-    ax.set_ylabel(r"$B(z)$")
-    ax.set_title(r"Two-sided interval $-1 \leq z \leq 2$")
+    ax.set_ylabel(r"$p_{\mu,\delta}(h)$")
+    ax.set_title(r"Two-sided interval $-1 \leq h \leq 2$")
     ax.legend(frameon=False, loc="upper center", fontsize=9)
 
     # Subplot [1, 0]: One-sided relaxed barrier 1st derivative
     ax = axes[1, 0]
     draw_left_refs(ax, RBF_DELTA)
     
-    log_penalty[1, 0] = ax.plot(h_log, -RBF_MU / h_log, color=RED, lw=2.0, label=r"$- \mu / h$", zorder=2)
+    log_penalty[1, 0] = ax.plot(h_log, -RBF_MU / h_log, color=RED, lw=2.0, label=r"$p'_{\mu,\delta}(h) = - \mu / h$", zorder=2)
     quadratic_penalty[1, 0] = ax.plot(h, beta_prime(h, RBF_DELTA, RBF_MU), color=BLUE, lw=2.0, ls="--", label=main_label, zorder=3)
     
     ax.set_xlim(-0.75, 2.6)
@@ -187,24 +201,25 @@ def generate_rbf_plot():
     relaxed_prime = beta_prime(z - lower, RBF_DELTA, RBF_MU) - beta_prime(upper - z, RBF_DELTA, RBF_MU)
     relaxed_prime_quadratic = mask_two_sided_quadratic_regions(z, relaxed_prime, lower, upper, RBF_DELTA)
     
-    log_penalty[1, 1] = ax.plot(z, blog_prime, color=RED, lw=2.0, label=r"$B_{\log}^{\prime}(z)$", zorder=2)
+    log_penalty[1, 1] = ax.plot(z, blog_prime, color=RED, lw=2.0, label=r"$p_{\log}^{\prime}(h)$", zorder=2)
     quadratic_penalty[1, 1] = ax.plot(z, relaxed_prime_quadratic, color=BLUE, lw=2.0, ls="--", label=main_label, zorder=3)
     
     ax.set_xlim(-1.35, 2.35)
     ax.set_ylim(-55.0, 55.0)
-    ax.set_ylabel(r"$B'(z)$")
+    ax.set_ylabel(r"$p'_{\mu,\delta}(h)$")
     ax.legend(frameon=False, loc="upper center", fontsize=9)
 
     # Subplot [2, 0]: One-sided relaxed barrier 2nd derivative
     ax = axes[2, 0]
     draw_left_refs(ax, RBF_DELTA, include_zero_y=False)
     
-    log_penalty[2, 0] = ax.plot(h_log, RBF_MU / (h_log * h_log), color=RED, lw=2.0, label=r"$ \mu / h^2$", zorder=2)
+    log_penalty[2, 0] = ax.plot(h_log, RBF_MU / (h_log * h_log), color=RED, lw=2.0, label=r"$p''_{\mu,\delta}(h) = \mu / h^2$", zorder=2)
     quadratic_penalty[2, 0] = ax.plot(h, beta_second(h, RBF_DELTA, RBF_MU), color=BLUE, lw=2.0, ls="--", label=main_label, zorder=3)
     
     ax.set_yscale("log")
     ax.set_xlim(-0.75, 2.6)
     ax.set_ylim(1e-1, 3e3)
+    format_log_y_axis(ax)
     ax.set_xlabel(r"constraint margin $h$")
     ax.set_ylabel(r"$p''_{\mu,\delta}(h)$")
     ax.legend(frameon=False, loc="upper right", fontsize=9)
@@ -217,14 +232,15 @@ def generate_rbf_plot():
     relaxed_second = beta_second(z - lower, RBF_DELTA, RBF_MU) + beta_second(upper - z, RBF_DELTA, RBF_MU)
     relaxed_second_quadratic = mask_two_sided_quadratic_regions(z, relaxed_second, lower, upper, RBF_DELTA)
     
-    log_penalty[2, 1] = ax.plot(z, blog_second, color=RED, lw=2.0, label=r"$B_{\log}^{\prime\prime}(z)$", zorder=2)
+    log_penalty[2, 1] = ax.plot(z, blog_second, color=RED, lw=2.0, label=r"$p_{\log}^{\prime\prime}(h)$", zorder=2)
     quadratic_penalty[2, 1] = ax.plot(z, relaxed_second_quadratic, color=BLUE, lw=2.0, ls="--", label=main_label, zorder=3)
     
     ax.set_yscale("log")
     ax.set_xlim(-1.35, 2.35)
     ax.set_ylim(1e-1, 3e3)
-    ax.set_xlabel(r"position $z$")
-    ax.set_ylabel(r"$B''(z)$")
+    format_log_y_axis(ax)
+    ax.set_xlabel(r"constraint coordinate $h$")
+    ax.set_ylabel(r"$p''_{\mu,\delta}(h)$")
     ax.legend(frameon=False, loc="upper center", fontsize=9)
 
     fig.suptitle("Relaxed logarithmic barrier, derivative, and curvature", fontsize=14)
