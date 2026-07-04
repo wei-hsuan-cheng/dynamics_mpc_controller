@@ -106,15 +106,23 @@ def draw_right_refs(ax, lower, upper, center, delta, include_zero_y=True):
     ax.axvline(upper - delta, color=BLUE, lw=0.9, ls="--", alpha=0.75, zorder=0)
 
 
+def mask_two_sided_quadratic_regions(z, values, lower, upper, delta):
+    mask = (z <= lower + delta) | (z >= upper - delta)
+    masked_values = np.full_like(values, np.nan)
+    masked_values[mask] = values[mask]
+    return masked_values
+
+
 def generate_rbf_plot():
     fig, axes = plt.subplots(3, 2, figsize=(11, 9.4), constrained_layout=True)
 
-    h_log = np.linspace(0.02, 2.6, 1200)
+    log_near_zero = 5.0e-3
+    h_log = np.linspace(log_near_zero, 2.6, 2400)
     h = np.linspace(-0.75, RBF_DELTA, 2400)
     z = np.linspace(-1.35, 2.35, 2400)
     lower, upper = -1.0, 2.0
     center = 0.5
-    inside = (z > lower + 1e-5) & (z < upper - 1e-5)
+    inside = (z > lower + log_near_zero) & (z < upper - log_near_zero)
     main_label = rf"$\delta={RBF_DELTA:g},\ \mu={RBF_MU:g}$"
 
     log_penalty = np.empty((3, 2), dtype=object)
@@ -144,9 +152,10 @@ def generate_rbf_plot():
     solid -= -np.log(center - lower) - np.log(upper - center)
     relaxed = beta(z - lower, RBF_DELTA, RBF_MU) + beta(upper - z, RBF_DELTA, RBF_MU)
     relaxed -= beta(center - lower, RBF_DELTA, RBF_MU) + beta(upper - center, RBF_DELTA, RBF_MU)
+    relaxed_quadratic = mask_two_sided_quadratic_regions(z, relaxed, lower, upper, RBF_DELTA)
     
     log_penalty[0, 1] = ax.plot(z, solid, color=RED, lw=2.2, label="log barrier", zorder=2)
-    quadratic_penalty[0, 1] = ax.plot(z, relaxed, color=BLUE, lw=2.0, ls="--", label=main_label, zorder=3)
+    quadratic_penalty[0, 1] = ax.plot(z, relaxed_quadratic, color=BLUE, lw=2.0, ls="--", label=main_label, zorder=3)
     
     ax.annotate(r"$z=0.5$", xy=(center, -0.48), xytext=(center + 0.08, -0.48), fontsize=10.5)
     ax.annotate(r"$p=0$", xy=(1.98, 0.0), xytext=(2.02, 0.25), fontsize=10.5)
@@ -176,9 +185,10 @@ def generate_rbf_plot():
     blog_prime = np.full_like(z, np.nan)
     blog_prime[inside] = -1.0 / (z[inside] - lower) + 1.0 / (upper - z[inside])
     relaxed_prime = beta_prime(z - lower, RBF_DELTA, RBF_MU) - beta_prime(upper - z, RBF_DELTA, RBF_MU)
+    relaxed_prime_quadratic = mask_two_sided_quadratic_regions(z, relaxed_prime, lower, upper, RBF_DELTA)
     
     log_penalty[1, 1] = ax.plot(z, blog_prime, color=RED, lw=2.0, label=r"$B_{\log}^{\prime}(z)$", zorder=2)
-    quadratic_penalty[1, 1] = ax.plot(z, relaxed_prime, color=BLUE, lw=2.0, ls="--", label=main_label, zorder=3)
+    quadratic_penalty[1, 1] = ax.plot(z, relaxed_prime_quadratic, color=BLUE, lw=2.0, ls="--", label=main_label, zorder=3)
     
     ax.set_xlim(-1.35, 2.35)
     ax.set_ylim(-55.0, 55.0)
@@ -205,9 +215,10 @@ def generate_rbf_plot():
     blog_second = np.full_like(z, np.nan)
     blog_second[inside] = RBF_MU / ((z[inside] - lower) ** 2) + RBF_MU / ((upper - z[inside]) ** 2)
     relaxed_second = beta_second(z - lower, RBF_DELTA, RBF_MU) + beta_second(upper - z, RBF_DELTA, RBF_MU)
+    relaxed_second_quadratic = mask_two_sided_quadratic_regions(z, relaxed_second, lower, upper, RBF_DELTA)
     
     log_penalty[2, 1] = ax.plot(z, blog_second, color=RED, lw=2.0, label=r"$B_{\log}^{\prime\prime}(z)$", zorder=2)
-    quadratic_penalty[2, 1] = ax.plot(z, relaxed_second, color=BLUE, lw=2.0, ls="--", label=main_label, zorder=3)
+    quadratic_penalty[2, 1] = ax.plot(z, relaxed_second_quadratic, color=BLUE, lw=2.0, ls="--", label=main_label, zorder=3)
     
     ax.set_yscale("log")
     ax.set_xlim(-1.35, 2.35)
