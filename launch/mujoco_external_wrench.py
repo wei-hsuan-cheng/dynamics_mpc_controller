@@ -56,7 +56,6 @@ class MujocoExternalWrenchPublisher(Node):
         self.declare_parameter("duration", 0.0)
         self.declare_parameter("start_delay", 0.0)
         self.declare_parameter("zero_on_stop", True)
-        self.declare_parameter("stamp_with_node_time", False)
         self.declare_parameter("force_center", DEFAULT_FORCE_CENTER.tolist())
         self.declare_parameter("force_amplitude", DEFAULT_FORCE_AMPLITUDE.tolist())
         self.declare_parameter("force_phase", DEFAULT_FORCE_PHASE.tolist())
@@ -73,7 +72,6 @@ class MujocoExternalWrenchPublisher(Node):
         self.duration = max(0.0, float(self.get_parameter("duration").value))
         self.start_delay = max(0.0, float(self.get_parameter("start_delay").value))
         self.zero_on_stop = bool(self.get_parameter("zero_on_stop").value)
-        self.stamp_with_node_time = bool(self.get_parameter("stamp_with_node_time").value)
         self.force_center = _resize(
             _as_array(self.get_parameter("force_center").value, DEFAULT_FORCE_CENTER),
             3,
@@ -123,8 +121,7 @@ class MujocoExternalWrenchPublisher(Node):
             f"torque_center={self.torque_center.tolist()}, "
             f"torque_amplitude={self.torque_amplitude.tolist()}, "
             f"torque_phase={self.torque_phase.tolist()}, "
-            f"duration={duration_text}, start_delay={self.start_delay:.3f} s, "
-            f"stamp_with_node_time={self.stamp_with_node_time}"
+            f"duration={duration_text}, start_delay={self.start_delay:.3f} s"
         )
 
     def elapsed_wall_time(self) -> float:
@@ -132,8 +129,7 @@ class MujocoExternalWrenchPublisher(Node):
 
     def make_message(self, force: np.ndarray, torque: np.ndarray) -> MujocoExternalWrench:
         msg = MujocoExternalWrench()
-        if self.stamp_with_node_time:
-            msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = self.wrench_frame
         msg.body_name = self.body_name
         msg.wrench_frame = self.wrench_frame
