@@ -315,7 +315,6 @@ void InverseDynamicsMpcInterface::setupPinocchio(const Params& parameters)
   }
   const std::string ee_frame_name = model.frames[ee_frame_id].name;
   const bool wrench_in_rnea = parameters.ocs2.task.model_settings.wrenchInRNEA;
-  const bool track_zero_wrench = parameters.ocs2.task.model_settings.trackZeroWrench;
   default_ee_wrench_frame_ = parameters.ocs2.task.model_settings.eeWrenchFrame;
   if (default_ee_wrench_frame_ != "base" && default_ee_wrench_frame_ != "global" &&
       default_ee_wrench_frame_ != "world" && default_ee_wrench_frame_ != "ee" &&
@@ -324,18 +323,13 @@ void InverseDynamicsMpcInterface::setupPinocchio(const Params& parameters)
     throw std::runtime_error(
       "[InverseDynamicsMpcInterface] model_settings.eeWrenchFrame must be 'world'/'base' or 'ee'.");
   }
-  if (track_zero_wrench && !wrench_in_rnea) {
-    throw std::runtime_error(
-      "[InverseDynamicsMpcInterface] model_settings.trackZeroWrench requires wrenchInRNEA=true.");
-  }
 
   inverse_dynamics_model_ = InverseDynamicsMpcModel(
     joint_dim,
     getLastJointNames(model, joint_dim),
     ee_frame_name,
     ee_frame_id,
-    wrench_in_rnea,
-    track_zero_wrench);
+    wrench_in_rnea);
 
   std::cerr << "\n #### InverseDynamicsMpcInterface model:";
   std::cerr << "\n #### =============================================================================";
@@ -346,8 +340,6 @@ void InverseDynamicsMpcInterface::setupPinocchio(const Params& parameters)
     (inverse_dynamics_model_.hasEeWrenchInput() ? "[jointAcceleration, jointTorque, eeWrench]" :
     "[jointAcceleration, jointTorque]");
   if (inverse_dynamics_model_.hasEeWrenchInput()) {
-    std::cerr << "\n #### trackZeroWrench: " <<
-      (inverse_dynamics_model_.trackZeroWrench() ? "true" : "false");
     std::cerr << "\n #### eeWrenchFrame: " << default_ee_wrench_frame_;
   }
   std::cerr << "\n #### eeFrame: " << inverse_dynamics_model_.endEffectorFrame();
@@ -508,8 +500,7 @@ void InverseDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
         inverse_dynamics_model_.stateDim(),
         inverse_dynamics_model_.inputDim(),
         inverse_dynamics_model_.wrenchOffset(),
-        *reference_manager_ptr_,
-        inverse_dynamics_model_.trackZeroWrench()));
+        *reference_manager_ptr_));
   } else {
     problem_.equalityConstraintPtr->add(
       "inverseDynamicsRnea",

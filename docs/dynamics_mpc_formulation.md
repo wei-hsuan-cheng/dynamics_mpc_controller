@@ -191,19 +191,8 @@ F_\mathrm{ee} - F_{\mathrm{ee,ref}}(t)
 = 0 .
 $$
 
-For zero-wrench tracking:
-
-$$
-F_{\mathrm{ee,ref}}(t) = 0.
-$$
-
-For commanded wrench tracking:
-
-$$
-F_{\mathrm{ee,ref}}(t)
-$$
-
-is read from the target input trajectory.
+$F_{\mathrm{ee,ref}}(t)$ is read from the target input trajectory when provided.
+If no wrench reference is provided, it defaults to zero.
 
 ### Input Cost
 

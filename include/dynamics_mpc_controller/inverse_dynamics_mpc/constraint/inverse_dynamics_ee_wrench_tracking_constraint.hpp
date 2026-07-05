@@ -16,8 +16,7 @@ public:
     std::size_t stateDim,
     std::size_t inputDim,
     std::size_t wrenchOffset,
-    const ocs2::ReferenceManagerInterface& referenceManager,
-    bool trackZeroWrench);
+    const ocs2::ReferenceManagerInterface& referenceManager);
 
   InverseDynamicsEeWrenchTrackingConstraint* clone() const override
   {
@@ -45,7 +44,6 @@ private:
   std::size_t input_dim_;
   std::size_t wrench_offset_;
   const ocs2::ReferenceManagerInterface* reference_manager_ptr_;
-  bool track_zero_wrench_;
 };
 
 }  // namespace dynamics_mpc_controller

@@ -9,14 +9,12 @@ InverseDynamicsEeWrenchTrackingConstraint::InverseDynamicsEeWrenchTrackingConstr
   std::size_t stateDim,
   std::size_t inputDim,
   std::size_t wrenchOffset,
-  const ocs2::ReferenceManagerInterface& referenceManager,
-  bool trackZeroWrench)
+  const ocs2::ReferenceManagerInterface& referenceManager)
 : ocs2::StateInputConstraint(ocs2::ConstraintOrder::Linear),
   state_dim_(stateDim),
   input_dim_(inputDim),
   wrench_offset_(wrenchOffset),
-  reference_manager_ptr_(&referenceManager),
-  track_zero_wrench_(trackZeroWrench)
+  reference_manager_ptr_(&referenceManager)
 {
   if (wrench_offset_ + 6 > input_dim_) {
     throw std::runtime_error(
@@ -60,10 +58,6 @@ InverseDynamicsEeWrenchTrackingConstraint::getLinearApproximation(
 
 ocs2::vector_t InverseDynamicsEeWrenchTrackingConstraint::desiredWrench(ocs2::scalar_t time) const
 {
-  if (track_zero_wrench_) {
-    return ocs2::vector_t::Zero(6);
-  }
-
   const auto& target_trajectories = reference_manager_ptr_->getTargetTrajectories();
   if (target_trajectories.empty() || target_trajectories.inputTrajectory.empty()) {
     return ocs2::vector_t::Zero(6);

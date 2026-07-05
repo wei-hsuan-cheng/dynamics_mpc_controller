@@ -382,8 +382,7 @@ EeMotionTrackingTarget::TargetTrajectories EeMotionTrackingTarget::fromMessage(
       }
     }
 
-    if (model.hasEeWrenchInput() && !model.trackZeroWrench() &&
-        !msg.ee_wrench_trajectory.empty()) {
+    if (model.hasEeWrenchInput() && !msg.ee_wrench_trajectory.empty()) {
       const ocs2::vector_t raw_wrench = vectorFromMessage(msg.ee_wrench_trajectory[sample]);
       input.segment(static_cast<Eigen::Index>(model.wrenchOffset()), 6) =
         wrenchTargetInWorldFrame(raw_wrench, wrench_frame, raw_state, command_mode);

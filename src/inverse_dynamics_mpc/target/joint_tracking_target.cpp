@@ -286,8 +286,7 @@ JointTrackingTarget::TargetTrajectories JointTrackingTarget::fromMessage(
       }
     }
 
-    if (model.hasEeWrenchInput() && !model.trackZeroWrench() &&
-        !msg.ee_wrench_trajectory.empty()) {
+    if (model.hasEeWrenchInput() && !msg.ee_wrench_trajectory.empty()) {
       const ocs2::vector_t raw_wrench = vectorFromMessage(msg.ee_wrench_trajectory[sample]);
       if (raw_wrench.size() != 6) {
         throw std::runtime_error("ee_wrench_trajectory sample dimension must be 6");

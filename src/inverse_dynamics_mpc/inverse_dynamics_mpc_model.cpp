@@ -10,14 +10,12 @@ InverseDynamicsMpcModel::InverseDynamicsMpcModel(
   std::vector<std::string> dofNames,
   std::string endEffectorFrame,
   pinocchio::FrameIndex endEffectorFrameId,
-  bool wrenchInRnea,
-  bool trackZeroWrench)
+  bool wrenchInRnea)
 : joint_dim_(jointDim),
   dof_names_(std::move(dofNames)),
   end_effector_frame_(std::move(endEffectorFrame)),
   end_effector_frame_id_(endEffectorFrameId),
-  wrench_in_rnea_(wrenchInRnea),
-  track_zero_wrench_(trackZeroWrench)
+  wrench_in_rnea_(wrenchInRnea)
 {
 }
 

@@ -22,15 +22,13 @@ public:
     std::vector<std::string> dofNames,
     std::string endEffectorFrame,
     pinocchio::FrameIndex endEffectorFrameId,
-    bool wrenchInRnea,
-    bool trackZeroWrench);
+    bool wrenchInRnea);
 
   std::size_t jointDim() const { return joint_dim_; }
   std::size_t stateDim() const { return 2 * joint_dim_; }
   std::size_t inputDim() const { return 2 * joint_dim_ + (wrench_in_rnea_ ? 6 : 0); }
   bool hasEeWrenchInput() const { return wrench_in_rnea_; }
   bool wrenchInRnea() const { return wrench_in_rnea_; }
-  bool trackZeroWrench() const { return track_zero_wrench_; }
 
   std::size_t qOffset() const { return 0; }
   std::size_t vOffset() const { return joint_dim_; }
@@ -60,7 +58,6 @@ private:
   std::string end_effector_frame_;
   pinocchio::FrameIndex end_effector_frame_id_{0};
   bool wrench_in_rnea_{false};
-  bool track_zero_wrench_{false};
 };
 
 }  // namespace dynamics_mpc_controller

@@ -172,12 +172,6 @@ inverse_dynamics_mpc_controller:
           }
         }
 
-        trackZeroWrench: {
-          type: bool,
-          default_value: false,
-          description: "When wrenchInRNEA is true, add a hard equality constraint on the end-effector wrench; true enforces zero wrench, false enforces the incoming target input wrench when provided and zero otherwise"
-        }
-
       ddp:
         algorithm: {
           type: string,
