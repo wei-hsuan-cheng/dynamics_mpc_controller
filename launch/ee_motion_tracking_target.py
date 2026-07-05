@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import math
 import numpy as np
 from typing import Sequence
@@ -42,7 +40,7 @@ DEFAULT_POSE_WEIGHTS = np.array([2.0, 2.0, 2.0, 0.5, 0.5, 0.5]) * 1000.0
 DEFAULT_TWIST_WEIGHTS = np.array([2.0, 2.0, 2.0, 0.5, 0.5, 0.5]) * 1000.0
 
 DEFAULT_EE_WRENCH_FRAME = "ee"  # empty uses controller YAML default; otherwise "world" | "base" | "ee"
-DEFAULT_EE_WRENCH_CENTER = np.array([0.0, 0.0, -20.0, 0.0, 0.0, 0.0])
+DEFAULT_EE_WRENCH_CENTER = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 DEFAULT_EE_WRENCH_AMPLITUDE = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 DEFAULT_EE_WRENCH_PHASE = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
