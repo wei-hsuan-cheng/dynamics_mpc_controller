@@ -21,9 +21,12 @@ DEFAULT_TRANSLATION_CENTER = np.array([0.573, 0.11, 0.51])
 DEFAULT_TRANSLATION_AMPLITUDE = np.array([0.0, 0.0, 0.0])
 # DEFAULT_TRANSLATION_CENTER = np.array([0.573, 0.11, 0.1])
 # DEFAULT_TRANSLATION_AMPLITUDE = np.array([0.0, 0.0, 0.1])
+# DEFAULT_TRANSLATION_CENTER = np.array([0.45, 0.0, 0.2])
+# DEFAULT_TRANSLATION_AMPLITUDE = np.array([0.0, 0.0, 0.0])
 DEFAULT_TRANSLATION_PHASE = np.array([0.0, 0.0, 0.0])
 
 DEFAULT_ORIENTATION_RPY_CENTER = np.array([-np.pi / 2.0, np.pi / 4.0, -np.pi / 2.0])
+# DEFAULT_ORIENTATION_RPY_CENTER = np.array([-np.pi / 1.0, 0.0, -np.pi / 2.0])
 DEFAULT_ORIENTATION_RPY_AMPLITUDE = np.array([0.0, 0.0, 0.0])
 DEFAULT_ORIENTATION_RPY_PHASE = np.array([0.0, 0.0, 0.0])
 
@@ -38,9 +41,8 @@ DEFAULT_TWIST_ANGULAR_PHASE = np.array([0.0, 0.0, 0.0])
 DEFAULT_POSE_WEIGHTS = np.array([2.0, 2.0, 2.0, 0.5, 0.5, 0.5]) * 1000.0
 DEFAULT_TWIST_WEIGHTS = np.array([2.0, 2.0, 2.0, 0.5, 0.5, 0.5]) * 1000.0
 
-DEFAULT_PUBLISH_EE_WRENCH = False
 DEFAULT_EE_WRENCH_FRAME = "ee"  # empty uses controller YAML default; otherwise "world" | "base" | "ee"
-DEFAULT_EE_WRENCH_CENTER = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+DEFAULT_EE_WRENCH_CENTER = np.array([0.0, 0.0, -20.0, 0.0, 0.0, 0.0])
 DEFAULT_EE_WRENCH_AMPLITUDE = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 DEFAULT_EE_WRENCH_PHASE = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
@@ -111,7 +113,6 @@ class EeMotionTrackingTargetPublisher(Node):
         self.declare_parameter("twist_angular_phase", DEFAULT_TWIST_ANGULAR_PHASE.tolist())
         self.declare_parameter("pose_weights", DEFAULT_POSE_WEIGHTS.tolist())
         self.declare_parameter("twist_weights", DEFAULT_TWIST_WEIGHTS.tolist())
-        self.declare_parameter("publish_ee_wrench", DEFAULT_PUBLISH_EE_WRENCH)
         self.declare_parameter("ee_wrench_frame", DEFAULT_EE_WRENCH_FRAME)
         self.declare_parameter("ee_wrench_center", DEFAULT_EE_WRENCH_CENTER.tolist())
         self.declare_parameter("ee_wrench_amplitude", DEFAULT_EE_WRENCH_AMPLITUDE.tolist())
@@ -163,7 +164,6 @@ class EeMotionTrackingTargetPublisher(Node):
             _as_array(self.get_parameter("pose_weights").value, DEFAULT_POSE_WEIGHTS), 6, 20.0)
         self.twist_weights = _resize(
             _as_array(self.get_parameter("twist_weights").value, DEFAULT_TWIST_WEIGHTS), 6, 2.0)
-        self.publish_ee_wrench = bool(self.get_parameter("publish_ee_wrench").value)
         self.ee_wrench_frame = str(self.get_parameter("ee_wrench_frame").value).lower()
         if self.ee_wrench_frame not in ("", "base", "global", "world", "ee", "end_effector", "end_effector_frame"):
             raise RuntimeError(
@@ -185,7 +185,6 @@ class EeMotionTrackingTargetPublisher(Node):
         self.get_logger().info(
             f"Publishing {self.command_type} DynamicsMpcTargets to {self.topic}, "
             f"twist_frame={self.twist_frame}, "
-            f"publish_ee_wrench={self.publish_ee_wrench}, "
             f"ee_wrench_frame={self.ee_wrench_frame}, "
             f"{self.trajectory_samples} ZOH trajectory samples over {self.trajectory_duration:.3f} s "
             f"with dt {self.trajectory_dt:.3f} s, using ROS node time"
@@ -266,10 +265,9 @@ class EeMotionTrackingTargetPublisher(Node):
             msg.time_trajectory.append(float(t))
             msg.state_trajectory.append(state)
 
-            if self.publish_ee_wrench:
-                wrench = MpcInput()
-                wrench.value = [float(x) for x in zoh_wrench]
-                msg.ee_wrench_trajectory.append(wrench)
+            wrench = MpcInput()
+            wrench.value = [float(x) for x in zoh_wrench]
+            msg.ee_wrench_trajectory.append(wrench)
 
     def publish(self):
         t0 = self.get_clock().now().nanoseconds / 1e9 + self.time_offset
@@ -278,8 +276,8 @@ class EeMotionTrackingTargetPublisher(Node):
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.command_type = self.command_type
         msg.ee_motion_twist_frame = self.twist_frame
-        if self.publish_ee_wrench:
-            msg.ee_wrench_frame = self.ee_wrench_frame
+        msg.ee_wrench_frame = self.ee_wrench_frame
+        
         if self.command_type in ("ee_motion_pose", "ee_motion"):
             msg.ee_motion_pose_tracking_weights = Float64MultiArray()
             msg.ee_motion_pose_tracking_weights.data = [float(w) for w in self.pose_weights]
