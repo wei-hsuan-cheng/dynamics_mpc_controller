@@ -208,7 +208,7 @@ inverse_dynamics_mpc_controller:
         ##### Requires model_settings.wrenchInRNEA=true and trackZeroWrench=false.
         ##### The normal is expressed in the same world/base-aligned frame as the EE wrench force.
         eeContactFrictionConeSoftConstraint:
-          activate: true
+          activate: false
           normal: [0.0, 0.0, 1.0]
           frictionCoefficient: 0.8
           coneRegularization: 1.0e-6
