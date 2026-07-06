@@ -24,14 +24,98 @@ namespace
 
 constexpr std::array<float, 3> kStartColor{0.0F, 0.447F, 0.741F};
 constexpr std::array<float, 3> kEndColor{0.85F, 0.325F, 0.098F};
+constexpr double kGoldenRatioConjugate = 0.6180339887498949;
 
-std_msgs::msg::ColorRGBA trajectoryColor(double progress)
+struct TrajectoryColorGradient
+{
+  std::array<float, 3> start;
+  std::array<float, 3> end;
+};
+
+std::array<float, 3> rgbToHsv(const std::array<float, 3>& rgb)
+{
+  const float max_value = std::max({rgb[0], rgb[1], rgb[2]});
+  const float min_value = std::min({rgb[0], rgb[1], rgb[2]});
+  const float delta = max_value - min_value;
+
+  float hue = 0.0F;
+  if (delta > 0.0F) {
+    if (max_value == rgb[0]) {
+      hue = std::fmod((rgb[1] - rgb[2]) / delta, 6.0F);
+    } else if (max_value == rgb[1]) {
+      hue = ((rgb[2] - rgb[0]) / delta) + 2.0F;
+    } else {
+      hue = ((rgb[0] - rgb[1]) / delta) + 4.0F;
+    }
+
+    hue /= 6.0F;
+    if (hue < 0.0F) {
+      hue += 1.0F;
+    }
+  }
+
+  const float saturation = max_value > 0.0F ? delta / max_value : 0.0F;
+  return {hue, saturation, max_value};
+}
+
+std::array<float, 3> hsvToRgb(const std::array<float, 3>& hsv)
+{
+  const float hue = hsv[0] - std::floor(hsv[0]);
+  const float saturation = std::clamp(hsv[1], 0.0F, 1.0F);
+  const float value = std::clamp(hsv[2], 0.0F, 1.0F);
+
+  if (saturation <= 0.0F) {
+    return {value, value, value};
+  }
+
+  const float scaled_hue = hue * 6.0F;
+  const int sector = static_cast<int>(std::floor(scaled_hue));
+  const float fraction = scaled_hue - static_cast<float>(sector);
+
+  const float p = value * (1.0F - saturation);
+  const float q = value * (1.0F - saturation * fraction);
+  const float t = value * (1.0F - saturation * (1.0F - fraction));
+
+  switch (sector % 6) {
+    case 0:
+      return {value, t, p};
+    case 1:
+      return {q, value, p};
+    case 2:
+      return {p, value, t};
+    case 3:
+      return {p, q, value};
+    case 4:
+      return {t, p, value};
+    default:
+      return {value, p, q};
+  }
+}
+
+std::array<float, 3> rotateHue(const std::array<float, 3>& rgb, double hue_offset)
+{
+  auto hsv = rgbToHsv(rgb);
+  const float shifted_hue = hsv[0] + static_cast<float>(hue_offset);
+  hsv[0] = shifted_hue - std::floor(shifted_hue);
+  return hsvToRgb(hsv);
+}
+
+TrajectoryColorGradient trajectoryColorGradient(std::size_t trajectory_index)
+{
+  // Golden-angle ordering keeps adjacent trajectory colors far apart.
+  const double hue_offset =
+    std::fmod(static_cast<double>(trajectory_index) * kGoldenRatioConjugate, 1.0);
+
+  return {rotateHue(kStartColor, hue_offset), rotateHue(kEndColor, hue_offset)};
+}
+
+std_msgs::msg::ColorRGBA trajectoryColor(double progress, const TrajectoryColorGradient& gradient)
 {
   const float t = static_cast<float>(std::clamp(progress, 0.0, 1.0));
   std_msgs::msg::ColorRGBA color;
-  color.r = (1.0F - t) * kStartColor[0] + t * kEndColor[0];
-  color.g = (1.0F - t) * kStartColor[1] + t * kEndColor[1];
-  color.b = (1.0F - t) * kStartColor[2] + t * kEndColor[2];
+  color.r = (1.0F - t) * gradient.start[0] + t * gradient.end[0];
+  color.g = (1.0F - t) * gradient.start[1] + t * gradient.end[1];
+  color.b = (1.0F - t) * gradient.start[2] + t * gradient.end[2];
   color.a = 1.0F;
   return color;
 }
@@ -175,10 +259,14 @@ OptimizedStateTrajectoryVisualization::Message OptimizedStateTrajectoryVisualiza
 
   std::vector<visualization_msgs::msg::Marker> line_markers;
   std::vector<visualization_msgs::msg::Marker> point_markers;
+  std::vector<TrajectoryColorGradient> color_gradients;
   line_markers.reserve(frame_ids_.size());
   point_markers.reserve(frame_ids_.size());
+  color_gradients.reserve(frame_ids_.size());
 
   for (std::size_t frame_index = 0; frame_index < frame_ids_.size(); ++frame_index) {
+    color_gradients.push_back(trajectoryColorGradient(frame_index));
+
     visualization_msgs::msg::Marker line;
     line.header.frame_id = settings_.frame_id;
     line.header.stamp = toTimeMsg(stamp);
@@ -214,12 +302,14 @@ OptimizedStateTrajectoryVisualization::Message OptimizedStateTrajectoryVisualiza
     pinocchio::forwardKinematics(model, data, jointPositionTrajectory[index]);
     pinocchio::updateFramePlacements(model, data);
 
-    const double progress = jointPositionTrajectory.size() > 1 ?
+    const double progress = 
+      jointPositionTrajectory.size() > 1 ?
       static_cast<double>(index) / static_cast<double>(jointPositionTrajectory.size() - 1) : 0.0;
-    const auto color = trajectoryColor(progress);
 
     for (std::size_t frame_index = 0; frame_index < frame_ids_.size(); ++frame_index) {
       const auto point = toPoint(data.oMf[frame_ids_[frame_index]].translation());
+      const auto color = trajectoryColor(progress, color_gradients[frame_index]);
+
       line_markers[frame_index].points.push_back(point);
       line_markers[frame_index].colors.push_back(color);
       point_markers[frame_index].points.push_back(point);
