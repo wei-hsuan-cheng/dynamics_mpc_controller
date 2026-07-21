@@ -63,7 +63,7 @@ Full details about the dynamics mpc formulation (model/cost/constraint/solver/et
 - Build `mujoco`-related pkg. (See **troubleshooting section** [here](https://github.com/wei-hsuan-cheng/mujoco_ros2_control) if needed)
   ```bash
   cd <workspace_dir>
-  NUM_JOBS=8 && \
+  NUM_JOBS=2 && \
   export CMAKE_BUILD_PARALLEL_LEVEL=${NUM_JOBS} && \
   export MAKEFLAGS=-j${NUM_JOBS} && \
   export NINJAFLAGS=-j${NUM_JOBS} && \
