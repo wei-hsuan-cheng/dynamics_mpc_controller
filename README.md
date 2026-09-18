@@ -97,23 +97,25 @@ Single `ur5` example:
 ```bash
 ros2 launch dynamics_mpc_controller ur5.launch.py \
   mpcControllerName:=inverse_dynamics_mpc_controller \
-  mujoco_headless:=true
+  mujoco_headless:=false \
+  mpcFreq:=100
 ```
 
 Dual `ur5` example:
 ```bash
 ros2 launch dynamics_mpc_controller dual_ur5.launch.py \
   mpcControllerName:=inverse_dynamics_mpc_controller \
-  mujoco_headless:=true
+  mujoco_headless:=false \
+  mpcFreq:=100
 ```
 
 Useful launch args:
 ```bash
 mpcControllerName:=inverse_dynamics_mpc_controller | forward_dynamics_mpc_controller
-mujoco_headless:=true | false
+mujoco_headless:=false | true
 mujoco_real_time_factor:=1.0 # double
 mujoco_publish_rate:=100.0 # double
-mpcFreq:=50 # should be integer
+mpcFreq:=100 # should be integer
 mrtFreq:=1000 # should be integer
 ```
 
@@ -133,14 +135,14 @@ ros2 topic echo /estimated_ee_wrench
 
 Single `ur5` sample code:
 ```bash
-cd <workspace_dir>/src/dynamics_mpc_controller/launch && \
-python3 joint_tracking_target.py
+cd <workspace_dir>
+python3 src/dynamics_mpc_controller/launch/joint_tracking_target.py
 ```
 
 Dual `ur5` sample code:
 ```bash
-cd <workspace_dir>/src/dynamics_mpc_controller/launch && \
-python3 dual_arm_joint_tracking_target.py
+cd <workspace_dir>
+python3 src/dynamics_mpc_controller/launch/dual_arm_joint_tracking_target.py
 ```
 
 
