@@ -10,4 +10,20 @@
   <worldbody>
     <include file="components/dual_ur5_body.xml"></include>
   </worldbody>
+
+  <!-- Torque motors, one per joint. ctrlrange matches the effort limits in ur5.ros2_control.xacro, which are the UR5's specs: 150 N m for the shoulder and elbow, 28 N m for the wrists. -->
+  <actuator>
+    <motor name="ur_arm1_shoulder_pan" joint="ur_arm1_shoulder_pan_joint" ctrlrange="-150 150"/>
+    <motor name="ur_arm1_shoulder_lift" joint="ur_arm1_shoulder_lift_joint" ctrlrange="-150 150"/>
+    <motor name="ur_arm1_elbow" joint="ur_arm1_elbow_joint" ctrlrange="-150 150"/>
+    <motor name="ur_arm1_wrist_1" joint="ur_arm1_wrist_1_joint" ctrlrange="-28 28"/>
+    <motor name="ur_arm1_wrist_2" joint="ur_arm1_wrist_2_joint" ctrlrange="-28 28"/>
+    <motor name="ur_arm1_wrist_3" joint="ur_arm1_wrist_3_joint" ctrlrange="-28 28"/>
+    <motor name="ur_arm2_shoulder_pan" joint="ur_arm2_shoulder_pan_joint" ctrlrange="-150 150"/>
+    <motor name="ur_arm2_shoulder_lift" joint="ur_arm2_shoulder_lift_joint" ctrlrange="-150 150"/>
+    <motor name="ur_arm2_elbow" joint="ur_arm2_elbow_joint" ctrlrange="-150 150"/>
+    <motor name="ur_arm2_wrist_1" joint="ur_arm2_wrist_1_joint" ctrlrange="-28 28"/>
+    <motor name="ur_arm2_wrist_2" joint="ur_arm2_wrist_2_joint" ctrlrange="-28 28"/>
+    <motor name="ur_arm2_wrist_3" joint="ur_arm2_wrist_3_joint" ctrlrange="-28 28"/>
+  </actuator>
 </mujoco>
