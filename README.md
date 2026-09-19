@@ -136,13 +136,16 @@ ros2 topic echo /estimated_ee_wrench
 Single `ur5` sample code:
 ```bash
 cd <workspace_dir>
-python3 src/dynamics_mpc_controller/launch/joint_tracking_target.py
+# Joint target
+python3 src/dynamics_mpc_controller/example/command/mpc_targets/joint_tracking_target.py
+# Cartesian
+python3 src/dynamics_mpc_controller/example/command/mpc_targets/ee_motion_tracking_target.py
 ```
 
 Dual `ur5` sample code:
 ```bash
 cd <workspace_dir>
-python3 src/dynamics_mpc_controller/launch/dual_arm_joint_tracking_target.py
+python3 src/dynamics_mpc_controller/example/command/mpc_targets/dual_arm_joint_tracking_target.py
 ```
 
 
