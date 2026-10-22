@@ -65,17 +65,26 @@
     <visual>
       <origin rpy="0 0 3.141592653589793" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://ocs2_robotic_assets/resources/mobile_manipulator/ridgeback_ur5/meshes/ur5/visual/base.dae"/>
+        <mesh filename="package://dynamics_mpc_controller/description/common/ur5_rviz/meshes/visual/base_rohr.stl"/>
       </geometry>
-      <material name="LightGrey">
-        <color rgba="0.7 0.7 0.7 1.0"/>
+      <material name="ur5_base_rohr">
+        <color rgba="0.5248 0.5248 0.5248 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 3.141592653589793" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://dynamics_mpc_controller/description/common/ur5_rviz/meshes/visual/base_scheibe.stl"/>
+      </geometry>
+      <material name="ur5_base_scheibe">
+        <color rgba="0.064 0.064 0.064 1"/>
       </material>
     </visual>
     <collision>
       <origin rpy="0 0 3.141592653589793" xyz="0 0 0.01"/>
       <geometry>
         <cylinder length="0.025" radius="0.08"/>
-        <!-- <mesh filename="package://ocs2_robotic_assets/resources/mobile_manipulator/ridgeback_ur5/meshes/ur5/collision/base.stl"/> -->
+        <!-- <mesh filename="package://dynamics_mpc_controller/description/common/ur5_mujoco/meshes/ur5/collision/base.stl"/> -->
       </geometry>
     </collision>
     <inertial>
@@ -88,17 +97,35 @@
     <visual>
       <origin rpy="0 0 3.141592653589793" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://ocs2_robotic_assets/resources/mobile_manipulator/ridgeback_ur5/meshes/ur5/visual/shoulder.dae"/>
+        <mesh filename="package://dynamics_mpc_controller/description/common/ur5_rviz/meshes/visual/shoulder_verbindung.stl"/>
       </geometry>
-      <material name="LightGrey">
-        <color rgba="0.7 0.7 0.7 1.0"/>
+      <material name="ur5_shoulder_verbindung">
+        <color rgba="0.1784 0.1784 0.1784 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 3.141592653589793" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://dynamics_mpc_controller/description/common/ur5_rviz/meshes/visual/shoulder_scheibe.stl"/>
+      </geometry>
+      <material name="ur5_shoulder_scheibe">
+        <color rgba="0.064 0.064 0.064 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 3.141592653589793" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://dynamics_mpc_controller/description/common/ur5_rviz/meshes/visual/shoulder_blau.stl"/>
+      </geometry>
+      <material name="ur5_shoulder_blau">
+        <color rgba="0.3136 0.4344 0.512 1"/>
       </material>
     </visual>
     <collision>
       <origin rpy="0 0 3.141592653589793" xyz="0 0 0.001"/>
       <geometry>
         <cylinder length="0.135" radius="0.06"/>
-        <!-- <mesh filename="package://ocs2_robotic_assets/resources/mobile_manipulator/ridgeback_ur5/meshes/ur5/collision/shoulder.stl"/> -->
+        <!-- <mesh filename="package://dynamics_mpc_controller/description/common/ur5_mujoco/meshes/ur5/collision/shoulder.stl"/> -->
       </geometry>
     </collision>
     <inertial>
@@ -111,16 +138,43 @@
     <visual>
       <origin rpy="1.5707963267948966 0 -1.5707963267948966" xyz="0 0 0.13585"/>
       <geometry>
-        <mesh filename="package://ocs2_robotic_assets/resources/mobile_manipulator/ridgeback_ur5/meshes/ur5/visual/upperarm.dae"/>
+        <mesh filename="package://dynamics_mpc_controller/description/common/ur5_rviz/meshes/visual/upperarm_verbindung.stl"/>
       </geometry>
-      <material name="LightGrey">
-        <color rgba="0.7 0.7 0.7 1.0"/>
+      <material name="ur5_upperarm_verbindung">
+        <color rgba="0.14272 0.14272 0.14272 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="1.5707963267948966 0 -1.5707963267948966" xyz="0 0 0.13585"/>
+      <geometry>
+        <mesh filename="package://dynamics_mpc_controller/description/common/ur5_rviz/meshes/visual/upperarm_scheibe.stl"/>
+      </geometry>
+      <material name="ur5_upperarm_scheibe">
+        <color rgba="0.0512 0.0512 0.0512 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="1.5707963267948966 0 -1.5707963267948966" xyz="0 0 0.13585"/>
+      <geometry>
+        <mesh filename="package://dynamics_mpc_controller/description/common/ur5_rviz/meshes/visual/upperarm_blau.stl"/>
+      </geometry>
+      <material name="ur5_upperarm_blau">
+        <color rgba="0.25088 0.34752 0.4096 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="1.5707963267948966 0 -1.5707963267948966" xyz="0 0 0.13585"/>
+      <geometry>
+        <mesh filename="package://dynamics_mpc_controller/description/common/ur5_rviz/meshes/visual/upperarm_rohr.stl"/>
+      </geometry>
+      <material name="ur5_upperarm_rohr">
+        <color rgba="0.41984 0.41984 0.41984 1"/>
       </material>
     </visual>
     <!-- <collision>
       <origin rpy="1.5707963267948966 0 -1.5707963267948966" xyz="0 0 0.13585"/>
       <geometry>
-        <mesh filename="package://ocs2_robotic_assets/resources/mobile_manipulator/ridgeback_ur5/meshes/ur5/collision/upperarm.stl"/>
+        <mesh filename="package://dynamics_mpc_controller/description/common/ur5_mujoco/meshes/ur5/collision/upperarm.stl"/>
       </geometry>
     </collision> -->
     <collision>
@@ -151,16 +205,34 @@
     <visual>
       <origin rpy="1.5707963267948966 0 -1.5707963267948966" xyz="0 0 0.0165"/>
       <geometry>
-        <mesh filename="package://ocs2_robotic_assets/resources/mobile_manipulator/ridgeback_ur5/meshes/ur5/visual/forearm.dae"/>
+        <mesh filename="package://dynamics_mpc_controller/description/common/ur5_rviz/meshes/visual/forearm_blau_005.stl"/>
       </geometry>
-      <material name="LightGrey">
-        <color rgba="0.7 0.7 0.7 1.0"/>
+      <material name="ur5_forearm_blau_005">
+        <color rgba="0.25088 0.34752 0.4096 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="1.5707963267948966 0 -1.5707963267948966" xyz="0 0 0.0165"/>
+      <geometry>
+        <mesh filename="package://dynamics_mpc_controller/description/common/ur5_rviz/meshes/visual/forearm_rohr_005.stl"/>
+      </geometry>
+      <material name="ur5_forearm_rohr_005">
+        <color rgba="0.41984 0.41984 0.41984 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="1.5707963267948966 0 -1.5707963267948966" xyz="0 0 0.0165"/>
+      <geometry>
+        <mesh filename="package://dynamics_mpc_controller/description/common/ur5_rviz/meshes/visual/forearm_verbindung_005.stl"/>
+      </geometry>
+      <material name="ur5_forearm_verbindung_005">
+        <color rgba="0.14272 0.14272 0.14272 1"/>
       </material>
     </visual>
     <!-- <collision>
       <origin rpy="1.5707963267948966 0 -1.5707963267948966" xyz="0 0 0.0165"/>
       <geometry>
-        <mesh filename="package://ocs2_robotic_assets/resources/mobile_manipulator/ridgeback_ur5/meshes/ur5/collision/forearm.stl"/>
+        <mesh filename="package://dynamics_mpc_controller/description/common/ur5_mujoco/meshes/ur5/collision/forearm.stl"/>
       </geometry>
     </collision> -->
     <collision>
@@ -191,17 +263,35 @@
     <visual>
       <origin rpy="1.5707963267948966 0 0" xyz="0 0 -0.093"/>
       <geometry>
-        <mesh filename="package://ocs2_robotic_assets/resources/mobile_manipulator/ridgeback_ur5/meshes/ur5/visual/wrist1.dae"/>
+        <mesh filename="package://dynamics_mpc_controller/description/common/ur5_rviz/meshes/visual/wrist1_scheibe_001.stl"/>
       </geometry>
-      <material name="LightGrey">
-        <color rgba="0.7 0.7 0.7 1.0"/>
+      <material name="ur5_wrist1_scheibe_001">
+        <color rgba="0.0512 0.0512 0.0512 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="1.5707963267948966 0 0" xyz="0 0 -0.093"/>
+      <geometry>
+        <mesh filename="package://dynamics_mpc_controller/description/common/ur5_rviz/meshes/visual/wrist1_verbindung_001.stl"/>
+      </geometry>
+      <material name="ur5_wrist1_verbindung_001">
+        <color rgba="0.14272 0.14272 0.14272 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="1.5707963267948966 0 0" xyz="0 0 -0.093"/>
+      <geometry>
+        <mesh filename="package://dynamics_mpc_controller/description/common/ur5_rviz/meshes/visual/wrist1_blau_001.stl"/>
+      </geometry>
+      <material name="ur5_wrist1_blau_001">
+        <color rgba="0.25088 0.34752 0.4096 1"/>
       </material>
     </visual>
     <collision>
       <!-- <origin rpy="1.5707963267948966 0 0" xyz="0 0 -0.093"/> -->
       <origin rpy="1.5707963267948966 0 0" xyz="0 0 0"/>
       <geometry>
-        <!-- <mesh filename="package://ocs2_robotic_assets/resources/mobile_manipulator/ridgeback_ur5/meshes/ur5/collision/wrist1.stl"/> -->
+        <!-- <mesh filename="package://dynamics_mpc_controller/description/common/ur5_mujoco/meshes/ur5/collision/wrist1.stl"/> -->
         <cylinder length="0.115" radius="0.038"/>
       </geometry>
     </collision>
@@ -215,17 +305,35 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 -0.095"/>
       <geometry>
-        <mesh filename="package://ocs2_robotic_assets/resources/mobile_manipulator/ridgeback_ur5/meshes/ur5/visual/wrist2.dae"/>
+        <mesh filename="package://dynamics_mpc_controller/description/common/ur5_rviz/meshes/visual/wrist2_scheibe_002.stl"/>
       </geometry>
-      <material name="LightGrey">
-        <color rgba="0.7 0.7 0.7 1.0"/>
+      <material name="ur5_wrist2_scheibe_002">
+        <color rgba="0.0512 0.0512 0.0512 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 -0.095"/>
+      <geometry>
+        <mesh filename="package://dynamics_mpc_controller/description/common/ur5_rviz/meshes/visual/wrist2_verbindung_002.stl"/>
+      </geometry>
+      <material name="ur5_wrist2_verbindung_002">
+        <color rgba="0.14272 0.14272 0.14272 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 -0.095"/>
+      <geometry>
+        <mesh filename="package://dynamics_mpc_controller/description/common/ur5_rviz/meshes/visual/wrist2_blau_002.stl"/>
+      </geometry>
+      <material name="ur5_wrist2_blau_002">
+        <color rgba="0.25088 0.34752 0.4096 1"/>
       </material>
     </visual>
     <collision>
       <!-- <origin rpy="0 0 0" xyz="0 0 -0.095"/> -->
       <origin rpy="1.5707963267948966 0 0" xyz="0 -0.006 0.001"/>
       <geometry>
-        <!-- <mesh filename="package://ocs2_robotic_assets/resources/mobile_manipulator/ridgeback_ur5/meshes/ur5/collision/wrist2.stl"/> -->
+        <!-- <mesh filename="package://dynamics_mpc_controller/description/common/ur5_mujoco/meshes/ur5/collision/wrist2.stl"/> -->
         <cylinder length="0.105" radius="0.037"/>
       </geometry>
     </collision>
@@ -239,16 +347,25 @@
     <visual>
       <origin rpy="1.5707963267948966 0 0" xyz="0 0 -0.0818"/>
       <geometry>
-        <mesh filename="package://ocs2_robotic_assets/resources/mobile_manipulator/ridgeback_ur5/meshes/ur5/visual/wrist3.dae"/>
+        <mesh filename="package://dynamics_mpc_controller/description/common/ur5_rviz/meshes/visual/wrist3_rohr_007_001.stl"/>
       </geometry>
-      <material name="LightGrey">
-        <color rgba="0.7 0.7 0.7 1.0"/>
+      <material name="ur5_wrist3_rohr_007_001">
+        <color rgba="0.2149581 0.2149581 0.2149581 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="1.5707963267948966 0 0" xyz="0 0 -0.0818"/>
+      <geometry>
+        <mesh filename="package://dynamics_mpc_controller/description/common/ur5_rviz/meshes/visual/wrist3_swmaterial_1_004_002_001.stl"/>
+      </geometry>
+      <material name="ur5_wrist3_swmaterial_1_004_002_001">
+        <color rgba="0.0995892 0.103444 0.1085843 1"/>
       </material>
     </visual>
     <!-- <collision>
       <origin rpy="1.5707963267948966 0 0" xyz="0 0 -0.0818"/>
       <geometry>
-        <mesh filename="package://ocs2_robotic_assets/resources/mobile_manipulator/ridgeback_ur5/meshes/ur5/collision/wrist3.stl"/>
+        <mesh filename="package://dynamics_mpc_controller/description/common/ur5_mujoco/meshes/ur5/collision/wrist3.stl"/>
       </geometry>
     </collision> -->
     <collision>
