@@ -15,7 +15,7 @@
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
 #include <pinocchio/multibody/fwd.hpp>
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
-#include <realtime_tools/realtime_box_best_effort.hpp>
+#include <realtime_tools/realtime_thread_safe_box.hpp>
 
 #include "dynamics_mpc_controller/visualization/optimized_state_trajectory_visualization.hpp"
 #include "dynamics_mpc_controller/visualization/self_collision_visualization.hpp"
@@ -54,8 +54,8 @@ private:
   Settings settings_;
   std::unique_ptr<OptimizedStateTrajectoryVisualization> trajectory_visualization_;
   std::unique_ptr<SelfCollisionVisualization> self_collision_visualization_;
-  realtime_tools::RealtimeBoxBestEffort<ocs2::vector_t> latest_state_;
-  realtime_tools::RealtimeBoxBestEffort<ocs2::vector_array_t> latest_optimized_state_trajectory_;
+  realtime_tools::RealtimeThreadSafeBox<ocs2::vector_t> latest_state_;
+  realtime_tools::RealtimeThreadSafeBox<ocs2::vector_array_t> latest_optimized_state_trajectory_;
   std::thread visualization_thread_;
   std::chrono::duration<double> period_{0.2};
   std::atomic_bool running_{false};

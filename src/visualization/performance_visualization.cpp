@@ -79,10 +79,10 @@ void PerformanceVisualization::update_visualization(
   const ocs2::vector_t& currentState,
   const ocs2::vector_array_t& optimizedStateTrajectory)
 {
-  if (latest_state_.trySet(currentState)) {
+  if (latest_state_.try_set(currentState)) {
     has_state_.store(true);
   }
-  if (latest_optimized_state_trajectory_.trySet(optimizedStateTrajectory)) {
+  if (latest_optimized_state_trajectory_.try_set(optimizedStateTrajectory)) {
     has_optimized_state_trajectory_.store(true);
   }
 }
@@ -94,14 +94,14 @@ void PerformanceVisualization::visualization_loop()
 
     try {
       if (self_collision_visualization_ && has_state_.load()) {
-        const auto current_state = latest_state_.tryGet();
+        const auto current_state = latest_state_.try_get();
         if (current_state.has_value()) {
           self_collision_visualization_->publish(*current_state);
         }
       }
 
       if (trajectory_visualization_ && has_optimized_state_trajectory_.load()) {
-        const auto optimized_state_trajectory = latest_optimized_state_trajectory_.tryGet();
+        const auto optimized_state_trajectory = latest_optimized_state_trajectory_.try_get();
         if (optimized_state_trajectory.has_value()) {
           trajectory_visualization_->publish(*optimized_state_trajectory);
         }

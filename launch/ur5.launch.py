@@ -2,7 +2,13 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription
+from launch.actions import (
+    DeclareLaunchArgument,
+    ExecuteProcess,
+    IncludeLaunchDescription,
+    OpaqueFunction,
+    SetLaunchConfiguration,
+)
 from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
@@ -78,6 +84,20 @@ def generate_launch_description():
     )
     robot_description = {"robot_description": ParameterValue(robot_description_content, value_type=str)}
 
+    # The controller manager does not pass its own params file on to the controllers it
+    # loads; each one reads only <name>.params_file. The yaml carries $(var ...)
+    # substitutions, so it is the substituted copy written by launch that is passed.
+    # The ParameterFile is kept alive: it deletes the substituted copy when collected.
+    controllers_params = ParameterFile(LaunchConfiguration("controllersFile"), allow_substs=True)
+
+    def resolve_controllers_params_file(context):
+        path = controllers_params.evaluate(context)
+        return [SetLaunchConfiguration("controllersParamsFile", str(path))]
+
+    mpc_params_file = {
+        (LaunchConfiguration("mpcControllerName"), ".params_file"): LaunchConfiguration("controllersParamsFile")
+    }
+
     ros2_control_node = Node(
         package="controller_manager",
         executable="ros2_control_node",
@@ -85,6 +105,7 @@ def generate_launch_description():
         parameters=[
             robot_description,
             ParameterFile(LaunchConfiguration("controllersFile"), allow_substs=True),
+            mpc_params_file,
             {"use_sim_time": use_sim_time},
         ],
         condition=UnlessCondition(use_mujoco_sim),
@@ -97,6 +118,7 @@ def generate_launch_description():
         parameters=[
             robot_description,
             ParameterFile(LaunchConfiguration("controllersFile"), allow_substs=True),
+            mpc_params_file,
             {"mujoco_model_path": mujoco_model_path},
             {"mujoco_headless": ParameterValue(LaunchConfiguration("mujoco_headless"), value_type=bool)},
             {
@@ -173,6 +195,7 @@ def generate_launch_description():
     return LaunchDescription(
         declared_arguments
         + [
+            OpaqueFunction(function=resolve_controllers_params_file),
             ros2_control_node,
             mujoco_ros2_control_node,
             controller_sequence,

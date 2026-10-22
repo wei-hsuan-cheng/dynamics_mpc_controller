@@ -76,7 +76,8 @@ public:
   controller_interface::InterfaceConfiguration command_interface_configuration() const override;
   controller_interface::InterfaceConfiguration state_interface_configuration() const override;
 
-  controller_interface::return_type update_reference_from_subscribers() override;
+  controller_interface::return_type update_reference_from_subscribers(
+    const rclcpp::Time& time, const rclcpp::Duration& period) override;
   controller_interface::return_type update_and_write_commands(
     const rclcpp::Time& time,
     const rclcpp::Duration& period) override;

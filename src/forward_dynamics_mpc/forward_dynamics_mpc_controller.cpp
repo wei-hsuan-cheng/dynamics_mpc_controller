@@ -674,7 +674,8 @@ void ForwardDynamicsMpcController::mpc_loop()
   }
 }
 
-controller_interface::return_type ForwardDynamicsMpcController::update_reference_from_subscribers()
+controller_interface::return_type ForwardDynamicsMpcController::update_reference_from_subscribers(
+  const rclcpp::Time&, const rclcpp::Duration&)
 {
   if (mpc_data_.always_hold_current_position_) {
     return controller_interface::return_type::OK;

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <sstream>
 #include <stdexcept>
 
@@ -60,7 +61,8 @@ vector_t readStateVector(
         .at(joint_name)
         .state.at(interfaceName)
         .get()
-        .get_value();
+        .get_optional()
+        .value_or(std::numeric_limits<double>::quiet_NaN());
   }
   return values;
 }
@@ -72,7 +74,7 @@ void writeTorqueCommand(
 {
   for (std::size_t i = 0; i < dofNames.size(); ++i) {
     const auto [body_name, joint_name] = resolveJointName(dofNames[i], true);
-    hardwareInterfaces.at(body_name)
+    (void)hardwareInterfaces.at(body_name)
       .at(joint_name)
       .command.at(hardware_interface::HW_IF_EFFORT)
       .get()
@@ -218,14 +220,7 @@ void publishMpcObservation(
   }
 
   const auto msg = ocs2::ros_msg_conversions::createObservationMsg(observation);
-#if REALTIME_TOOLS_NEW_API
   publisher->try_publish(msg);
-#else
-  if (publisher->trylock()) {
-    publisher->msg_ = msg;
-    publisher->unlockAndPublish();
-  }
-#endif
 }
 
 void publishWrenchEstimate(
@@ -247,14 +242,7 @@ void publishWrenchEstimate(
   msg.wrench.torque.x = wrench(3);
   msg.wrench.torque.y = wrench(4);
   msg.wrench.torque.z = wrench(5);
-#if REALTIME_TOOLS_NEW_API
   publisher->try_publish(msg);
-#else
-  if (publisher->trylock()) {
-    publisher->msg_ = msg;
-    publisher->unlockAndPublish();
-  }
-#endif
 }
 
 }  // namespace dynamics_mpc_controller::controller_utils
