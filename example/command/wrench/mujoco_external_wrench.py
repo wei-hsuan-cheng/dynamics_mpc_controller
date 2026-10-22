@@ -7,6 +7,7 @@ import numpy as np
 import rclpy
 from mujoco_ros2_control.msg import MujocoExternalWrench
 from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy
 
 DEFAULT_TOPIC = "/mujoco_ros2_control/external_wrench"
 DEFAULT_BODY_NAME = "ur_arm_tool0"
@@ -106,7 +107,8 @@ class MujocoExternalWrenchPublisher(Node):
         self.start_wall_time = wall_time.monotonic()
         self.zero_sent = False
 
-        self.publisher = self.create_publisher(MujocoExternalWrench, self.topic, 10)
+        qos = QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT)
+        self.publisher = self.create_publisher(MujocoExternalWrench, self.topic, qos)
         self.timer = self.create_timer(1.0 / self.publish_rate, self.publish)
 
         duration_text = "continuous" if self.duration == 0.0 else f"{self.duration:.3f} s"

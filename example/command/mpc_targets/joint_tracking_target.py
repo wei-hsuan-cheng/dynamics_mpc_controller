@@ -4,6 +4,7 @@ from typing import Sequence
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy
 
 from ocs2_msgs.msg import DynamicsMpcTargets
 from ocs2_msgs.msg import MpcState
@@ -135,7 +136,8 @@ class JointTrackingTargetPublisher(Node):
         self.trajectory_samples = int(math.floor(self.trajectory_duration / self.trajectory_dt)) + 1
         self.publish_rate = max(1e-6, self.publish_rate)
 
-        self.publisher = self.create_publisher(DynamicsMpcTargets, self.topic, 1)
+        qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT)
+        self.publisher = self.create_publisher(DynamicsMpcTargets, self.topic, qos)
         self.timer = self.create_timer(1.0 / self.publish_rate, self.publish)
 
         self.get_logger().info(

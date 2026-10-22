@@ -53,7 +53,7 @@ Visualization Manager:
       Description Source: Topic
       Description Topic:
         Depth: 5
-        Durability Policy: Volatile
+        Durability Policy: Transient Local
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /robot_description
@@ -136,7 +136,7 @@ Visualization Manager:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /mobile_manipulator/visualization/terminalStateGhost
       Value: false
     - Class: rviz_default_plugins/MarkerArray
@@ -148,7 +148,7 @@ Visualization Manager:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /mobile_manipulator/visualization/terminalTargetGhost
       Value: false
     - Class: rviz_default_plugins/MarkerArray
@@ -160,7 +160,7 @@ Visualization Manager:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /mobile_manipulator/visualization/optimizedStateGhosts
       Value: false
     - Class: rviz_default_plugins/TF
@@ -245,7 +245,7 @@ Visualization Manager:
         Durability Policy: Volatile
         Filter size: 10
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /mobile_manipulator/visualization/targetPoseTrajectory
       Value: false
     - Alpha: 0.30000001192092896
@@ -266,7 +266,7 @@ Visualization Manager:
         Durability Policy: Volatile
         Filter size: 10
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /mobile_manipulator/visualization/optimizedPoseTrajectory
       Value: false
     - Class: rviz_default_plugins/MarkerArray
@@ -278,7 +278,7 @@ Visualization Manager:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /mobile_manipulator/visualization/targetStateTrajectory
       Value: true
     - Class: rviz_default_plugins/MarkerArray
@@ -295,7 +295,7 @@ Visualization Manager:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /performance_visualization/optimizedStateTrajectory
       Value: true
     - Class: rviz_default_plugins/MarkerArray
@@ -307,7 +307,7 @@ Visualization Manager:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /mobile_manipulator/visualization/comZmpMarkers
       Value: true
     - Class: rviz_default_plugins/MarkerArray
@@ -319,7 +319,7 @@ Visualization Manager:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /mobile_manipulator/visualization/environmentSceneMarkers
       Value: false
     - Class: rviz_default_plugins/MarkerArray
@@ -331,7 +331,7 @@ Visualization Manager:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /mobile_manipulator/visualization/environmentDistanceMarkers
       Value: false
     - Class: rviz_default_plugins/MarkerArray
@@ -343,7 +343,7 @@ Visualization Manager:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /mobile_manipulator/visualization/sphereSelfCollisionSceneMarkers
       Value: false
     - Class: rviz_default_plugins/MarkerArray
@@ -355,7 +355,7 @@ Visualization Manager:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /mobile_manipulator/visualization/sphereSelfCollisionDistanceMarkers
       Value: false
     - Class: rviz_default_plugins/MarkerArray
@@ -369,7 +369,7 @@ Visualization Manager:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /performance_visualization/selfCollisionDistanceMarkers
       Value: true
     - Class: rviz_default_plugins/MarkerArray
@@ -381,7 +381,7 @@ Visualization Manager:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /mobile_manipulator/visualization/manipulabilityEllipsoids
       Value: false
     - Class: rviz_default_plugins/MarkerArray
@@ -393,7 +393,7 @@ Visualization Manager:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /mobile_manipulator/closestTargetWaypoint
       Value: true
     - Class: rviz_default_plugins/MarkerArray
@@ -405,7 +405,7 @@ Visualization Manager:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /distance_markers
       Value: true
     - Accept NaN Values: false
@@ -422,7 +422,7 @@ Visualization Manager:
         Durability Policy: Volatile
         Filter size: 10
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /mujoco_ros2_control/external_wrench_visualization
       Torque Arrow Scale: 0.5
       Torque Color: 204; 204; 51

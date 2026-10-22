@@ -4,6 +4,7 @@ from typing import Sequence
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy
 
 from geometry_msgs.msg import TransformStamped
 from ocs2_msgs.msg import DynamicsMpcTargets
@@ -179,7 +180,8 @@ class EeMotionTrackingTargetPublisher(Node):
 
         self.trajectory_samples = int(math.floor(self.trajectory_duration / self.trajectory_dt)) + 1
 
-        self.publisher = self.create_publisher(DynamicsMpcTargets, self.topic, 1)
+        qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT)
+        self.publisher = self.create_publisher(DynamicsMpcTargets, self.topic, qos)
         self.tf_broadcaster = TransformBroadcaster(self)
         self.timer = self.create_timer(1.0 / self.publish_rate, self.publish)
 

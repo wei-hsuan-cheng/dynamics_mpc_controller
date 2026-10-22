@@ -79,7 +79,7 @@ controller_interface::CallbackReturn InverseDynamicsMpcController::on_configure(
   const auto& model = interface_->getInverseDynamicsMpcModel();
   target_subscription_ = get_node()->create_subscription<TargetMsg>(
     mpc_data_.target_trajectories_topic_,
-    rclcpp::SystemDefaultsQoS(),
+    rclcpp::QoS(1).best_effort(),
     [this](const std::shared_ptr<TargetMsg> msg) {
       received_target_msg_.writeFromNonRT(msg);
       latest_target_receive_time_sec_.writeFromNonRT(get_node()->get_clock()->now().seconds());
