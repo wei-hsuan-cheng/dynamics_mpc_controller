@@ -49,15 +49,19 @@ PerformanceVisualization::PerformanceVisualization(
     }
   }
 
-  if (!trajectory_visualization_ && !self_collision_visualization_) {
+  if (settings_.robot_models_active) {
+    robot_model_visualization_ = std::make_unique<FutureRobotModelVisualization>(
+      pinocchioInterface, *node_, settings_.robot_models);
+  }
+
+  if (!trajectory_visualization_ && !self_collision_visualization_ && !robot_model_visualization_) {
     RCLCPP_INFO(node_->get_logger(), "[Performance Visualization] no visualization features active");
     return;
   }
 
   period_ = std::chrono::duration<double>(1.0 / std::max(1.0, settings_.update_rate));
   running_.store(true);
-  has_state_.store(false);
-  has_optimized_state_trajectory_.store(false);
+  has_snapshot_.store(false);
   visualization_thread_ = std::thread(&PerformanceVisualization::visualization_loop, this);
 
   RCLCPP_INFO(
@@ -77,13 +81,12 @@ PerformanceVisualization::~PerformanceVisualization()
 
 void PerformanceVisualization::update_visualization(
   const ocs2::vector_t& currentState,
+  const ocs2::scalar_array_t& optimizedTimeTrajectory,
   const ocs2::vector_array_t& optimizedStateTrajectory)
 {
-  if (latest_state_.try_set(currentState)) {
-    has_state_.store(true);
-  }
-  if (latest_optimized_state_trajectory_.try_set(optimizedStateTrajectory)) {
-    has_optimized_state_trajectory_.store(true);
+  if (!has_subscribers_.load(std::memory_order_relaxed)) return;
+  if (latest_snapshot_.try_set(Snapshot{currentState, optimizedTimeTrajectory, optimizedStateTrajectory})) {
+    has_snapshot_.store(true);
   }
 }
 
@@ -93,18 +96,26 @@ void PerformanceVisualization::visualization_loop()
     std::this_thread::sleep_for(period_);
 
     try {
-      if (self_collision_visualization_ && has_state_.load()) {
-        const auto current_state = latest_state_.try_get();
-        if (current_state.has_value()) {
-          self_collision_visualization_->publish(*current_state);
-        }
+      const bool collision_subscribed =
+        self_collision_visualization_ && self_collision_visualization_->hasSubscribers();
+      const bool trajectory_subscribed = trajectory_visualization_ && trajectory_visualization_->hasSubscribers();
+      const bool ghosts_subscribed = robot_model_visualization_ && robot_model_visualization_->hasSubscribers();
+      const bool subscribed = collision_subscribed || trajectory_subscribed || ghosts_subscribed;
+      has_subscribers_.store(subscribed, std::memory_order_relaxed);
+      if (!subscribed || !has_snapshot_.exchange(false)) continue;
+      const auto snapshot = latest_snapshot_.try_get();
+      if (!snapshot.has_value()) {
+        has_snapshot_.store(true);  // the control loop was writing it: read it next period
+        continue;
       }
-
-      if (trajectory_visualization_ && has_optimized_state_trajectory_.load()) {
-        const auto optimized_state_trajectory = latest_optimized_state_trajectory_.try_get();
-        if (optimized_state_trajectory.has_value()) {
-          trajectory_visualization_->publish(*optimized_state_trajectory);
-        }
+      if (collision_subscribed) {
+        self_collision_visualization_->publish(snapshot->state);
+      }
+      if (trajectory_subscribed) {
+        trajectory_visualization_->publish(snapshot->states);
+      }
+      if (ghosts_subscribed) {
+        robot_model_visualization_->publish(snapshot->times, snapshot->states);
       }
     } catch (const std::exception& error) {
       RCLCPP_WARN_THROTTLE(

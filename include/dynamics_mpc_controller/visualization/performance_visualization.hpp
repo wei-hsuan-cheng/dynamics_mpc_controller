@@ -17,6 +17,7 @@
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 #include <realtime_tools/realtime_thread_safe_box.hpp>
 
+#include "dynamics_mpc_controller/visualization/future_robot_model_visualization.hpp"
 #include "dynamics_mpc_controller/visualization/optimized_state_trajectory_visualization.hpp"
 #include "dynamics_mpc_controller/visualization/self_collision_visualization.hpp"
 
@@ -30,9 +31,11 @@ public:
   {
     bool trajectory_active{true};
     bool self_collision_active{true};
+    bool robot_models_active{true};
     double update_rate{5.0};
     OptimizedStateTrajectoryVisualization::Settings trajectory;
     SelfCollisionVisualization::Settings self_collision;
+    FutureRobotModelVisualization::Settings robot_models;
   };
 
   PerformanceVisualization(
@@ -43,24 +46,34 @@ public:
 
   ~PerformanceVisualization();
 
+  // From the control loop: never blocks. The snapshot is dropped while the visualization thread
+  // reads the previous one, and not taken at all while nothing subscribes.
   void update_visualization(
     const ocs2::vector_t& currentState,
+    const ocs2::scalar_array_t& optimizedTimeTrajectory,
     const ocs2::vector_array_t& optimizedStateTrajectory);
 
 private:
   void visualization_loop();
 
+  struct Snapshot
+  {
+    ocs2::vector_t state;
+    ocs2::scalar_array_t times;
+    ocs2::vector_array_t states;
+  };
+
   std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node_;
   Settings settings_;
   std::unique_ptr<OptimizedStateTrajectoryVisualization> trajectory_visualization_;
   std::unique_ptr<SelfCollisionVisualization> self_collision_visualization_;
-  realtime_tools::RealtimeThreadSafeBox<ocs2::vector_t> latest_state_;
-  realtime_tools::RealtimeThreadSafeBox<ocs2::vector_array_t> latest_optimized_state_trajectory_;
+  std::unique_ptr<FutureRobotModelVisualization> robot_model_visualization_;
+  realtime_tools::RealtimeThreadSafeBox<Snapshot> latest_snapshot_;
   std::thread visualization_thread_;
   std::chrono::duration<double> period_{0.2};
   std::atomic_bool running_{false};
-  std::atomic_bool has_state_{false};
-  std::atomic_bool has_optimized_state_trajectory_{false};
+  std::atomic_bool has_snapshot_{false};
+  std::atomic_bool has_subscribers_{false};
 };
 
 template <typename Params>
@@ -72,7 +85,11 @@ PerformanceVisualization::Settings makePerformanceVisualizationSettings(const Pa
   PerformanceVisualization::Settings settings;
   settings.trajectory_active = visualization.trajectory.activate;
   settings.self_collision_active = visualization.collision.activate;
+  settings.robot_models_active = visualization.robotModels.activate;
   settings.update_rate = visualization.update_rate;
+
+  settings.robot_models.frame_id = visualization.frameId;
+  settings.robot_models.interval = visualization.robotModels.interval;
 
   settings.trajectory.frame_id = visualization.frameId;
   settings.trajectory.marker_topic = visualization.trajectory.markerTopic;

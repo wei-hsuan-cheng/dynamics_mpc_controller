@@ -34,6 +34,11 @@ public:
     rclcpp_lifecycle::LifecycleNode& node,
     Settings settings);
 
+  bool hasSubscribers() const
+  {
+    return marker_publisher_->get_subscription_count() +
+             marker_publisher_->get_intra_process_subscription_count() > 0;
+  }
   void publish(const ocs2_msgs::msg::MpcFlattenedController& policy);
   void publish(const ocs2::vector_array_t& stateTrajectory);
 

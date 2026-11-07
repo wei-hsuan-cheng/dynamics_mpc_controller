@@ -889,7 +889,8 @@ controller_interface::return_type InverseDynamicsMpcController::update_and_write
   }
 
   if (performance_visualizer_) {
-    performance_visualizer_->update_visualization(observation.state, policy.stateTrajectory_);
+    performance_visualizer_->update_visualization(
+      observation.state, policy.timeTrajectory_, policy.stateTrajectory_);
   }
 
   vector_t policy_state;

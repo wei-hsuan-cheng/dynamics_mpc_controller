@@ -110,6 +110,22 @@ inverse_dynamics_mpc_controller:
             description: "Topic for self-collision visualization markers"
           }
 
+        robotModels:
+          activate: {
+            type: bool,
+            default_value: true,
+            description: "Publish the robot model along the optimized MPC trajectory (future robot ghosts) and at its end"
+          }
+
+          interval: {
+            type: double,
+            default_value: 0.2,
+            description: "Time between future robot ghosts [s]",
+            validation: {
+              gt: [0.0]
+            }
+          }
+
         trajectory:
           activate: {
             type: bool,

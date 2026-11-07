@@ -56,6 +56,7 @@ add_library(${PROJECT_NAME} SHARED
   src/common/pinocchio_utils.cpp
   src/diagnostics/mpc_policy_publisher.cpp
   src/estimation/momentum_observer_wrench_estimator.cpp
+  src/visualization/future_robot_model_visualization.cpp
   src/visualization/optimized_state_trajectory_visualization.cpp
   src/visualization/performance_visualization.cpp
   src/visualization/self_collision_visualization.cpp

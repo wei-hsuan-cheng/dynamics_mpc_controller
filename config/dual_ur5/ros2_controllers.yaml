@@ -25,6 +25,9 @@ controller_manager:
           update_rate: 30.0
           collision:
             activate: true
+          robotModels:
+            activate: true
+            interval: 0.2
           trajectory:
             activate: true
             frame_names:
