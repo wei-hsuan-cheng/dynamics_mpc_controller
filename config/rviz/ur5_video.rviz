@@ -1,0 +1,125 @@
+Panels: []
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 0.5
+      Cell Size: 0.25
+      Class: rviz_default_plugins/Grid
+      Color: 160; 160; 164
+      Enabled: true
+      Line Style:
+        Line Width: 0.029999999329447746
+        Value: Lines
+      Name: Grid
+      Normal Cell Count: 0
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Plane: XY
+      Plane Cell Count: 16
+      Reference Frame: <Fixed Frame>
+      Value: true
+    - Alpha: 1
+      Class: rviz_default_plugins/RobotModel
+      Collision Enabled: false
+      Description File: ""
+      Description Source: Topic
+      Description Topic:
+        Depth: 5
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /robot_description
+      Enabled: true
+      Name: RobotModel
+      TF Prefix: ""
+      Update Interval: 0
+      Value: true
+      Visual Enabled: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Optimized State Ghosts
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /performance_visualization/optimizedStateGhosts
+      Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Terminal State Ghost
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /performance_visualization/terminalStateGhost
+      Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Optimized State Trajectory
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /performance_visualization/optimizedStateTrajectory
+      Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Dynamic Obstacles
+      Namespaces:
+        obstacleClearance: true
+        obstacleId: false
+        obstacleNow: true
+        obstaclePath: true
+        obstaclePrediction: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /performance_visualization/dynamicObstacleMarkers
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 48; 48; 48
+    Fixed Frame: world
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz_default_plugins/MoveCamera
+  Transformation:
+    Current:
+      Class: rviz_default_plugins/TF
+  Value: true
+  Views:
+    # The camera of tests/demo_video/render_ur5_video.py: 1.9 m from the focal point (0.12, 0, 0.44), 22 deg above
+    # it, at yaw -125 deg (MuJoCo azimuth 55 deg, elevation -22 deg), both with a 45 deg vertical field of view.
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 1.9
+      Focal Point:
+        X: 0.12
+        Y: 0
+        Z: 0.44
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05000000074505806
+      Invert Z Axis: false
+      Name: Current View
+      Near Clip Distance: 0.009999999776482582
+      Pitch: 0.3839724354387525
+      Target Frame: <Fixed Frame>
+      Value: Orbit (rviz)
+      Yaw: -2.181661564992912
+    Saved: ~
+Window Geometry:
+  # 960 x 720 render area (the window adds 32 x 86).
+  Height: 806
+  Hide Left Dock: true
+  Hide Right Dock: true
+  Width: 992
+  X: 0
+  Y: 0
