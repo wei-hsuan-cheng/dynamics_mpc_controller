@@ -15,6 +15,7 @@
 #include <ocs2_robotic_tools/common/RobotInterface.h>
 #include <ocs2_sqp/SqpSettings.h>
 
+#include "dynamics_mpc_controller/common/constraint/dynamic_obstacles.hpp"
 #include "dynamics_mpc_controller/common/constraint/dynamics_self_collision_constraint.hpp"
 #include "dynamics_mpc_controller/inverse_dynamics_mpc/inverse_dynamics_mpc_model.hpp"
 #include "dynamics_mpc_controller/inverse_dynamics_mpc_controller_parameters.hpp"
@@ -57,6 +58,13 @@ public:
   bool selfCollisionHardStopActive() const { return self_collision_hard_stop_active_; }
   double selfCollisionHardStopDistance() const { return self_collision_hard_stop_distance_; }
   double computeMinimumSelfCollisionDistance(const ocs2::vector_t& q) const;
+  // Null unless dynamicObstacles.activate: the obstacle set the subscription fills, and the module that hands it to
+  // the solver before every solve.
+  const std::shared_ptr<constraint::DynamicObstacles>& dynamicObstacles() const { return dynamic_obstacles_; }
+  const std::shared_ptr<ocs2::SolverSynchronizedModule>& dynamicObstacleModule() const
+  {
+    return dynamic_obstacle_module_;
+  }
 
   InverseDynamicsEvaluation evaluateInverseDynamics(
     const ocs2::vector_t& q,
@@ -108,6 +116,8 @@ private:
   ocs2::vector_t state_upper_bounds_;
   std::unique_ptr<constraint::DynamicsSelfCollisionDistanceEvaluator>
     self_collision_distance_evaluator_;
+  std::shared_ptr<constraint::DynamicObstacles> dynamic_obstacles_;
+  std::shared_ptr<ocs2::SolverSynchronizedModule> dynamic_obstacle_module_;
 };
 
 }  // namespace dynamics_mpc_controller

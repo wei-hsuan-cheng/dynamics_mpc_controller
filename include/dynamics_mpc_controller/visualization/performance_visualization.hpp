@@ -17,6 +17,7 @@
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 #include <realtime_tools/realtime_thread_safe_box.hpp>
 
+#include "dynamics_mpc_controller/visualization/dynamic_obstacle_visualization.hpp"
 #include "dynamics_mpc_controller/visualization/future_robot_model_visualization.hpp"
 #include "dynamics_mpc_controller/visualization/optimized_state_trajectory_visualization.hpp"
 #include "dynamics_mpc_controller/visualization/self_collision_visualization.hpp"
@@ -36,6 +37,9 @@ public:
     OptimizedStateTrajectoryVisualization::Settings trajectory;
     SelfCollisionVisualization::Settings self_collision;
     FutureRobotModelVisualization::Settings robot_models;
+    // Set by the inverse-dynamics controller when dynamicObstacles is active; null: no obstacle markers.
+    std::shared_ptr<const constraint::DynamicObstacles> dynamic_obstacles;
+    DynamicObstacleVisualization::Settings obstacles;
   };
 
   PerformanceVisualization(
@@ -68,6 +72,7 @@ private:
   std::unique_ptr<OptimizedStateTrajectoryVisualization> trajectory_visualization_;
   std::unique_ptr<SelfCollisionVisualization> self_collision_visualization_;
   std::unique_ptr<FutureRobotModelVisualization> robot_model_visualization_;
+  std::unique_ptr<DynamicObstacleVisualization> obstacle_visualization_;
   realtime_tools::RealtimeThreadSafeBox<Snapshot> latest_snapshot_;
   std::thread visualization_thread_;
   std::chrono::duration<double> period_{0.2};

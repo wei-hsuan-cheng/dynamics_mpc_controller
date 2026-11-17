@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(dynamics_mpc_controller LANGUAGES CXX)
+project(dynamics_mpc_controller LANGUAGES C CXX)
 
 list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -34,10 +34,21 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
 
 find_package(ament_cmake REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
 
 foreach(dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
   find_package(${dependency} REQUIRED)
 endforeach()
+
+# Tracked moving obstacles (dynamicObstacles). The target cannot take the package name, which is the controller
+# library's; LIBRARY_NAME keeps the type support libraries named after the package, where ROS looks them up.
+rosidl_generate_interfaces(${PROJECT_NAME}_msgs
+  "msg/TrackedObstacle.msg"
+  "msg/TrackedObstacleArray.msg"
+  DEPENDENCIES geometry_msgs std_msgs
+  LIBRARY_NAME ${PROJECT_NAME}
+)
+rosidl_get_typesupport_target(cpp_typesupport_target ${PROJECT_NAME}_msgs rosidl_typesupport_cpp)
 
 generate_parameter_library(inverse_dynamics_mpc_controller_parameters
   src/inverse_dynamics_mpc/inverse_dynamics_mpc_controller_parameter.yaml
@@ -48,6 +59,8 @@ generate_parameter_library(forward_dynamics_mpc_controller_parameters
 
 add_library(${PROJECT_NAME} SHARED
   src/common/controller_utils.cpp
+  src/common/constraint/dynamic_obstacle_soft_constraint.cpp
+  src/common/constraint/dynamic_obstacles.cpp
   src/common/constraint/dynamics_self_collision_constraint.cpp
   src/common/constraint/ee_contact_friction_cone_soft_constraint.cpp
   src/common/cost/ee_motion_tracking_cost.cpp
@@ -56,6 +69,7 @@ add_library(${PROJECT_NAME} SHARED
   src/common/pinocchio_utils.cpp
   src/diagnostics/mpc_policy_publisher.cpp
   src/estimation/momentum_observer_wrench_estimator.cpp
+  src/visualization/dynamic_obstacle_visualization.cpp
   src/visualization/future_robot_model_visualization.cpp
   src/visualization/optimized_state_trajectory_visualization.cpp
   src/visualization/performance_visualization.cpp
@@ -92,6 +106,7 @@ target_link_libraries(${PROJECT_NAME}
     Eigen3::Eigen
     inverse_dynamics_mpc_controller_parameters
     forward_dynamics_mpc_controller_parameters
+    "${cpp_typesupport_target}"
 )
 ament_target_dependencies(${PROJECT_NAME} PUBLIC ${THIS_PACKAGE_INCLUDE_DEPENDS})
 
@@ -140,7 +155,7 @@ if(BUILD_TESTING)
 endif()
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
-ament_export_dependencies(${THIS_PACKAGE_INCLUDE_DEPENDS})
+ament_export_dependencies(${THIS_PACKAGE_INCLUDE_DEPENDS} rosidl_default_runtime)
 ament_export_include_directories(include)
 ament_export_libraries(${PROJECT_NAME})
 

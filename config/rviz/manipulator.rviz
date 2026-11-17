@@ -373,6 +373,22 @@ Visualization Manager:
         Value: /performance_visualization/selfCollisionDistanceMarkers
       Value: true
     - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Dynamic Obstacles
+      Namespaces:
+        obstacleClearance: true
+        obstacleId: true
+        obstacleNow: true
+        obstaclePath: true
+        obstaclePrediction: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /performance_visualization/dynamicObstacleMarkers
+      Value: true
+    - Class: rviz_default_plugins/MarkerArray
       Enabled: false
       Name: Manipulability Ellipsoids
       Namespaces:

@@ -237,6 +237,28 @@ inverse_dynamics_mpc_controller:
             lowerBound: [-3.15, -3.15, -3.15, -3.2, -3.2, -3.2]
             upperBound: [3.15, 3.15, 3.15, 3.2, 3.2, 3.2]
 
+        ##### Tracked moving obstacles (dynamics_mpc_controller/TrackedObstacleArray), as a vision tracker
+        ##### publishes them: spheres with a pose and a velocity, predicted over the horizon. On top of
+        ##### selfCollision, whose fixed pairs (red wall, blue box) stay as they are.
+        ##### Example publisher: example/command/obstacles/moving_spheres.py
+        dynamicObstacles:
+          activate: true
+          topic: /dynamic_obstacles
+          frameId: world
+          links:
+            [ur_arm_upper_arm_link, ur_arm_forearm_link,
+             ur_arm_wrist_1_link, ur_arm_wrist_2_link, ur_arm_wrist_3_link]
+          maxObstacles: 4
+          maxSpheresPerObstacle: 2
+          minimumDistance: 0.05
+          mu: 1.0e-2                 # same relaxed barrier as selfCollision
+          delta: 5.0e-4
+          timeout: 0.5               # s without a message: every obstacle cleared
+          predict: true              # constant-velocity extrapolation over the horizon
+          maxPredictionTime: 1.0     # s after the message stamp
+          fadeInTime: 0.2            # s, barrier weight ramp for a newly seen obstacle
+          positionStdScale: 2.0      # radius += scale * position_std
+
     paths:
       libFolder: $(var libFolder)
       urdfFile: $(var urdfFile)

@@ -19,6 +19,7 @@
 #include <ocs2_core/integration/SensitivityIntegrator.h>
 #include <ocs2_oc/rollout/TimeTriggeredRollout.h>
 
+#include "dynamics_mpc_controller/common/constraint/dynamic_obstacle_soft_constraint.hpp"
 #include "dynamics_mpc_controller/common/constraint/dynamics_self_collision_constraint.hpp"
 #include "dynamics_mpc_controller/common/constraint/ee_contact_friction_cone_soft_constraint.hpp"
 #include "dynamics_mpc_controller/common/cost/ee_motion_tracking_cost.hpp"
@@ -697,6 +698,38 @@ void InverseDynamicsMpcInterface::setupOptimalControlProblem(const Params& param
       *pinocchio_interface_ptr_,
       collision_link_pairs,
       collision_object_pairs);
+  }
+
+  // Tracked moving obstacles: the cost reads the snapshot the synchronized module refreshes before every solve.
+  const auto& obstacles = parameters.ocs2.task.dynamicObstacles;
+  dynamic_obstacles_.reset();
+  dynamic_obstacle_module_.reset();
+  if (obstacles.activate) {
+    constraint::DynamicObstacleSettings settings;
+    settings.max_obstacles = static_cast<std::size_t>(obstacles.maxObstacles);
+    settings.max_spheres = static_cast<std::size_t>(obstacles.maxSpheresPerObstacle);
+    settings.frame_id = obstacles.frameId;
+    settings.timeout = obstacles.timeout;
+    settings.predict = obstacles.predict;
+    settings.max_prediction_time = obstacles.maxPredictionTime;
+    settings.fade_in_time = obstacles.fadeInTime;
+    settings.position_std_scale = obstacles.positionStdScale;
+    dynamic_obstacles_ = std::make_shared<constraint::DynamicObstacles>(settings);
+    auto snapshot = std::make_shared<constraint::DynamicObstacleSnapshot>();
+    auto cost = std::make_unique<constraint::DynamicObstacleSoftConstraint>(
+      *pinocchio_interface_ptr_,
+      n,
+      obstacles.links,
+      obstacles.minimumDistance,
+      obstacles.mu,
+      obstacles.delta,
+      snapshot);
+    std::cerr << "\n #### dynamicObstacles: " << obstacles.maxObstacles << " obstacles x "
+              << obstacles.maxSpheresPerObstacle << " spheres, " << cost->numPrimitives()
+              << " arm collision primitives\n";
+    problem_.stateSoftConstraintPtr->add("dynamicObstacles", std::move(cost));
+    dynamic_obstacle_module_ =
+      std::make_shared<constraint::DynamicObstacleSynchronizedModule>(dynamic_obstacles_, std::move(snapshot));
   }
 
   ocs2::rollout::Settings rollout_settings;

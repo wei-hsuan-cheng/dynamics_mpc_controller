@@ -87,6 +87,30 @@ controller_interface::CallbackReturn InverseDynamicsMpcController::on_configure(
       target_timeout_hold_active_ = false;
       self_collision_hard_stop_hold_active_ = false;
     });
+  obstacle_subscription_.reset();
+  if (const auto obstacles = interface_->dynamicObstacles()) {
+    obstacle_subscription_ = get_node()->create_subscription<constraint::DynamicObstacles::Msg>(
+      parameters_.ocs2.task.dynamicObstacles.topic,
+      rclcpp::QoS(1).best_effort(),
+      [this, obstacles](const std::shared_ptr<constraint::DynamicObstacles::Msg> msg) {
+        std::string error;
+        if (!obstacles->update(*msg, get_node()->now().seconds(), &error)) {
+          RCLCPP_WARN_THROTTLE(
+            get_node()->get_logger(),
+            *get_node()->get_clock(),
+            status_log_period_ms_,
+            "[InverseDynamicsMpcController] rejected obstacles: %s",
+            error.c_str());
+        }
+      });
+    RCLCPP_INFO(
+      get_node()->get_logger(),
+      "[InverseDynamicsMpcController] dynamic obstacles from %s (%zu obstacles x %zu spheres, frame %s)",
+      parameters_.ocs2.task.dynamicObstacles.topic.c_str(),
+      obstacles->settings().max_obstacles,
+      obstacles->settings().max_spheres,
+      obstacles->settings().frame_id.c_str());
+  }
   mpc_observation_publisher_ = get_node()->create_publisher<ocs2_msgs::msg::MpcObservation>(
     mpc_data_.mpc_observation_topic_,
     rclcpp::QoS(1));
@@ -278,11 +302,21 @@ bool InverseDynamicsMpcController::configure_mpc_ocs2()
 
   performance_visualizer_.reset();
   try {
+    auto visualization_settings = visualization::makePerformanceVisualizationSettings(parameters_);
+    if (interface_->dynamicObstacles()) {
+      const auto& obstacles = parameters_.ocs2.task.dynamicObstacles;
+      visualization_settings.dynamic_obstacles = interface_->dynamicObstacles();
+      visualization_settings.obstacles.frame_id = parameters_.ocs2.task.visualization.frameId;
+      visualization_settings.obstacles.marker_topic = obstacles.markerTopic;
+      visualization_settings.obstacles.minimum_distance = obstacles.minimumDistance;
+      visualization_settings.obstacles.horizon = parameters_.ocs2.mpc.timeHorizon;
+      visualization_settings.obstacles.interval = parameters_.ocs2.task.visualization.robotModels.interval;
+    }
     performance_visualizer_ = std::make_unique<visualization::PerformanceVisualization>(
       get_node(),
       interface_->getPinocchioInterface(),
       model.endEffectorFrameId(),
-      visualization::makePerformanceVisualizationSettings(parameters_));
+      std::move(visualization_settings));
   } catch (const std::exception& e) {
     RCLCPP_ERROR(
       get_node()->get_logger(),
@@ -453,6 +487,9 @@ controller_interface::CallbackReturn InverseDynamicsMpcController::on_activate(
   }
 
   mpc_solver_->getSolverPtr()->setReferenceManager(reference_manager_);
+  if (interface_->dynamicObstacleModule()) {
+    mpc_solver_->getSolverPtr()->addSynchronizedModule(interface_->dynamicObstacleModule());
+  }
   mrt_interface_ = std::make_unique<ocs2::MPC_MRT_Interface>(*mpc_solver_);
   mrt_interface_->initRollout(&interface_->getRollout());
 
@@ -655,6 +692,13 @@ void InverseDynamicsMpcController::mpc_loop()
               average_advance_ms,
               target_period_ms,
               100.0 * average_advance_ms / target_period_ms);
+            if (const auto& obstacles = interface_->dynamicObstacles()) {
+              RCLCPP_INFO(
+                get_node()->get_logger(),
+                "[InverseDynamicsMpcController][OBSTACLES] in slots=%zu, dropped for lack of slots=%zu.",
+                obstacles->activeObstacles(),
+                obstacles->droppedObstacles());
+            }
             accumulated_period_ms = 0.0;
             accumulated_advance_ms = 0.0;
             period_samples = 0;

@@ -863,6 +863,127 @@ inverse_dynamics_mpc_controller:
               gt_eq: [0]
             }
 
+      dynamicObstacles:
+        activate: {
+          type: bool,
+          default_value: false,
+          description: "Keep the arm away from tracked moving obstacles (dynamics_mpc_controller/TrackedObstacleArray), a relaxed-barrier soft constraint per collision primitive of links and obstacle sphere"
+        }
+
+        topic: {
+          type: string,
+          default_value: "/dynamic_obstacles",
+          description: "Tracked obstacle topic; each message is the complete current set"
+        }
+
+        frameId: {
+          type: string,
+          default_value: "world",
+          description: "Frame the obstacles must be expressed in (the MPC's world frame); messages in another frame are rejected"
+        }
+
+        markerTopic: {
+          type: string,
+          default_value: "/performance_visualization/dynamicObstacleMarkers",
+          description: "RViz markers of the obstacles the MPC sees: now, clearance shell, predicted path and spheres"
+        }
+
+        links: {
+          type: string_array,
+          default_value: [],
+          description: "Arm links kept away from the obstacle spheres (their URDF collision primitives)",
+          validation: {
+            unique<>: null
+          }
+        }
+
+        maxObstacles: {
+          type: int,
+          default_value: 4,
+          description: "Obstacle slots; beyond this the obstacles nearest the frame origin are kept",
+          validation: {
+            gt: [0]
+          }
+        }
+
+        maxSpheresPerObstacle: {
+          type: int,
+          default_value: 2,
+          description: "Spheres used per obstacle; further spheres are ignored",
+          validation: {
+            gt: [0]
+          }
+        }
+
+        minimumDistance: {
+          type: double,
+          default_value: 0.05,
+          description: "Clearance kept between a collision primitive and an obstacle sphere surface [m]",
+          validation: {
+            gt_eq: [0.0]
+          }
+        }
+
+        mu: {
+          type: double,
+          default_value: 1.0e-2,
+          description: "Relaxed barrier mu",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        delta: {
+          type: double,
+          default_value: 5.0e-4,
+          description: "Relaxed barrier delta",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        timeout: {
+          type: double,
+          default_value: 0.5,
+          description: "No message for this long [s] clears every obstacle",
+          validation: {
+            gt: [0.0]
+          }
+        }
+
+        predict: {
+          type: bool,
+          default_value: true,
+          description: "Extrapolate each obstacle at constant velocity over the MPC horizon"
+        }
+
+        maxPredictionTime: {
+          type: double,
+          default_value: 1.0,
+          description: "Extrapolate at most this long after the message stamp [s]",
+          validation: {
+            gt_eq: [0.0]
+          }
+        }
+
+        fadeInTime: {
+          type: double,
+          default_value: 0.2,
+          description: "A newly seen obstacle's barrier weight ramps from 0 to 1 over this time [s], so the plan does not jump",
+          validation: {
+            gt_eq: [0.0]
+          }
+        }
+
+        positionStdScale: {
+          type: double,
+          default_value: 2.0,
+          description: "Sphere radii are inflated by this multiple of each obstacle's position_std",
+          validation: {
+            gt_eq: [0.0]
+          }
+        }
+
       eeContactFrictionConeSoftConstraint:
         activate: {
           type: bool,

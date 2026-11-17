@@ -54,7 +54,14 @@ PerformanceVisualization::PerformanceVisualization(
       pinocchioInterface, *node_, settings_.robot_models);
   }
 
-  if (!trajectory_visualization_ && !self_collision_visualization_ && !robot_model_visualization_) {
+  if (settings_.dynamic_obstacles) {
+    obstacle_visualization_ = std::make_unique<DynamicObstacleVisualization>(
+      settings_.dynamic_obstacles, *node_, settings_.obstacles);
+  }
+
+  if (!trajectory_visualization_ && !self_collision_visualization_ && !robot_model_visualization_ &&
+      !obstacle_visualization_)
+  {
     RCLCPP_INFO(node_->get_logger(), "[Performance Visualization] no visualization features active");
     return;
   }
@@ -96,6 +103,10 @@ void PerformanceVisualization::visualization_loop()
     std::this_thread::sleep_for(period_);
 
     try {
+      // Obstacles come from the MPC thread's last snapshot, not from the control loop's.
+      if (obstacle_visualization_ && obstacle_visualization_->hasSubscribers()) {
+        obstacle_visualization_->publish();
+      }
       const bool collision_subscribed =
         self_collision_visualization_ && self_collision_visualization_->hasSubscribers();
       const bool trajectory_subscribed = trajectory_visualization_ && trajectory_visualization_->hasSubscribers();
